@@ -12,14 +12,19 @@ struct IslandRootView: View {
         let panel = model.panelFrame
         let island = model.islandRect(for: model.presentation)
         ZStack(alignment: .topLeading) {
+            // Bubbles sit under the island, so they bud out from beneath its
+            // edge and slip back under it to merge.
+            MinimalBubblesView(model: model, panel: panel)
             IslandView(model: model)
                 .offset(x: island.minX - panel.minX, y: panel.maxY - island.maxY)
-            MinimalBubblesView(model: model, panel: panel)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .animation(layoutAnimation, value: model.compactLayout)
         .ignoresSafeArea()
         .environment(\.colorScheme, .dark)
+        // The island panel is never the key window, but its controls are live:
+        // draw them active rather than in the dimmed inactive-window look.
+        .environment(\.controlActiveState, .key)
     }
 
     private var layoutAnimation: Animation {
@@ -56,6 +61,7 @@ struct IslandView: View {
         .frame(width: model.islandSize.width, height: model.islandSize.height)
         .animation(resizeAnimation, value: model.expandedHeight)
         .environment(\.islandReduceMotion, model.accessibility.reduceMotion)
+        .environment(\.islandSurfaceIsGlass, model.surfaceIsGlass)
         .clipShape(shape)
         // Glass goes after layout and around the content, so the content gets
         // glass vibrancy. Disabled (black) on the compact notch.

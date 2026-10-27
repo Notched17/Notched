@@ -19,20 +19,22 @@ struct ExpandedHeaderView: View {
     }
 }
 
-/// Time and date. Re-renders once a minute, and only while visible.
+/// Time and date, stacked so they fit beside the camera housing. Re-renders
+/// once a minute, and only while visible.
 struct IslandClock: View {
     var body: some View {
         TimelineView(.everyMinute) { context in
-            HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(context.date, format: .dateTime.hour().minute())
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .contentTransition(.numericText())
-                Text(context.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
-                    .font(.system(size: 12, weight: .medium))
+                Text(context.date, format: .dateTime.weekday(.abbreviated).day())
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
             }
             .lineLimit(1)
+            .fixedSize()
             .accessibilityElement(children: .combine)
         }
     }

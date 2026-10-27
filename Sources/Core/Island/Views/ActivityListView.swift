@@ -6,6 +6,7 @@ import SwiftUI
 /// open their page), hidden ones (click to show again) and recently ended ones.
 struct ActivityListView: View {
     let model: IslandViewModel
+    @State private var overflows = false
 
     var body: some View {
         let activities = model.activities
@@ -38,7 +39,22 @@ struct ActivityListView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollIndicators(.never)
-        .frame(maxHeight: IslandMetrics.expandedMaxContentHeight - Spacing.xl)
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            geometry.contentSize.height > geometry.containerSize.height + 1
+        } action: { _, overflowing in
+            overflows = overflowing
+        }
+        // When there's more to scroll to, the last visible row fades out
+        // rather than being cut off.
+        .mask {
+            VStack(spacing: 0) {
+                Rectangle()
+                LinearGradient(colors: [.black, .black.opacity(overflows ? 0 : 1)], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 18)
+            }
+        }
+        // Leaves room under the list for the page indicator and the bottom margin.
+        .frame(maxHeight: IslandMetrics.expandedMaxContentHeight - 40)
         .fixedSize(horizontal: false, vertical: true)
     }
 

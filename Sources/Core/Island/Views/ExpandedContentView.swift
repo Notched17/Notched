@@ -33,6 +33,9 @@ struct ExpandedContentView: View {
             }
         }
         .padding(.horizontal, model.contentHorizontalInset)
+        // Without a camera housing (the pill), keep content off the top edge
+        // with the same margin as the sides.
+        .padding(.top, model.expandedTopInset)
         .frame(width: rect.width, height: rect.height, alignment: .top)
         // Inner rounded shapes nest concentrically inside the island's bottom corners.
         .containerShape(.rect(cornerRadius: model.shapeMetrics.bottom, style: .continuous))

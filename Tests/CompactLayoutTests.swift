@@ -16,9 +16,11 @@ struct CompactLayoutTests {
         mode: CompactLayout.Mode = .bubbles,
         primary: CompactLayout.Widths?,
         secondary: CompactLayout.Widths? = nil,
-        minimal: [CGFloat] = []
+        minimal: [CGFloat] = [],
+        isBanner: Bool = false
     ) -> CompactLayout {
-        CompactLayout.resolve(geometry: geometry ?? notch, mode: mode, primary: primary, secondary: secondary, minimal: minimal)
+        CompactLayout.resolve(geometry: geometry ?? notch, mode: mode, primary: primary, secondary: secondary,
+                              minimal: minimal, isBanner: isBanner)
     }
 
     @Test("With nothing live the compact island is exactly the notch")
@@ -53,21 +55,31 @@ struct CompactLayoutTests {
         #expect(sut.trailingSide == sut.leadingSide)
     }
 
-    @Test("Two activities: the second is a trailing bubble 6 pt from the island, and content is width-limited")
+    @Test("A banner is a wide compact view: its regions may use the whole width budget, not just 64 pt")
+    func bannerUsesBudget() {
+        let sut = layout(primary: .init(leading: 70, trailing: 50), isBanner: true)
+        #expect(sut.leadingSide == 90)
+        #expect(sut.trailingSide == 90)
+        let tooWide = layout(primary: .init(leading: 120, trailing: 50), isBanner: true)
+        #expect(tooWide.leadingSide == 90)
+    }
+
+    @Test("Two activities: the second is a trailing bubble 6 pt from the island's body, and content is width-limited")
     func trailingBubble() throws {
         let sut = layout(primary: .init(leading: 18, trailing: 40), minimal: [20])
         try #require(sut.bubbles.count == 1)
         let bubble = sut.bubbles[0]
-        #expect(bubble.minX == sut.island.maxX + 6)
+        // On a notch the island's body is inset by its concave shoulder; the gap is measured from the body.
+        #expect(bubble.minX == sut.island.maxX - Radius.compactShoulder + 6)
         #expect(bubble.midY == sut.island.midY)
         #expect(sut.isWidthLimited)
     }
 
-    @Test("Three activities: the third is a leading bubble 6 pt from the island")
+    @Test("Three activities: the third is a leading bubble 6 pt from the island's body")
     func leadingBubble() throws {
         let sut = layout(primary: .init(leading: 18, trailing: 40), minimal: [20, 20])
         try #require(sut.bubbles.count == 2)
-        #expect(sut.bubbles[1].maxX == sut.island.minX - 6)
+        #expect(sut.bubbles[1].maxX == sut.island.minX + Radius.compactShoulder - 6)
     }
 
     @Test("Bubbles are circles at least as tall as they are wide, ovals up to 45 pt for wider content")

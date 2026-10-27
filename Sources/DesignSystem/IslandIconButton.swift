@@ -8,19 +8,21 @@ import SwiftUI
 struct IslandIconButton: View {
     let symbol: String
     let label: String
+    var size: CGFloat = 26
     var onGlassSurface = false
     let action: () -> Void
+    @Environment(\.islandSurfaceIsGlass) private var islandIsGlass
 
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
-                .frame(width: 26, height: 26)
+                .font(.system(size: size * 0.46, weight: .semibold))
+                .frame(width: size, height: size)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .foregroundStyle(.primary)
-        .modifier(IslandButtonSurface(onGlassSurface: onGlassSurface))
+        .modifier(IslandButtonSurface(onGlassSurface: onGlassSurface || islandIsGlass))
         .help(label)
         .accessibilityLabel(label)
     }

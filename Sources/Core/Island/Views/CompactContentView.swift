@@ -52,7 +52,11 @@ struct CompactContentView: View {
                 .padding(isLeading ? .leading : .trailing, outer)
                 .padding(isLeading ? .trailing : .leading, inner)
         } else {
-            Color.clear.frame(width: max(width, 0))
+            // No room yet: still render the content (invisibly) so it gets
+            // measured, which is what gives this side its width.
+            ZStack { content() }
+                .frame(width: max(width, 0))
+                .opacity(0)
         }
     }
 

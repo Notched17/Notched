@@ -120,7 +120,8 @@ final class IslandViewModel {
         return CompactLayout.resolve(
             geometry: geometry, mode: multipleActivityMode,
             primary: scene.primary.map(compactWidths), secondary: scene.secondary.map(compactWidths),
-            minimal: scene.bubbles.map { measuredWidths[Self.minimalKey($0.id)] ?? 0 }
+            minimal: scene.bubbles.map { measuredWidths[Self.minimalKey($0.id)] ?? 0 },
+            isBanner: activities.banner != nil
         )
     }
 
@@ -175,8 +176,11 @@ final class IslandViewModel {
     /// minimum and maximum (taller content is truncated).
     var expandedHeight: CGFloat {
         let measured = expandedPageHeights[expandedPageKey] ?? 0
-        return min(max(measured + IslandMetrics.expandedBottomInset, minExpandedHeight), maxExpandedHeight)
+        return min(max(measured + expandedTopInset + IslandMetrics.expandedBottomInset, minExpandedHeight), maxExpandedHeight)
     }
+
+    /// The pill has no camera housing row, so its content needs a top margin.
+    var expandedTopInset: CGFloat { geometry.kind == .pill && expandedActivity != nil ? Spacing.l : 0 }
 
     var minExpandedHeight: CGFloat { headerHeight + IslandMetrics.expandedMinContentHeight }
     var maxExpandedHeight: CGFloat { headerHeight + IslandMetrics.expandedMaxContentHeight }

@@ -9,7 +9,7 @@ import CoreGraphics
 ///
 /// - One activity owns both sides of the notch, each as wide as the wider
 ///   region (balanced, like iPhone), capped at 64 pt. An empty trailing
-///   region hides that side.
+///   region hides that side. A banner ("wide compact") may use the whole budget.
 /// - Bubbles mode: the second activity is a bubble 6 pt right of the island,
 ///   the third one left of it. Circles, growing into ovals up to 45 pt.
 /// - Side by side (iPhone 18 Pro): the first two activities take one side of
@@ -41,17 +41,21 @@ struct CompactLayout: Equatable {
     /// The island's trailing side shows the second activity.
     var isSideBySide: Bool
 
-    static func resolve(geometry: NotchGeometry, mode: Mode, primary: Widths?, secondary: Widths?, minimal: [CGFloat]) -> CompactLayout {
+    static func resolve(geometry: NotchGeometry, mode: Mode, primary: Widths?, secondary: Widths?, minimal: [CGFloat],
+                        isBanner: Bool = false) -> CompactLayout {
         guard let primary else {
             return CompactLayout(island: geometry.compactRect(leading: 0, trailing: 0), leadingSide: 0, trailingSide: 0,
                                  bubbles: [], isWidthLimited: false, isSideBySide: false)
         }
         let padding = IslandMetrics.compactSlotPadding
+        // A banner is "wide compact": it may use the whole budget on each side.
+        let cap = isBanner ? IslandMetrics.compactWidthBudget - padding : IslandMetrics.compactRegionMaxWidth
+        let capped = { (width: CGFloat) in min(max(width, 0), cap) }
         let sideBySide = mode == .sideBySide && secondary != nil
         var leadingSide: CGFloat
         var trailingSide: CGFloat
         if sideBySide, let secondary {
-            let side = max(pairWidth(primary), pairWidth(secondary)) + padding
+            let side = max(pairWidth(primary, capped), pairWidth(secondary, capped)) + padding
             leadingSide = side
             trailingSide = side
         } else {
@@ -71,8 +75,13 @@ struct CompactLayout: Equatable {
             min(max(width + 2 * IslandMetrics.bubblePadding, bubbleHeight), IslandMetrics.bubbleMaxWidth)
         }
 
+        // The gap is measured from the island's body, which on a notch is
+        // inset by its concave shoulders.
+        let bodyInset = geometry.kind == .notch ? Radius.compactShoulder : 0
+        let gap = IslandMetrics.bubbleGap - bodyInset
+
         // Shrink the island's sides (keeping them balanced) until everything fits the budget.
-        let bubbleSpan = bubbleWidths.reduce(0) { $0 + IslandMetrics.bubbleGap + $1 }
+        let bubbleSpan = bubbleWidths.reduce(0) { $0 + gap + $1 }
         let excess = base.width + leadingSide + trailingSide + bubbleSpan - (base.width + 2 * IslandMetrics.compactWidthBudget)
         if excess > 0 {
             if trailingSide > 0 {
@@ -86,9 +95,7 @@ struct CompactLayout: Equatable {
         let island = geometry.compactRect(leading: leadingSide, trailing: trailingSide)
         var bubbles: [CGRect] = []
         for (index, width) in bubbleWidths.enumerated() {
-            let x = index == 0
-                ? island.maxX + IslandMetrics.bubbleGap
-                : island.minX - IslandMetrics.bubbleGap - width
+            let x = index == 0 ? island.maxX + gap : island.minX - gap - width
             let rect = CGRect(x: x, y: island.midY - bubbleHeight / 2, width: width, height: bubbleHeight)
             bubbles.append(NotchGeometry.align(rect, scale: geometry.scale))
         }
@@ -99,12 +106,8 @@ struct CompactLayout: Equatable {
     /// Every hit region: the island, then the bubbles.
     var hitRegions: [CGRect] { [island] + bubbles }
 
-    private static func capped(_ width: CGFloat) -> CGFloat {
-        min(max(width, 0), IslandMetrics.compactRegionMaxWidth)
-    }
-
     /// Side by side, one activity's leading and trailing content sit together.
-    private static func pairWidth(_ widths: Widths) -> CGFloat {
+    private static func pairWidth(_ widths: Widths, _ capped: (CGFloat) -> CGFloat) -> CGFloat {
         capped(widths.leading) + (widths.trailing.map { IslandMetrics.sideBySideGap + capped($0) } ?? 0)
     }
 

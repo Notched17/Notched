@@ -332,9 +332,9 @@ struct DemoBannerLabelStyle: LabelStyle {
     let tint: Color
 
     func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 4) {
             configuration.icon
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(tint)
             configuration.title
                 .font(IslandFont.compact)

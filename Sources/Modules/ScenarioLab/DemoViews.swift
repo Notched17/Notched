@@ -78,13 +78,7 @@ struct DemoMusicExpandedBottom: View {
                     .font(IslandFont.subtitle)
                     .foregroundStyle(.secondary)
             }
-            ProgressView(timerInterval: start...start.addingTimeInterval(214), countsDown: false) {
-                EmptyView()
-            } currentValueLabel: {
-                EmptyView()
-            }
-            .progressViewStyle(.linear)
-            .tint(.white)
+            IslandTimerProgressBar(interval: start...start.addingTimeInterval(214), tint: .white)
             HStack(spacing: Spacing.xl) {
                 Spacer()
                 DemoControl(symbol: "backward.fill", label: "Previous")
@@ -121,23 +115,17 @@ struct DemoTimerExpandedBottom: View {
 
     var body: some View {
         VStack(spacing: Spacing.m) {
-            ProgressView(timerInterval: start...end, countsDown: true) {
-                EmptyView()
-            } currentValueLabel: {
-                EmptyView()
+            IslandTimerProgressBar(interval: start...end, countsDown: true, tint: DemoTimerStyle.tint)
+            GlassEffectContainer(spacing: Spacing.m) {
+                HStack(spacing: Spacing.m) {
+                    Button("Pause", systemImage: "pause.fill") {}
+                        .buttonStyle(.island)
+                    Spacer()
+                    Button("Cancel", systemImage: "xmark") {}
+                        .buttonStyle(.island)
+                }
+                .labelStyle(.titleAndIcon)
             }
-            .progressViewStyle(.linear)
-            .tint(DemoTimerStyle.tint)
-            HStack(spacing: Spacing.m) {
-                Button("Pause", systemImage: "pause.fill") {}
-                    .buttonStyle(.glass)
-                Spacer()
-                Button("Cancel", systemImage: "xmark") {}
-                    .buttonStyle(.glass)
-            }
-            .labelStyle(.titleAndIcon)
-            .font(.system(size: 12, weight: .semibold))
-            .tint(DemoTimerStyle.tint)
         }
     }
 }
@@ -146,14 +134,12 @@ struct DemoTimerDone: View {
     var body: some View {
         HStack(spacing: Spacing.m) {
             Button("Stop", systemImage: "stop.fill") {}
-                .buttonStyle(.glassProminent)
-                .tint(DemoTimerStyle.tint)
+                .buttonStyle(.island(prominent: DemoTimerStyle.tint))
             Spacer()
             Button("Repeat", systemImage: "arrow.counterclockwise") {}
-                .buttonStyle(.glass)
+                .buttonStyle(.island)
         }
         .labelStyle(.titleAndIcon)
-        .font(.system(size: 12, weight: .semibold))
     }
 }
 
@@ -200,10 +186,9 @@ struct DemoCallControls: View {
                 } label: {
                     Image(systemName: "phone.down.fill")
                         .font(.system(size: 15, weight: .semibold))
-                        .frame(width: 44, height: 30)
+                        .frame(width: 30, height: 30)
                 }
-                .buttonStyle(.glassProminent)
-                .tint(.red)
+                .buttonStyle(.island(prominent: .red))
                 .accessibilityLabel("End Call")
             }
         }
@@ -288,9 +273,7 @@ struct DemoDownloadBottom: View {
             Text("Golden Gate 4K.mov")
                 .font(IslandFont.title)
                 .lineLimit(1)
-            ProgressView(value: progress)
-                .progressViewStyle(.linear)
-                .tint(DemoDownloadStyle.tint)
+            IslandProgressBar(value: progress, tint: DemoDownloadStyle.tint)
             Text(sizeText)
                 .font(IslandFont.subtitle)
                 .foregroundStyle(.secondary)
@@ -327,21 +310,13 @@ struct DemoControl: View {
     }
 }
 
-/// A round interactive-glass button.
+/// A round button: interactive glass on the black island, a quiet fill on a glass one.
 struct DemoRoundButton: View {
     let symbol: String
     let label: String
 
     var body: some View {
-        Button {
-        } label: {
-            Image(systemName: symbol)
-                .font(.system(size: 13, weight: .semibold))
-                .frame(width: 30, height: 30)
-        }
-        .buttonStyle(.plain)
-        .glassEffect(.regular.interactive(), in: .circle)
-        .accessibilityLabel(label)
+        IslandIconButton(symbol: symbol, label: label, size: 30, onGlassSurface: false) {}
     }
 }
 

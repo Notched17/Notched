@@ -49,4 +49,13 @@ struct PlaybackTimelineTests {
         #expect(timeline.remaining(at: t0) == nil)
         #expect(timeline.elapsed(at: t0.addingTimeInterval(10)) == 60)
     }
+
+    @Test func seekFractionMapsToTime() {
+        let timeline = PlaybackTimeline(elapsed: 0, timestamp: t0, rate: 1, duration: 200)
+        #expect(timeline.time(forFraction: 0.5) == 100)
+        #expect(timeline.time(forFraction: -0.2) == 0)
+        #expect(timeline.time(forFraction: 1.4) == 200)
+        let live = PlaybackTimeline(elapsed: 0, timestamp: t0, rate: 1, duration: nil)
+        #expect(live.time(forFraction: 0.5) == nil)
+    }
 }

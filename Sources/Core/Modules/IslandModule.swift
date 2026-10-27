@@ -34,11 +34,13 @@ extension IslandModule {
 }
 
 /// What a module may use. Its activity sink is scoped to its own id; any
-/// polling goes through the shared scheduler.
+/// polling goes through the shared scheduler. Settings are read (and
+/// observed) from the shared store, which holds each module's own settings.
 @MainActor
 struct ModuleContext {
     let activities: ActivitySink
     let scheduler: RefreshScheduler
+    let settings: SettingsStore
 }
 
 /// Lets one module post, end and announce its own activities, and only its own.

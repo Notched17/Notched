@@ -26,7 +26,7 @@ final class AppEnvironment {
 
     /// Every module the app knows, in display order.
     static var moduleTypes: [any IslandModule.Type] {
-        var types: [any IslandModule.Type] = []
+        var types: [any IslandModule.Type] = [MediaModule.self]
         #if DEBUG
         types.append(HelloModule.self)
         #endif
@@ -41,7 +41,7 @@ final class AppEnvironment {
         accessibility = AccessibilityOptions()
         let expiryTimer = expiryTimer
         activities = ActivityCoordinator(scheduleWake: { date in expiryTimer.schedule(at: date) })
-        modules = ModuleRegistry(moduleTypes: Self.moduleTypes, coordinator: activities, scheduler: scheduler)
+        modules = ModuleRegistry(moduleTypes: Self.moduleTypes, coordinator: activities, settings: settings, scheduler: scheduler)
         fullscreen = FullscreenMonitor()
         islands = IslandManager(accessibility: accessibility, activities: activities, fullscreen: fullscreen)
         expiryTimer.action = { [weak activities] in activities?.advance(to: Date()) }

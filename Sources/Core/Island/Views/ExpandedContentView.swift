@@ -56,8 +56,8 @@ struct ActivityExpandedView: View {
                 region(expanded.center, role: .center)
                 region(expanded.bottom, role: .bottom)
             }
-            if record.isStale {
-                Label("Updating…", systemImage: "arrow.triangle.2.circlepath")
+            if record.isStale, let note = record.activity.staleNote {
+                Label(note.text, systemImage: note.symbol)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
                     .transition(.opacity)

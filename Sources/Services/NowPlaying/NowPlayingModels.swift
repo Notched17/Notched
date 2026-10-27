@@ -27,6 +27,12 @@ struct PlaybackTimeline: Equatable, Sendable {
         guard let duration, duration > 0 else { return nil }
         return elapsed(at: date) / duration
     }
+
+    /// The time at a point on the seek bar (0…1, clamped); nil for live streams.
+    func time(forFraction fraction: Double) -> TimeInterval? {
+        guard let duration, duration > 0 else { return nil }
+        return min(max(fraction, 0), 1) * duration
+    }
 }
 
 /// Identifies a track across play/pause updates. MediaRemote's content item

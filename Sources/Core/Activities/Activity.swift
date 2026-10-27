@@ -65,6 +65,15 @@ struct AlertRequest: Equatable, Sendable {
     }
 }
 
+/// What the expanded island says under a stale activity.
+struct StaleNote: Equatable, Sendable {
+    var text: String
+    var symbol: String
+
+    /// The default: the activity's data is out of date until its module updates it.
+    static let updating = StaleNote(text: "Updating…", symbol: "arrow.triangle.2.circlepath")
+}
+
 /// Something live that a module shows on the island, like an iPhone Live
 /// Activity. Posting the same id again updates it in place.
 @MainActor
@@ -86,6 +95,12 @@ struct LiveActivity: Identifiable {
     var accessibilityLabel: String
     /// What a click does, e.g. open the source app. Nil expands the activity instead.
     var openAction: (@MainActor () -> Void)?
+    /// Shown under the expanded activity while it's stale; nil only dims it
+    /// (e.g. paused media, whose data isn't out of date).
+    var staleNote: StaleNote?
+    /// Asks the island to stay visible over a fullscreen app while this is
+    /// live, when the user allows it (#5, "Keep showing while media plays").
+    var keepsIslandInFullscreen: Bool
     var presentation: ActivityPresentation
 
     init(
@@ -99,6 +114,8 @@ struct LiveActivity: Identifiable {
         keylineTint: Color? = nil,
         accessibilityLabel: String,
         openAction: (@MainActor () -> Void)? = nil,
+        staleNote: StaleNote? = .updating,
+        keepsIslandInFullscreen: Bool = false,
         presentation: ActivityPresentation
     ) {
         self.id = id
@@ -111,6 +128,8 @@ struct LiveActivity: Identifiable {
         self.keylineTint = keylineTint
         self.accessibilityLabel = accessibilityLabel
         self.openAction = openAction
+        self.staleNote = staleNote
+        self.keepsIslandInFullscreen = keepsIslandInFullscreen
         self.presentation = presentation
     }
 }

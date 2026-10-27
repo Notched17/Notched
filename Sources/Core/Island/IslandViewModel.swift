@@ -22,10 +22,9 @@ struct IslandShapeMetrics: Equatable, Sendable {
 final class IslandViewModel {
     var geometry: NotchGeometry
     var presentation: IslandPresentation = .compact
-    /// Width of the wider compact slot (leading or trailing); 0 when idle.
-    var compactSideWidth: CGFloat = 0
     var expandedSize: CGSize = IslandMetrics.expandedBase
     let accessibility: AccessibilityOptions
+    let activities: ActivityCoordinator
     @ObservationIgnored var actions = IslandActions()
     /// Called when the island's surface is clicked.
     @ObservationIgnored var onSurfaceTap: () -> Void = {}
@@ -34,9 +33,16 @@ final class IslandViewModel {
     var debugOutline = false
     #endif
 
-    init(geometry: NotchGeometry, accessibility: AccessibilityOptions) {
+    init(geometry: NotchGeometry, accessibility: AccessibilityOptions, activities: ActivityCoordinator) {
         self.geometry = geometry
         self.accessibility = accessibility
+        self.activities = activities
+    }
+
+    /// How far the compact island grows on each side to fit its slots; 0 when idle.
+    var compactSideWidth: CGFloat {
+        let widest = max(activities.leading?.content.width ?? 0, activities.trailing?.content.width ?? 0)
+        return widest > 0 ? widest + IslandMetrics.compactSlotPadding : 0
     }
 
     /// The island rect in global screen coordinates for a presentation.

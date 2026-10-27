@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import CoreGraphics
+import SwiftUI
 import Testing
 @testable import DynamicNotch
 
@@ -9,7 +10,7 @@ import Testing
 struct IslandViewModelTests {
     private func model(forcePill: Bool = false) -> IslandViewModel {
         let geometry = NotchGeometry.resolve(NotchGeometryTests.air15, forcePill: forcePill)
-        return IslandViewModel(geometry: geometry, accessibility: AccessibilityOptions())
+        return IslandViewModel(geometry: geometry, accessibility: AccessibilityOptions(), activities: ActivityCoordinator())
     }
 
     @Test("On a notch the hover sensor reaches past the top edge, so a pointer pinned to the top row is inside")
@@ -104,5 +105,25 @@ struct IslandViewModelTests {
         #expect(!model().isOnNotchTopEdge(CGPoint(x: 960, y: 1240)))
         #expect(!model().isOnNotchTopEdge(CGPoint(x: 771, y: 1243)))
         #expect(!model(forcePill: true).isOnNotchTopEdge(CGPoint(x: 960, y: 1243)))
+    }
+
+    @Test("Compact slots widen the island symmetrically around the notch")
+    func compactWidensForSlots() {
+        let activities = ActivityCoordinator()
+        let sut = IslandViewModel(
+            geometry: NotchGeometry.resolve(NotchGeometryTests.air15),
+            accessibility: AccessibilityOptions(),
+            activities: activities
+        )
+        #expect(sut.compactSideWidth == 0)
+        activities.post(Activity(
+            id: "a", moduleID: "m", priority: .liveSession, lifetime: .untilRemoved,
+            compactLeading: ActivityContent(width: 24, accessibilityLabel: "a") { EmptyView() },
+            compactTrailing: ActivityContent(width: 40, accessibilityLabel: "b") { EmptyView() },
+            expanded: nil
+        ))
+        // The wider slot (40) plus 20 pt of padding on each side of the 208 pt notch.
+        #expect(sut.compactSideWidth == 60)
+        #expect(sut.islandRect(for: .compact) == CGRect(x: 796, y: 1205.5, width: 328, height: 37.5))
     }
 }

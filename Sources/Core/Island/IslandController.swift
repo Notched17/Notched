@@ -30,10 +30,10 @@ final class IslandController {
     private var enteredAt: ContinuousClock.Instant?
 
     init(displayID: DisplayID, geometry: NotchGeometry, behavior: IslandBehavior,
-         accessibility: AccessibilityOptions, actions: IslandActions) {
+         accessibility: AccessibilityOptions, activities: ActivityCoordinator, actions: IslandActions) {
         self.displayID = displayID
         self.behavior = behavior
-        model = IslandViewModel(geometry: geometry, accessibility: accessibility)
+        model = IslandViewModel(geometry: geometry, accessibility: accessibility, activities: activities)
         let frame = model.panelFrame
         panel = IslandPanel(contentRect: frame)
         hostingView = IslandHostingView(rootView: IslandRootView(model: model))
@@ -61,6 +61,7 @@ final class IslandController {
         }
 
         layoutWindows()
+        observeCompactLayout()
         sensor.orderFrontRegardless()
         panel.orderFrontRegardless()
         Log.island.info("Island on \(displayID, privacy: .public): \(String(describing: geometry.kind), privacy: .public) panel \(NSStringFromRect(frame), privacy: .public)")
@@ -245,6 +246,19 @@ final class IslandController {
             hostingView.resetTracking()
         } else {
             sensor.resetTracking()
+        }
+    }
+
+    /// The compact island grows and shrinks with its activities; keep the
+    /// sensor (and, rarely, the panel) fitted to it.
+    private func observeCompactLayout() {
+        withObservationTracking {
+            _ = model.islandRect(for: .compact)
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.layoutWindows()
+                self?.observeCompactLayout()
+            }
         }
     }
 

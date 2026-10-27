@@ -39,6 +39,7 @@ final class IslandManager {
     }
 
     let accessibility: AccessibilityOptions
+    let activities: ActivityCoordinator
     let fullscreen: FullscreenMonitor
     var actions = IslandActions()
 
@@ -49,10 +50,12 @@ final class IslandManager {
     init(configuration: IslandConfiguration = IslandConfiguration(),
          behavior: IslandBehavior = IslandBehavior(),
          accessibility: AccessibilityOptions,
+         activities: ActivityCoordinator,
          fullscreen: FullscreenMonitor) {
         self.configuration = configuration
         self.behavior = behavior
         self.accessibility = accessibility
+        self.activities = activities
         self.fullscreen = fullscreen
     }
 
@@ -115,7 +118,7 @@ final class IslandManager {
             } else {
                 let controller = IslandController(
                     displayID: id, geometry: geometry, behavior: behavior,
-                    accessibility: accessibility, actions: actions
+                    accessibility: accessibility, activities: activities, actions: actions
                 )
                 controller.setHiddenFromCapture(hideFromScreenCapture)
                 controllers[id] = controller

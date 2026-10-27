@@ -26,6 +26,11 @@ enum Radius {
 
 /// Island sizes that don't come from the hardware.
 enum IslandMetrics {
+    /// Space around compact slot content: the outer margin to the island's
+    /// edge plus the inner gap beside the notch.
+    static let compactSlotPadding: CGFloat = 20
+    /// The inner gap between compact slot content and the notch.
+    static let compactSlotInnerGap: CGFloat = 6
     /// The expanded island at 100% size.
     static let expandedBase = CGSize(width: 600, height: 190)
     /// Panel padding around the expanded island so its shadow isn't clipped.

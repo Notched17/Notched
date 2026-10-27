@@ -11,8 +11,19 @@ struct ExpandedContentView: View {
         VStack(spacing: 0) {
             ExpandedHeaderView(model: model)
                 .frame(height: model.headerHeight)
-            IslandEmptyState()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Group {
+                if let activity = model.activities.ranked.first(where: { $0.expanded != nil }),
+                   let content = activity.expanded {
+                    content.view()
+                        .id(activity.id)
+                        .transition(Motion.contentSwap)
+                        .accessibilityElement(children: .contain)
+                        .accessibilityLabel(content.accessibilityLabel)
+                } else {
+                    IslandEmptyState()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(.horizontal, model.contentHorizontalInset)
         .padding(.bottom, Spacing.l)

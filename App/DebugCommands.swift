@@ -8,7 +8,7 @@ import AppKit
 ///
 /// Commands: expand, collapse, pill?on=, outline?on=, reduce-motion?on=,
 /// reduce-transparency?on=, increase-contrast?on= (on=default clears an override),
-/// fullscreen-fallback?on=.
+/// fullscreen-fallback?on=, hello-alert, hello-session?on=.
 @MainActor
 enum DebugCommands {
     static func handle(_ url: URL, environment: AppEnvironment) {
@@ -30,6 +30,9 @@ enum DebugCommands {
         case "reduce-transparency": environment.accessibility.overrideReduceTransparency = override
         case "increase-contrast": environment.accessibility.overrideIncreaseContrast = override
         case "fullscreen-fallback": environment.fullscreen.forceFallback = on
+        case "hello-alert": DebugMenu.hello(environment)?.showAlert()
+        case "hello-session":
+            if let hello = DebugMenu.hello(environment), hello.isLiveSessionRunning != on { hello.toggleLiveSession() }
         default: Log.app.error("Unknown debug command \(command, privacy: .public)")
         }
     }
@@ -45,8 +48,17 @@ enum DebugMenu {
         menu.addItem(ClosureMenuItem(title: "Expand Island") { environment.islands.expandAll() })
         menu.addItem(ClosureMenuItem(title: "Collapse Island") { environment.islands.collapseAll() })
         menu.addItem(ClosureMenuItem(title: "Toggle Pill Geometry") { environment.islands.configuration.forcePill.toggle() })
+        menu.addItem(.separator())
+        menu.addItem(ClosureMenuItem(title: "Show Hello Alert") { hello(environment)?.showAlert() })
+        menu.addItem(ClosureMenuItem(title: "Toggle Hello Live Session") { hello(environment)?.toggleLiveSession() })
         item.submenu = menu
         return item
+    }
+
+    /// The Hello demo module, turning it on first if needed.
+    static func hello(_ environment: AppEnvironment) -> HelloModule? {
+        environment.enabledModules.insert(HelloModule.descriptor.id)
+        return environment.modules.module(HelloModule.descriptor.id) as? HelloModule
     }
 }
 #endif

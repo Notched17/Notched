@@ -27,9 +27,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.autoenablesItems = false
 
         menu.addItem(ClosureMenuItem(title: "Settings…", keyEquivalent: ",") { [weak self] in self?.windows.showSettings() })
-
         pauseItem.target = self
         menu.addItem(pauseItem)
+        menu.addItem(.separator())
+        menu.addItem(ClosureMenuItem(title: "About DynamicNotch") { [weak self] in self?.windows.showSettings(.about) })
 
         #if DEBUG
         menu.addItem(.separator())
@@ -42,7 +43,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        pauseItem.title = environment.settings.isPaused ? "Resume Island" : "Pause Island"
+        pauseItem.state = environment.settings.isPaused ? .on : .off
     }
 
     @objc private func togglePause() {

@@ -8,12 +8,17 @@ import Observation
 @MainActor
 final class AppEnvironment {
     let settings: SettingsStore
+    let scheduler: RefreshScheduler
+    let permissions: PermissionCenter
+    let launchAtLogin: LaunchAtLogin
     let accessibility: AccessibilityOptions
     let activities: ActivityCoordinator
     let modules: ModuleRegistry
     let fullscreen: FullscreenMonitor
     let islands: IslandManager
     private let expiryTimer = OneShotTimer()
+    private let power = PowerStateMonitor()
+    private let systemActivity = SystemActivityMonitor()
 
     /// Every module the app knows, in display order.
     static var moduleTypes: [any IslandModule.Type] {
@@ -26,16 +31,24 @@ final class AppEnvironment {
 
     init(settings: SettingsStore = SettingsStore()) {
         self.settings = settings
+        scheduler = RefreshScheduler()
+        permissions = PermissionCenter(scheduler: scheduler)
+        launchAtLogin = LaunchAtLogin()
         accessibility = AccessibilityOptions()
         let expiryTimer = expiryTimer
         activities = ActivityCoordinator(scheduleWake: { date in expiryTimer.schedule(at: date) })
-        modules = ModuleRegistry(moduleTypes: Self.moduleTypes, coordinator: activities)
+        modules = ModuleRegistry(moduleTypes: Self.moduleTypes, coordinator: activities, scheduler: scheduler)
         fullscreen = FullscreenMonitor()
         islands = IslandManager(accessibility: accessibility, activities: activities, fullscreen: fullscreen)
         expiryTimer.action = { [weak activities] in activities?.expire(at: Date()) }
     }
 
     func start() {
+        power.onChange = { [weak self] state in self?.scheduler.context.power = state }
+        systemActivity.onChange = { [weak self] suspended in self?.scheduler.context.suspended = suspended }
+        power.start()
+        systemActivity.start()
+        scheduler.context.power = power.state
         applySettings()
         islands.start()
     }
@@ -51,6 +64,7 @@ final class AppEnvironment {
                 expandedScale: settings.expandedScale
             )
             islands.isPaused = settings.isPaused
+            scheduler.context.islandVisible = !settings.isPaused
             islands.hideInFullscreen = settings.hideInFullscreen
             islands.hideFromScreenCapture = settings.hideFromScreenCapture
             modules.reconcile(enabled: settings.enabledModules)

@@ -5,9 +5,27 @@ import SwiftUI
 
 struct GeneralPane: View {
     @Bindable var settings: SettingsStore
+    let launchAtLogin: LaunchAtLogin
 
     var body: some View {
         Form {
+            Section {
+                Toggle("Open at login", isOn: Binding(
+                    get: { launchAtLogin.isEnabled },
+                    set: { launchAtLogin.setEnabled($0) }
+                ))
+            } footer: {
+                if launchAtLogin.requiresApproval {
+                    HStack {
+                        Text("Allow DynamicNotch in Login Items to finish turning this on.")
+                        Button("Open Login Items…") { launchAtLogin.openLoginItemsSettings() }
+                            .buttonStyle(.link)
+                    }
+                } else if let error = launchAtLogin.lastError {
+                    Text(error)
+                }
+            }
+
             Section {
                 Picker("Show the island on", selection: $settings.displaySelection) {
                     Text("Main Display").tag(DisplaySelection.main)

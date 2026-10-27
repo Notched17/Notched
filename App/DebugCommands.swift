@@ -25,6 +25,9 @@ enum DebugCommands {
         case "expand": environment.islands.expandAll()
         case "collapse": environment.islands.collapseAll()
         case "pill": environment.settings.debugForcePill = on
+        case "launch-at-login": environment.launchAtLogin.setEnabled(on)
+            Log.app.info("Launch at login status: \(String(describing: environment.launchAtLogin.status), privacy: .public)")
+        case "onboarding": windows.showOnboarding(startAt: query(url, "step").flatMap(OnboardingView.Step.init(name:)) ?? .welcome)
         case "settings":
             windows.showSettings(query(url, "pane").flatMap(SettingsPane.init(rawValue:)))
         case "theme":

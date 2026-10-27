@@ -5,11 +5,13 @@
 final class ModuleRegistry {
     private let moduleTypes: [any IslandModule.Type]
     private let coordinator: ActivityCoordinator
+    private let scheduler: RefreshScheduler
     private var running: [ModuleID: any IslandModule] = [:]
 
-    init(moduleTypes: [any IslandModule.Type], coordinator: ActivityCoordinator) {
+    init(moduleTypes: [any IslandModule.Type], coordinator: ActivityCoordinator, scheduler: RefreshScheduler = RefreshScheduler()) {
         self.moduleTypes = moduleTypes
         self.coordinator = coordinator
+        self.scheduler = scheduler
     }
 
     var descriptors: [ModuleDescriptor] { moduleTypes.map { $0.descriptor } }
@@ -30,7 +32,8 @@ final class ModuleRegistry {
         for type in moduleTypes {
             let id = type.descriptor.id
             guard enabled.contains(id), running[id] == nil else { continue }
-            let module = type.init(context: ModuleContext(activities: ActivitySink(moduleID: id, coordinator: coordinator)))
+            let context = ModuleContext(activities: ActivitySink(moduleID: id, coordinator: coordinator), scheduler: scheduler)
+            let module = type.init(context: context)
             running[id] = module
             module.start()
             Log.modules.info("Started module \(id, privacy: .public)")

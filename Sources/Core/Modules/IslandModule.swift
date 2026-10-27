@@ -33,10 +33,12 @@ extension IslandModule {
     var settingsPane: AnyView? { nil }
 }
 
-/// What a module may use. Its activity sink is scoped to its own id.
+/// What a module may use. Its activity sink is scoped to its own id; any
+/// polling goes through the shared scheduler.
 @MainActor
 struct ModuleContext {
     let activities: ActivitySink
+    let scheduler: RefreshScheduler
 }
 
 /// Lets one module post and remove its own activities, and only its own.

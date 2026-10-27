@@ -11,7 +11,7 @@ final class WindowCoordinator {
     private let environment: AppEnvironment
     private let settingsNavigation = SettingsNavigation()
     private var settingsWindow: NSWindow?
-    var showWelcome: () -> Void = {}
+    private var onboardingWindow: NSWindow?
 
     init(environment: AppEnvironment) {
         self.environment = environment
@@ -29,7 +29,10 @@ final class WindowCoordinator {
         let context = SettingsContext(
             settings: environment.settings,
             modules: environment.modules.descriptors,
-            showWelcome: { [weak self] in self?.showWelcome() }
+            permissions: environment.permissions,
+            scheduler: environment.scheduler,
+            launchAtLogin: environment.launchAtLogin,
+            showWelcome: { [weak self] in self?.showOnboarding() }
         )
         let controller = NSHostingController(rootView: SettingsRootView(navigation: settingsNavigation, context: context))
         controller.sceneBridgingOptions = [.toolbars, .title]
@@ -43,6 +46,40 @@ final class WindowCoordinator {
         window.setFrameAutosaveName("DynamicNotchSettings")
         trackTitle(of: window)
         return window
+    }
+
+    /// The first-run walkthrough. Shown at first launch and from About.
+    func showOnboarding(startAt step: OnboardingView.Step = .welcome) {
+        if let onboardingWindow, step == .welcome {
+            NSApp.activate()
+            onboardingWindow.makeKeyAndOrderFront(nil)
+            return
+        }
+        let view = OnboardingView(
+            settings: environment.settings,
+            modules: environment.modules.descriptors,
+            permissions: environment.permissions,
+            scheduler: environment.scheduler,
+            launchAtLogin: environment.launchAtLogin,
+            startAt: step,
+            finish: { [weak self] in
+                self?.onboardingWindow?.close()
+                self?.onboardingWindow = nil
+            }
+        )
+        onboardingWindow?.close()
+        let controller = NSHostingController(rootView: view)
+        let window = NSWindow(contentViewController: controller)
+        window.styleMask = [.titled, .closable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.title = "Welcome to DynamicNotch"
+        window.isMovableByWindowBackground = true
+        window.isReleasedWhenClosed = false
+        window.center()
+        onboardingWindow = window
+        NSApp.activate()
+        window.makeKeyAndOrderFront(nil)
     }
 
     /// Like System Settings, the title bar shows the selected pane.

@@ -30,6 +30,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         statusItemController = StatusItemController(environment: environment, windows: windows)
         environment.start()
+        if !environment.settings.hasCompletedOnboarding {
+            windows.showOnboarding()
+        }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {

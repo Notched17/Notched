@@ -7,6 +7,7 @@ import SwiftUI
 struct ModulesPane: View {
     @Bindable var settings: SettingsStore
     let modules: [ModuleDescriptor]
+    let permissions: PermissionCenter
 
     var body: some View {
         Form {
@@ -21,7 +22,7 @@ struct ModulesPane: View {
             } else {
                 Section {
                     ForEach(modules) { module in
-                        ModuleRow(module: module, isOn: binding(for: module.id))
+                        ModuleRow(module: module, isOn: ModuleToggle.binding(for: module, settings: settings, permissions: permissions))
                     }
                 } footer: {
                     Text("A module that's off uses no energy at all. Permissions are only requested when you turn on a module that needs them.")
@@ -31,11 +32,22 @@ struct ModulesPane: View {
         .formStyle(.grouped)
     }
 
-    private func binding(for id: ModuleID) -> Binding<Bool> {
+}
+
+/// Turning a module on asks for the permissions it needs, and only then.
+@MainActor
+enum ModuleToggle {
+    static func binding(for module: ModuleDescriptor, settings: SettingsStore, permissions: PermissionCenter) -> Binding<Bool> {
         Binding(
-            get: { settings.enabledModules.contains(id) },
+            get: { settings.enabledModules.contains(module.id) },
             set: { isOn in
-                if isOn { settings.enabledModules.insert(id) } else { settings.enabledModules.remove(id) }
+                guard isOn else { settings.enabledModules.remove(module.id); return }
+                settings.enabledModules.insert(module.id)
+                Task {
+                    for permission in module.permissions where permissions.status(permission) != .granted {
+                        await permissions.request(permission)
+                    }
+                }
             }
         )
     }

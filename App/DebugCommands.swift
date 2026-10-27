@@ -14,7 +14,8 @@ import AppKit
 /// lab?banner=charging, lab?alert=timer, lab?run=full, lab?do=end-all, lab?download=0.74,
 /// page?id=home|music|timer|call|agent|download (expand to that page),
 /// setting?multiple=bubbles|sideBySide&click=open|expand&alerts=0|1&keyline=0|1, close-windows,
-/// media?on=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly, page?id=media.
+/// media?on=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly&lyrics=0|1&ticker=0|1
+/// &visualizer=animated|still|off, page?id=media, settings?module=media.
 @MainActor
 enum DebugCommands {
     static func handle(_ url: URL, environment: AppEnvironment, windows: WindowCoordinator) {
@@ -40,7 +41,7 @@ enum DebugCommands {
             Log.app.info("Launch at login status: \(String(describing: environment.launchAtLogin.status), privacy: .public)")
         case "onboarding": windows.showOnboarding(startAt: query(url, "step").flatMap(OnboardingView.Step.init(name:)) ?? .welcome)
         case "settings":
-            windows.showSettings(query(url, "pane").flatMap(SettingsPane.init(rawValue:)))
+            windows.showSettings(query(url, "pane").flatMap(SettingsPane.init(rawValue:)), module: query(url, "module").map { ModuleID($0) })
         case "theme":
             if let theme = query(url, "notch").flatMap(IslandTheme.init(rawValue:)) { environment.settings.notchTheme = theme }
             if let theme = query(url, "pill").flatMap(IslandTheme.init(rawValue:)) { environment.settings.pillTheme = theme }
@@ -92,8 +93,15 @@ enum DebugCommands {
             environment.modules.reconcile(enabled: environment.settings.enabledModules)
         }
         if let backend = query(url, "backend").flatMap(BackendPreference.init(rawValue:)) { environment.settings.media.backend = backend }
+        if let lyrics = query(url, "lyrics") { environment.settings.media.lyricsEnabled = lyrics == "1" }
+        if let ticker = query(url, "ticker") { environment.settings.media.lyricsTicker = ticker == "1" }
+        if let style = query(url, "visualizer").flatMap(VisualizerStyle.init(rawValue:)) { environment.settings.media.visualizer = style }
         guard let module = environment.modules.module(MediaModule.descriptor.id) as? MediaModule else { return }
         if let adapter = query(url, "adapter") { module.service.simulateAdapterFailure = adapter == "fail" }
+        if let seconds = query(url, "outputMenu").flatMap(Double.init), let outputs = module.model.outputs {
+            // Popped up from a later turn of the run loop, so this URL handler returns first.
+            Task { OutputMenu.show(outputs, cancelAfter: .seconds(seconds)) }
+        }
         switch query(url, "lifecycle") {
         case "fast": module.debugLifecycle = MediaLifecycle(staleAfter: 10, endAfter: 30)
         case "default": module.debugLifecycle = nil

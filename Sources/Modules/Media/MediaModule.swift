@@ -143,21 +143,25 @@ final class MediaModule: IslandModule {
         guard isRunning else { return }
         let now = Date()
         guard let snapshot = service.snapshot else {
-            end()
+            end(keepingTrack: false)
             return
         }
+        let isNewTrack = snapshot.trackKey != lastTrack
         if snapshot.isPlaying {
             pausedSince = nil
-        } else if pausedSince == nil || snapshot.trackKey != lastTrack {
+        } else if pausedSince == nil || isNewTrack {
             pausedSince = now
         }
         let phase = lifecycle.phase(hasTrack: true, isPlaying: snapshot.isPlaying, pausedSince: pausedSince, now: now)
         guard phase != .ended else {
-            end()
+            // Paused too long: off the island until it plays again or the
+            // track changes. The pause time is kept, so it doesn't come back.
+            lastTrack = snapshot.trackKey
+            end(keepingTrack: true)
             return
         }
-        let trackChanged = lastTrack != nil && snapshot.trackKey != lastTrack
-        if snapshot.trackKey != lastTrack {
+        let trackChanged = lastTrack != nil && isNewTrack
+        if isNewTrack || !isPosted {
             trackDidChange(snapshot)
             loadLyrics(for: snapshot)
         }
@@ -190,10 +194,12 @@ final class MediaModule: IslandModule {
         isPosted = true
     }
 
-    private func end() {
+    private func end(keepingTrack: Bool) {
         endTimer.schedule(at: nil)
-        pausedSince = nil
-        lastTrack = nil
+        if !keepingTrack {
+            pausedSince = nil
+            lastTrack = nil
+        }
         model.clear()
         guard isPosted else { return }
         context.activities.end(Self.activityID)

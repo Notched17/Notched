@@ -45,6 +45,8 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
 @Observable
 final class SettingsNavigation {
     var selection: SettingsPane = .general
+    /// A module's settings pane open inside Modules, e.g. Now Playing Options.
+    var modulePath: [ModuleID] = []
 }
 
 /// What the panes need from the rest of the app.
@@ -77,8 +79,13 @@ struct SettingsRootView: View {
             .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
             .toolbar(removing: .sidebarToggle)
         } detail: {
-            detail
-                .navigationTitle(navigation.selection.title)
+            if navigation.selection == .modules {
+                // Modules titles its own navigation stack (a module's options page pushes onto it).
+                detail
+            } else {
+                detail
+                    .navigationTitle(navigation.selection.title)
+            }
         }
     }
 
@@ -91,7 +98,9 @@ struct SettingsRootView: View {
         switch navigation.selection {
         case .general: GeneralPane(settings: context.settings, launchAtLogin: context.launchAtLogin)
         case .appearance: AppearancePane(settings: context.settings, accessibility: context.accessibility)
-        case .modules: ModulesPane(settings: context.settings, modules: context.modules, registry: context.registry, permissions: context.permissions)
+        case .modules:
+            ModulesPane(settings: context.settings, navigation: navigation, modules: context.modules, registry: context.registry,
+                        permissions: context.permissions)
         case .permissions:
             PermissionsPane(permissions: context.permissions, modules: context.modules, settings: context.settings, scheduler: context.scheduler)
         case .about: AboutPane(showWelcome: context.showWelcome)

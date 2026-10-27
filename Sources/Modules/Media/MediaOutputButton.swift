@@ -22,8 +22,8 @@ struct MediaOutputButton: View {
 }
 
 @MainActor
-private enum OutputMenu {
-    static func show(_ outputs: AudioOutputService) {
+enum OutputMenu {
+    static func show(_ outputs: AudioOutputService, cancelAfter: Duration? = nil) {
         let menu = NSMenu()
         menu.autoenablesItems = false
         let header = NSMenuItem(title: "Audio Output", action: nil, keyEquivalent: "")
@@ -39,6 +39,13 @@ private enum OutputMenu {
         menu.addItem(ClosureMenuItem(title: "Sound Settings…") {
             if let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") { NSWorkspace.shared.open(url) }
         })
+        #if DEBUG
+        // Debug screenshots: close the menu by itself. Main-actor tasks don't
+        // run while a menu tracks, so this is scheduled in the tracking run-loop mode.
+        if let cancelAfter {
+            menu.perform(#selector(NSMenu.cancelTracking), with: nil, afterDelay: cancelAfter.timeInterval, inModes: [.common])
+        }
+        #endif
         menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 }

@@ -17,8 +17,12 @@ final class WindowCoordinator {
         self.environment = environment
     }
 
-    func showSettings(_ pane: SettingsPane? = nil) {
+    func showSettings(_ pane: SettingsPane? = nil, module: ModuleID? = nil) {
         if let pane { settingsNavigation.selection = pane }
+        if let module {
+            settingsNavigation.selection = .modules
+            settingsNavigation.modulePath = [module]
+        }
         let window = settingsWindow ?? makeSettingsWindow()
         settingsWindow = window
         NSApp.activate()
@@ -87,7 +91,10 @@ final class WindowCoordinator {
     /// Like System Settings, the title bar shows the selected pane.
     private func trackTitle(of window: NSWindow) {
         withObservationTracking {
-            window.title = settingsNavigation.selection.title
+            let navigation = settingsNavigation
+            let module = navigation.selection == .modules ? navigation.modulePath.last : nil
+            window.title = module.flatMap { id in environment.modules.descriptors.first { $0.id == id }?.name }
+                ?? navigation.selection.title
         } onChange: { [weak self, weak window] in
             Task { @MainActor [weak self, weak window] in
                 guard let self, let window else { return }

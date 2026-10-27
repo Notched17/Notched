@@ -6,15 +6,24 @@ import SwiftUI
 /// it needs (#70). Modules are off until turned on here or in onboarding.
 struct ModulesPane: View {
     @Bindable var settings: SettingsStore
+    @Bindable var navigation: SettingsNavigation
     let modules: [ModuleDescriptor]
     let registry: ModuleRegistry
     let permissions: PermissionCenter
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigation.modulePath) {
             form
+                .navigationTitle(SettingsPane.modules.title)
                 .navigationDestination(for: ModuleID.self) { id in
                     registry.settingsPane(for: id)
+                        .navigationBarBackButtonHidden()
+                        .toolbar {
+                            ToolbarItem(placement: .navigation) {
+                                Button("Modules", systemImage: "chevron.left") { navigation.modulePath.removeAll() }
+                                    .help("Back to Modules")
+                            }
+                        }
                 }
         }
     }

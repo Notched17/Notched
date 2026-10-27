@@ -67,6 +67,7 @@ final class AppEnvironment {
             islands.isPaused = settings.isPaused
             scheduler.context.islandVisible = !settings.isPaused
             islands.hideInFullscreen = settings.hideInFullscreen
+            islands.keepShowingForMedia = settings.keepShowingForMedia
             islands.hideFromScreenCapture = settings.hideFromScreenCapture
             modules.reconcile(enabled: settings.enabledModules)
         } onChange: { [weak self] in

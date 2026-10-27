@@ -38,6 +38,12 @@ final class IslandManager {
         didSet { if hideInFullscreen != oldValue { applyVisibility() } }
     }
 
+    /// …unless an activity asks to stay, like media playing from another app.
+    var keepShowingForMedia = true {
+        didSet { if keepShowingForMedia != oldValue { applyVisibility() } }
+    }
+    private var activitiesKeepIsland = false
+
     var hideFromScreenCapture = false {
         didSet { for controller in controllers.values { controller.setHiddenFromCapture(hideFromScreenCapture) } }
     }
@@ -79,6 +85,7 @@ final class IslandManager {
         fullscreen.start()
         reconcileScreens()
         observeAlertSounds()
+        observeKeepIsland()
     }
 
     func stop() {
@@ -192,9 +199,26 @@ final class IslandManager {
         }
     }
 
+    /// Whether any visible activity wants the island kept over fullscreen apps.
+    private func observeKeepIsland() {
+        let keeps = withObservationTracking {
+            activities.visible.contains { $0.activity.keepsIslandInFullscreen && !$0.isStale }
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in self?.observeKeepIsland() }
+        }
+        guard keeps != activitiesKeepIsland else { return }
+        activitiesKeepIsland = keeps
+        applyVisibility()
+    }
+
     private func applyVisibility() {
         for (id, controller) in controllers {
-            let fullscreenHere = hideInFullscreen && fullscreen.fullscreenDisplays.contains(id)
+            let fullscreenHere = FullscreenVisibility.shouldHide(
+                isFullscreen: fullscreen.fullscreenDisplays.contains(id),
+                hideInFullscreen: hideInFullscreen,
+                keepForMedia: keepShowingForMedia,
+                anyActivityKeepsIsland: activitiesKeepIsland
+            )
             controller.setHidden(isPaused || fullscreenHere)
         }
     }

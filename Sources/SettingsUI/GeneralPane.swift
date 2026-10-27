@@ -46,6 +46,9 @@ struct GeneralPane: View {
             Section {
                 Toggle("Expand when the pointer rests on the island", isOn: $settings.expandOnHover)
                 Toggle("Hide when an app is full screen", isOn: $settings.hideInFullscreen)
+                Toggle("Keep showing while media plays", isOn: $settings.keepShowingForMedia)
+                    .disabled(!settings.hideInFullscreen)
+                    .help("Over a fullscreen app, Now Playing stays on the island, unless the fullscreen app is the one playing.")
                 Toggle("Haptic feedback on Force Touch trackpads", isOn: $settings.hapticsEnabled)
             }
 

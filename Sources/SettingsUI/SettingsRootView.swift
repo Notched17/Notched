@@ -52,6 +52,7 @@ final class SettingsNavigation {
 struct SettingsContext {
     let settings: SettingsStore
     let modules: [ModuleDescriptor]
+    let registry: ModuleRegistry
     let permissions: PermissionCenter
     let scheduler: RefreshScheduler
     let launchAtLogin: LaunchAtLogin
@@ -90,7 +91,7 @@ struct SettingsRootView: View {
         switch navigation.selection {
         case .general: GeneralPane(settings: context.settings, launchAtLogin: context.launchAtLogin)
         case .appearance: AppearancePane(settings: context.settings, accessibility: context.accessibility)
-        case .modules: ModulesPane(settings: context.settings, modules: context.modules, permissions: context.permissions)
+        case .modules: ModulesPane(settings: context.settings, modules: context.modules, registry: context.registry, permissions: context.permissions)
         case .permissions:
             PermissionsPane(permissions: context.permissions, modules: context.modules, settings: context.settings, scheduler: context.scheduler)
         case .about: AboutPane(showWelcome: context.showWelcome)

@@ -40,6 +40,10 @@ final class MediaModule: IslandModule {
     var debugLifecycle: MediaLifecycle?
     #endif
 
+    static func settingsPane(_ context: ModuleSettingsContext) -> AnyView? {
+        AnyView(MediaSettingsPane(settings: context.settings.media, registry: context.registry))
+    }
+
     init(context: ModuleContext) {
         self.context = context
         settings = context.settings.media

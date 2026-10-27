@@ -7,9 +7,19 @@ import SwiftUI
 struct ModulesPane: View {
     @Bindable var settings: SettingsStore
     let modules: [ModuleDescriptor]
+    let registry: ModuleRegistry
     let permissions: PermissionCenter
 
     var body: some View {
+        NavigationStack {
+            form
+                .navigationDestination(for: ModuleID.self) { id in
+                    registry.settingsPane(for: id)
+                }
+        }
+    }
+
+    private var form: some View {
         Form {
             if modules.isEmpty {
                 Section {
@@ -23,6 +33,11 @@ struct ModulesPane: View {
                 Section {
                     ForEach(modules) { module in
                         ModuleRow(module: module, isOn: ModuleToggle.binding(for: module, settings: settings, permissions: permissions))
+                        if registry.hasSettingsPane(module.id) {
+                            NavigationLink(value: module.id) {
+                                Text("\(module.name) Options")
+                            }
+                        }
                     }
                 } footer: {
                     Text("A module that's off uses no energy at all. Permissions are only requested when you turn on a module that needs them.")

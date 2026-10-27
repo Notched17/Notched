@@ -29,6 +29,7 @@ final class WindowCoordinator {
         let context = SettingsContext(
             settings: environment.settings,
             modules: environment.modules.descriptors,
+            registry: environment.modules,
             permissions: environment.permissions,
             scheduler: environment.scheduler,
             launchAtLogin: environment.launchAtLogin,

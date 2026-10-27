@@ -52,7 +52,50 @@ final class IslandViewModel {
     /// plus room for the shadow.
     var panelFrame: CGRect {
         let largest = islandRect(for: .expanded).union(islandRect(for: .compact))
-        return geometry.panelFrame(for: largest, padding: IslandMetrics.expandedPadding)
+        return extendedPastTopEdge(geometry.panelFrame(for: largest, padding: IslandMetrics.expandedPadding))
+    }
+
+    /// Where the pointer counts as "on the island" for a presentation.
+    func hotZone(for presentation: IslandPresentation) -> CGRect {
+        extendedPastTopEdge(islandRect(for: presentation))
+    }
+
+    /// Whether a pointer at `point` (screen coordinates) is on the island,
+    /// counting every edge as inside. AppKit's tracking areas treat the top
+    /// edge of the screen as outside, so a pointer pinned to the top row can
+    /// produce false "exited" events; the controller checks them with this.
+    func containsPointer(_ point: CGPoint, for presentation: IslandPresentation) -> Bool {
+        let zone = hotZone(for: presentation)
+        return point.x >= zone.minX && point.x <= zone.maxX && point.y >= zone.minY && point.y <= zone.maxY
+    }
+
+    /// Whether an exit from the compact island is macOS pushing a thrown
+    /// pointer out from behind the camera housing, rather than the user leaving.
+    func isSystemBounce(exitAt point: CGPoint, after elapsed: Duration) -> Bool {
+        guard geometry.kind == .notch, elapsed < IslandMetrics.bounceWindow else { return false }
+        let compact = islandRect(for: .compact)
+        return point.x >= compact.minX && point.x <= compact.maxX
+            && point.y < compact.minY && point.y >= compact.minY - IslandMetrics.bounceDepth
+    }
+
+    /// Whether the pointer sits on the screen's top pixel row, over the notch.
+    /// Tracking areas treat that row as outside, so a pointer that lands there
+    /// directly is only seen by the top-edge watcher.
+    func isOnNotchTopEdge(_ point: CGPoint) -> Bool {
+        guard geometry.kind == .notch else { return false }
+        return point.y >= geometry.screenFrame.maxY - 1 && containsPointer(point, for: .compact)
+    }
+
+    /// The invisible hover sensor used while compact.
+    var sensorFrame: CGRect { hotZone(for: .compact) }
+
+    /// On a notch, reach a little past the top of the screen so the top pixel
+    /// row is strictly inside. A pill sits below the menu bar and needs nothing.
+    private func extendedPastTopEdge(_ rect: CGRect) -> CGRect {
+        guard geometry.kind == .notch else { return rect }
+        var extended = rect
+        extended.size.height += IslandMetrics.topEdgeOverscan
+        return extended
     }
 
     var islandSize: CGSize { islandRect(for: presentation).size }

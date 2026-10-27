@@ -7,7 +7,8 @@ import AppKit
 /// state and screenshot it, e.g. `open -g "dynamicnotch://debug/expand"`.
 ///
 /// Commands: expand, collapse, pill?on=, outline?on=, reduce-motion?on=,
-/// reduce-transparency?on=, increase-contrast?on= (on=default clears an override).
+/// reduce-transparency?on=, increase-contrast?on= (on=default clears an override),
+/// fullscreen-fallback?on=.
 @MainActor
 enum DebugCommands {
     static func handle(_ url: URL, environment: AppEnvironment) {
@@ -28,6 +29,7 @@ enum DebugCommands {
         case "reduce-motion": environment.accessibility.overrideReduceMotion = override
         case "reduce-transparency": environment.accessibility.overrideReduceTransparency = override
         case "increase-contrast": environment.accessibility.overrideIncreaseContrast = override
+        case "fullscreen-fallback": environment.fullscreen.forceFallback = on
         default: Log.app.error("Unknown debug command \(command, privacy: .public)")
         }
     }

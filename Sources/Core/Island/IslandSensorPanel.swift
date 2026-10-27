@@ -11,7 +11,8 @@ import AppKit
 final class IslandSensorPanel: NSPanel {
     enum Event {
         case entered
-        case exited
+        /// The pointer's screen position when the exit was reported.
+        case exited(CGPoint)
         case clicked
     }
 
@@ -43,6 +44,10 @@ final class IslandSensorPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
+    /// Keep the frame exactly as set: the notch island deliberately reaches a
+    /// couple of points past the top of the screen (see `topEdgeOverscan`).
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
+
     /// Re-arms tracking, e.g. after the island collapses under a still pointer.
     func resetTracking() {
         sensorView.rebuildTrackingArea()
@@ -68,6 +73,8 @@ private final class SensorView: NSView {
     }
 
     override func mouseEntered(with event: NSEvent) { onEvent(.entered) }
-    override func mouseExited(with event: NSEvent) { onEvent(.exited) }
+    // The event's own location can be relative to the overlapping island
+    // panel, so report where the pointer actually is.
+    override func mouseExited(with event: NSEvent) { onEvent(.exited(NSEvent.mouseLocation)) }
     override func mouseDown(with event: NSEvent) { onEvent(.clicked) }
 }

@@ -6,11 +6,13 @@ import AppKit
 @MainActor
 final class AppEnvironment {
     let accessibility: AccessibilityOptions
+    let fullscreen: FullscreenMonitor
     let islands: IslandManager
 
     init() {
         accessibility = AccessibilityOptions()
-        islands = IslandManager(accessibility: accessibility)
+        fullscreen = FullscreenMonitor()
+        islands = IslandManager(accessibility: accessibility, fullscreen: fullscreen)
     }
 
     func start() {

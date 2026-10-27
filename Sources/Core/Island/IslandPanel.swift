@@ -32,6 +32,10 @@ final class IslandPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
+    /// Keep the frame exactly as set: the notch island deliberately reaches a
+    /// couple of points past the top of the screen (see `topEdgeOverscan`).
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
+
     /// Hide the island from screenshots and screen sharing (#6). Capture tools
     /// built on ScreenCaptureKit may ignore this.
     var hiddenFromCapture = false {

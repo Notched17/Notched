@@ -30,4 +30,13 @@ enum IslandMetrics {
     static let expandedBase = CGSize(width: 600, height: 190)
     /// Panel padding around the expanded island so its shadow isn't clipped.
     static let expandedPadding: CGFloat = 20
+    /// How far the notch island's windows reach above the screen's top edge.
+    /// A pointer pinned to the top row sits exactly on the edge, which AppKit
+    /// counts as outside a window, so hover would flicker without this.
+    static let topEdgeOverscan: CGFloat = 2
+    /// macOS pushes a pointer thrown into the notch back out below the camera
+    /// housing. An exit this close below the notch, this soon after entering,
+    /// is that bounce rather than the user leaving.
+    static let bounceDepth: CGFloat = 60
+    static let bounceWindow: Duration = .milliseconds(250)
 }

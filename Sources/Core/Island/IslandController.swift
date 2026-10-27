@@ -26,6 +26,8 @@ final class IslandController {
     /// completion can't switch mouse handling under a newer one.
     private var transitionID = 0
     private var isHidden = false
+    /// When the pointer last entered the compact island, to recognise bounces.
+    private var enteredAt: ContinuousClock.Instant?
 
     init(displayID: DisplayID, geometry: NotchGeometry, behavior: IslandBehavior,
          accessibility: AccessibilityOptions, actions: IslandActions) {
@@ -38,7 +40,7 @@ final class IslandController {
         hostingView.frame = CGRect(origin: .zero, size: frame.size)
         hostingView.autoresizingMask = [.width, .height]
         panel.contentView = hostingView
-        sensor = IslandSensorPanel(contentRect: model.islandRect(for: .compact))
+        sensor = IslandSensorPanel(contentRect: model.sensorFrame)
 
         model.actions = IslandActions(
             openSettings: { [weak self] in
@@ -105,21 +107,67 @@ final class IslandController {
 
     /// Events from the sensor only matter while the island is compact.
     private func sensorEvent(_ event: IslandSensorPanel.Event) {
+        Log.island.debug("sensor \(String(describing: event), privacy: .public) at \(NSStringFromPoint(NSEvent.mouseLocation), privacy: .public)")
         guard hover.state == .compact || hover.state == .pendingExpand else { return }
         switch event {
-        case .entered: send(.pointerEntered)
-        case .exited: send(.pointerExited)
+        case .entered:
+            enteredAt = .now
+            send(.pointerEntered)
+        case .exited(let location):
+            compactPointerLeft(at: location)
         case .clicked: send(.clicked)
         }
     }
 
+    /// Mouse-moved events from the top-edge watcher (see `IslandManager`).
+    /// AppKit tracking areas never report a pointer that lands exactly on the
+    /// screen's top row, which is where a pointer thrown at the notch ends up.
+    func pointerMoved(to location: CGPoint) {
+        switch hover.state {
+        case .compact:
+            guard model.isOnNotchTopEdge(location) else { return }
+            Log.island.debug("pointer reached the notch's top edge at \(NSStringFromPoint(location), privacy: .public)")
+            enteredAt = .now
+            send(.pointerEntered)
+        case .pendingExpand:
+            // The tracking area may never have seen this pointer, so it won't
+            // report it leaving either.
+            guard !model.containsPointer(location, for: .compact) else { return }
+            compactPointerLeft(at: location)
+        case .expanded, .pendingCollapse:
+            return
+        }
+    }
+
+    private func compactPointerLeft(at location: CGPoint) {
+        if hover.state == .pendingExpand, let enteredAt,
+           model.isSystemBounce(exitAt: location, after: .now - enteredAt) {
+            // macOS pushed a thrown pointer out from behind the camera:
+            // the user meant to hover, so let the pending expand go ahead.
+            Log.island.debug("pointer bounced out of the notch to \(NSStringFromPoint(location), privacy: .public); still expanding")
+            return
+        }
+        pointerExited(at: location, from: .compact)
+    }
+
     /// Events from the island panel only matter while it is expanded.
     private func islandPointer(_ event: IslandHostingView.PointerEvent) {
+        Log.island.debug("island \(String(describing: event), privacy: .public) at \(NSStringFromPoint(NSEvent.mouseLocation), privacy: .public)")
         guard hover.state == .expanded || hover.state == .pendingCollapse else { return }
         switch event {
         case .entered: send(.pointerEntered)
-        case .exited: send(.pointerExited)
+        case .exited(let location): pointerExited(at: location, from: .expanded)
         }
+    }
+
+    /// Ignores false exits: a pointer pinned to the top row of the screen is
+    /// reported as outside even though it's on the island.
+    private func pointerExited(at location: CGPoint, from presentation: IslandPresentation) {
+        if model.containsPointer(location, for: presentation) {
+            Log.island.debug("ignored false exit at \(NSStringFromPoint(location), privacy: .public)")
+            return
+        }
+        send(.pointerExited)
     }
 
     private func send(_ event: HoverStateMachine.Event) {
@@ -143,6 +191,13 @@ final class IslandController {
                 NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
             }
             present(.expanded)
+            // A hover expand can follow a bounce, after which the pointer may
+            // already have moved away; if it isn't on the island, collapse.
+            let location = NSEvent.mouseLocation
+            if reason == .hover, !model.containsPointer(location, for: .expanded) {
+                Log.island.debug("pointer not on the expanded island at \(NSStringFromPoint(location), privacy: .public); collapsing")
+                send(.pointerExited)
+            }
         case .collapse:
             present(.compact)
         }
@@ -185,8 +240,8 @@ final class IslandController {
     private func updateMouseHandling(expanded: Bool) {
         panel.ignoresMouseEvents = !expanded
         if expanded {
-            let island = model.islandRect(for: .expanded)
-            hostingView.trackingRectInWindow = island.offsetBy(dx: -panel.frame.minX, dy: -panel.frame.minY)
+            let zone = model.hotZone(for: .expanded)
+            hostingView.trackingRectInWindow = zone.offsetBy(dx: -panel.frame.minX, dy: -panel.frame.minY)
             hostingView.resetTracking()
         } else {
             sensor.resetTracking()
@@ -198,8 +253,8 @@ final class IslandController {
     private func layoutWindows() {
         let frame = model.panelFrame
         if panel.frame != frame { panel.setFrame(frame, display: true) }
-        let compact = model.islandRect(for: .compact)
-        if sensor.frame != compact { sensor.setFrame(compact, display: false) }
+        let sensorFrame = model.sensorFrame
+        if sensor.frame != sensorFrame { sensor.setFrame(sensorFrame, display: false) }
         updateMouseHandling(expanded: model.presentation == .expanded)
     }
 }

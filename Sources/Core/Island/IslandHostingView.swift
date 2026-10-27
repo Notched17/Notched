@@ -13,7 +13,8 @@ import SwiftUI
 final class IslandHostingView: NSHostingView<IslandRootView> {
     enum PointerEvent {
         case entered
-        case exited
+        /// The pointer's screen position when the exit was reported.
+        case exited(CGPoint)
     }
 
     var onPointer: (PointerEvent) -> Void = { _ in }
@@ -63,6 +64,10 @@ final class IslandHostingView: NSHostingView<IslandRootView> {
     }
 
     override func mouseExited(with event: NSEvent) {
-        if event.trackingArea === islandTrackingArea { onPointer(.exited) } else { super.mouseExited(with: event) }
+        if event.trackingArea === islandTrackingArea {
+            onPointer(.exited(NSEvent.mouseLocation))
+        } else {
+            super.mouseExited(with: event)
+        }
     }
 }

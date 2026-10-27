@@ -29,23 +29,31 @@ final class IslandManager {
         didSet { if isPaused != oldValue { applyVisibility() } }
     }
 
+    /// Hide the island on displays showing a fullscreen app (#5).
+    var hideInFullscreen = true {
+        didSet { if hideInFullscreen != oldValue { applyVisibility() } }
+    }
+
     var hideFromScreenCapture = false {
         didSet { for controller in controllers.values { controller.setHiddenFromCapture(hideFromScreenCapture) } }
     }
 
     let accessibility: AccessibilityOptions
+    let fullscreen: FullscreenMonitor
     var actions = IslandActions()
-    var onPauseChanged: (Bool) -> Void = { _ in }
 
     private let observers = NotificationTokens()
     private var pendingReconcile: Task<Void, Never>?
+    private var pointerMonitors: [Any] = []
 
     init(configuration: IslandConfiguration = IslandConfiguration(),
          behavior: IslandBehavior = IslandBehavior(),
-         accessibility: AccessibilityOptions) {
+         accessibility: AccessibilityOptions,
+         fullscreen: FullscreenMonitor) {
         self.configuration = configuration
         self.behavior = behavior
         self.accessibility = accessibility
+        self.fullscreen = fullscreen
     }
 
     func start() {
@@ -59,10 +67,14 @@ final class IslandManager {
         observers.observe(NSWorkspace.screensDidWakeNotification, in: workspace) { [weak self] in
             self?.scheduleReconcile()
         }
+        fullscreen.onChange = { [weak self] _ in self?.applyVisibility() }
+        fullscreen.start()
         reconcileScreens()
     }
 
     func stop() {
+        fullscreen.stop()
+        removePointerMonitors()
         observers.invalidate()
         pendingReconcile?.cancel()
         for controller in controllers.values { controller.tearDown() }
@@ -109,10 +121,46 @@ final class IslandManager {
                 controllers[id] = controller
             }
         }
+        updatePointerMonitors()
         applyVisibility()
     }
 
+    // MARK: Top-edge watcher
+
+    /// Tracking areas never report a pointer that lands exactly on the top row
+    /// of the screen, which is where a pointer thrown at the notch ends up. A
+    /// mouse-moved monitor catches it. It only exists while a notched island
+    /// does, needs no permission, and costs nothing while the pointer is still.
+    private func updatePointerMonitors() {
+        let needsWatcher = controllers.values.contains { $0.model.geometry.kind == .notch }
+        if needsWatcher, pointerMonitors.isEmpty {
+            let global = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] _ in
+                MainActor.assumeIsolated { self?.pointerMoved() }
+            }
+            let local = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
+                MainActor.assumeIsolated { self?.pointerMoved() }
+                return event
+            }
+            pointerMonitors = [global, local].compactMap { $0 }
+        } else if !needsWatcher {
+            removePointerMonitors()
+        }
+    }
+
+    private func removePointerMonitors() {
+        for monitor in pointerMonitors { NSEvent.removeMonitor(monitor) }
+        pointerMonitors.removeAll()
+    }
+
+    private func pointerMoved() {
+        let location = NSEvent.mouseLocation
+        for controller in controllers.values { controller.pointerMoved(to: location) }
+    }
+
     private func applyVisibility() {
-        for controller in controllers.values { controller.setHidden(isPaused) }
+        for (id, controller) in controllers {
+            let fullscreenHere = hideInFullscreen && fullscreen.fullscreenDisplays.contains(id)
+            controller.setHidden(isPaused || fullscreenHere)
+        }
     }
 }

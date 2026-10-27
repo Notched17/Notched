@@ -35,13 +35,17 @@ Goal: the island *behaves* like the iPhone Dynamic Island before media is built 
 
 | # | Feature | Spec and acceptance criteria | Approach |
 |---|---|---|---|
-| — | 🟨 Rename to Notched | Product, bundle ID `me.rkck.Notched`, URL scheme `notched`, logs, scripts, docs. Old install removed, settings migrated, TCC reset. | One `chore` commit. |
-| 8 | 🟨 Live activity model | One primary activity owns both compact sides. Kind → relevance → start order. Up to 3 on the island (bubbles), the rest listed. Sticky swap, hide (non-hideable system activities), stale, ended → Recent. | `LiveActivity`, `ActivityPresentation` regions, `ActivityCoordinator` with scenario tests. |
-| 8 | 🟨 Alerts and banners | Alerting updates expand the island for a few seconds and return. They queue, and wait while the pointer is on the island. Transient banners (wide compact, 2 s) for system events. | Coordinator deadlines + `HoverStateMachine` `.alerting`. |
-| 8 | 🟨 Presentation template | Expanded regions laid out with Apple's algorithm. The island owns animation (≤ 2 s, numeric text, blur-replace). Height follows content. | `ExpandedRegionsLayout`, `IslandRegionHost`. |
-| 8 | 🟨 Minimal bubbles + side by side | Detached black circles/ovals 6 pt from the island that bud off and merge back. Width budget notch + 2 × 90 pt. Click-through between them. Setting: Bubbles / Side by side (iPhone 18 Pro). Keyline in Dark Mode. | Drawn in the island panel; one sensor window per region (ADR-0007). `CompactLayout` tested. |
-| 8 | 🟨 Interaction | Hover expands the hovered activity. Click opens it ("Click to expand" setting). Click a bubble → primary. Two-finger swipe cycles / hides. Right-click → Hide. Expanded paging + Home activity list (Live, Hidden, Recent). Esc. | `SwipeRecognizer` tested; context menu; non-activating key focus after a click. |
-| — | 🟨 Scenario Lab (DEBUG) | Music, Timer, Call, Claude Code, Download demos, a Charging banner, a Timer Done alert and a scripted full demo, through the real coordinator. | Debug ▸ Scenario Lab, `notched://debug/lab?…`. |
+| — | ✅ Rename to Notched | Product, bundle ID `me.rkck.Notched`, URL scheme `notched`, logs, scripts, docs. Old install removed, settings migrated, TCC reset. | One `chore` commit. |
+| 8 | ✅ Live activity model | One primary activity owns both compact sides. Kind → relevance → start order. Up to 3 on the island (bubbles), the rest listed. Sticky swap, hide (non-hideable system activities), stale, ended → Recent. | `LiveActivity`, `ActivityPresentation` regions, `ActivityCoordinator` with scenario tests. |
+| 8 | ✅ Alerts and banners | Alerting updates expand the island for a few seconds and return. They queue, and wait while the pointer is on the island. Transient banners (wide compact, 2 s) for system events. | Coordinator deadlines + `HoverStateMachine` `.alerting`. |
+| 8 | ✅ Presentation template | Expanded regions laid out with Apple's algorithm. The island owns animation (≤ 2 s, numeric text, blur-replace). Height follows content. | `ExpandedRegionsLayout`, `IslandRegionHost`. |
+| 8 | ✅ Minimal bubbles + side by side | Detached black circles/ovals 6 pt from the island that bud off and merge back. Width budget notch + 2 × 90 pt. Click-through between them. Setting: Bubbles / Side by side (iPhone 18 Pro). Keyline in Dark Mode. | Drawn in the island panel; one sensor window per region (ADR-0007). `CompactLayout` tested. |
+| 8 | ✅ Interaction | Hover expands the hovered activity. Click opens it ("Click to expand" setting). Click a bubble → primary. Two-finger swipe cycles / hides. Right-click → Hide. Expanded paging + Home activity list (Live, Hidden, Recent). Esc. | `SwipeRecognizer` tested; context menu; non-activating key focus after a click. |
+| — | ✅ Scenario Lab (DEBUG) | Music, Timer, Call, Claude Code, Download demos, a Charging banner, a Timer Done alert and a scripted full demo, through the real coordinator. | Debug ▸ Scenario Lab, `notched://debug/lab?…`. |
+
+---
+
+**Status:** ✅ M1.5 complete (27 Oct 2026). Idle CPU 0.04%, 0.81% with a ticking timer, 18–19 MB footprint. Screenshots in `docs/screenshots/m1.5/`. Left for M2: the music visualiser must animate in the render server (a SwiftUI `TimelineView` level meter costs ~7% CPU).
 
 ---
 

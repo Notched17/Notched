@@ -46,7 +46,7 @@ scripts/test.sh        # regenerates the project, runs the unit tests, prints fa
 | `swift scripts/hit-test.swift x,y …` | Ask the window server which window a click at a point would hit |
 | `scripts/settings-shot.sh <pane> <file.png>` | Screenshot a Settings pane |
 
-Debug builds accept `notched://debug/…` URLs so scripts can drive the island, for example `open -g "notched://debug/expand"`. Commands: `expand`, `collapse`, `pill?on=1`, `outline?on=1`, `hello-alert`, `hello-session?on=1`, `theme?notch=liquidGlass&pill=tintedGlass`, `settings?pane=appearance`, `onboarding?step=modules`, `reduce-motion?on=1`, `reduce-transparency?on=1`, `increase-contrast?on=1`, `fullscreen-fallback?on=1`, `appearance?mode=dark`, `launch-at-login?on=1`. Release builds ignore them.
+Debug builds accept `notched://debug/…` URLs so scripts can drive the island, for example `open -g "notched://debug/expand"`. Commands: `expand`, `collapse`, `pill?on=1`, `outline?on=1`, `hello-alert`, `hello-session?on=1`, `theme?notch=liquidGlass&pill=tintedGlass`, `settings?pane=appearance`, `onboarding?step=modules`, `reduce-motion?on=1`, `reduce-transparency?on=1`, `increase-contrast?on=1`, `fullscreen-fallback?on=1`, `appearance?mode=dark`, `launch-at-login?on=1`, `close-windows`. The Scenario Lab (Debug ▸ Scenario Lab in the status menu) drives demo live activities: `lab?demo=timer&do=start` (demos `music`, `timer`, `call`, `agent`, `download`; actions `start`, `end`, `stale`, `hide`, `unhide`, `primary`), `lab?banner=charging`, `lab?alert=timer`, `lab?run=full`, `lab?do=end-all`, `page?id=home` and `setting?multiple=sideBySide`. Release builds ignore them.
 
 Logs: `log stream --level debug --predicate 'subsystem BEGINSWITH "me.rkck.Notched"'`.
 

@@ -26,10 +26,13 @@ struct WelcomeStep: View {
     }
 }
 
-/// The island morphing on its own, as a greeting. Stops with Reduce Motion.
+/// The island morphing on its own, as a greeting. Stops with Reduce Motion,
+/// and whenever the window isn't active, so a forgotten onboarding window
+/// costs no CPU.
 private struct WelcomeIsland: View {
     @State private var expanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appearsActive) private var appearsActive
 
     var body: some View {
         let shape = IslandShape(
@@ -59,8 +62,8 @@ private struct WelcomeIsland: View {
                 }
         }
         .frame(width: 360, height: 120, alignment: .top)
-        .task {
-            guard !reduceMotion else { return }
+        .task(id: appearsActive) {
+            guard !reduceMotion, appearsActive else { return }
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1.6))
                 withAnimation(expanded ? AnimationStyle.smooth.collapse : AnimationStyle.smooth.expand) { expanded.toggle() }

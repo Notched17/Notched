@@ -13,7 +13,7 @@ import AppKit
 /// lab?demo=music|timer|call|agent|download&do=start|end|stale|hide|unhide|primary,
 /// lab?banner=charging, lab?alert=timer, lab?run=full, lab?do=end-all, lab?download=0.74,
 /// page?id=home|music|timer|call|agent|download (expand to that page),
-/// setting?multiple=bubbles|sideBySide&click=open|expand&alerts=0|1&keyline=0|1.
+/// setting?multiple=bubbles|sideBySide&click=open|expand&alerts=0|1&keyline=0|1, close-windows.
 @MainActor
 enum DebugCommands {
     static func handle(_ url: URL, environment: AppEnvironment, windows: WindowCoordinator) {
@@ -53,6 +53,9 @@ enum DebugCommands {
         case "hello-session":
             if let hello = DebugMenu.hello(environment), hello.isLiveSessionRunning != on { hello.toggleLiveSession() }
         case "lab": lab(url, environment.scenarioLab)
+        case "close-windows":
+            // Closes Settings and onboarding without finishing onboarding (for clean measurements).
+            for window in NSApp.windows where window.isVisible && window.styleMask.contains(.titled) { window.close() }
         case "page":
             let id = query(url, "id") ?? "home"
             let page: IslandViewModel.ExpandedPage = ScenarioLab.Demo(rawValue: id).map { .activity($0.activityID) } ?? .home

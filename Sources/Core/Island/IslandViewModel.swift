@@ -40,10 +40,45 @@ final class IslandViewModel {
         self.activities = activities
     }
 
-    /// How far the compact island grows on each side to fit its slots; 0 when idle.
+    /// What the compact island shows beside the notch: a banner pre-empts the
+    /// primary activity. Leading and trailing always come from the same source.
+    struct CompactContent {
+        let id: String
+        let leading: IslandRegion
+        let trailing: IslandRegion?
+        let accessibilityLabel: String
+    }
+
+    var compactContent: CompactContent? {
+        if let banner = activities.banner {
+            return CompactContent(id: "banner.\(banner.id)", leading: banner.leading, trailing: banner.trailing,
+                                  accessibilityLabel: banner.accessibilityLabel)
+        }
+        if let primary = activities.primary {
+            let presentation = primary.activity.presentation
+            return CompactContent(id: primary.id.rawValue, leading: presentation.compactLeading,
+                                  trailing: presentation.compactTrailing, accessibilityLabel: primary.activity.accessibilityLabel)
+        }
+        return nil
+    }
+
+    /// The widest compact region's natural width, measured by the view.
+    var measuredCompactWidth: CGFloat = 0
+    @ObservationIgnored private var compactWidths: (id: String, leading: CGFloat, trailing: CGFloat)?
+
+    /// Called by the compact view with each region's natural width.
+    func reportCompactWidth(_ width: CGFloat, for id: String, leading: Bool) {
+        var widths = compactWidths?.id == id ? compactWidths! : (id: id, leading: 0, trailing: 0)
+        if leading { widths.leading = width } else { widths.trailing = width }
+        compactWidths = widths
+        let widest = max(widths.leading, widths.trailing).rounded(.up)
+        if measuredCompactWidth != widest { measuredCompactWidth = widest }
+    }
+
+    /// How far the compact island grows on each side to fit its content; 0 when idle.
     var compactSideWidth: CGFloat {
-        let widest = max(activities.leading?.content.width ?? 0, activities.trailing?.content.width ?? 0)
-        return widest > 0 ? widest + IslandMetrics.compactSlotPadding : 0
+        guard compactContent != nil, measuredCompactWidth > 0 else { return 0 }
+        return measuredCompactWidth + IslandMetrics.compactSlotPadding
     }
 
     /// The island rect in global screen coordinates for a presentation.

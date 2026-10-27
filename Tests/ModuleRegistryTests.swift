@@ -23,10 +23,9 @@ final class AlphaTestModule: IslandModule {
     }
     func start() {
         ModuleEventLog.shared.events.append("alpha.start")
-        context.activities.post(Activity(
-            id: "alpha.live", moduleID: "alpha", priority: .liveSession, lifetime: .untilRemoved,
-            compactLeading: ActivityContent(width: 20, accessibilityLabel: "alpha") { Text("A") },
-            compactTrailing: nil, expanded: nil
+        context.activities.post(LiveActivity(
+            id: "alpha.live", moduleID: "alpha", kind: .live,
+            accessibilityLabel: "alpha", presentation: .text("A")
         ))
     }
     func stop() { ModuleEventLog.shared.events.append("alpha.stop") }
@@ -74,15 +73,16 @@ struct ModuleRegistryTests {
         #expect(ModuleEventLog.shared.events == ["alpha.init", "alpha.start"])
     }
 
-    @Test("Disabling a module stops it, releases it and removes its activities")
+    @Test("Disabling a module stops it, releases it and removes its activities without Recent entries")
     func disableStopsAndCleansUp() {
         let sut = makeRegistry()
         sut.reconcile(enabled: ["alpha", "beta"])
-        #expect(coordinator.ranked.map(\.id) == ["alpha.live"])
+        #expect(coordinator.live.map(\.id) == ["alpha.live"])
         sut.reconcile(enabled: ["beta"])
         #expect(ModuleEventLog.shared.events.suffix(1) == ["alpha.stop"])
         #expect(!sut.isRunning("alpha"))
-        #expect(coordinator.ranked.isEmpty)
+        #expect(coordinator.live.isEmpty)
+        #expect(coordinator.recent.isEmpty)
     }
 
     @Test("Unknown module ids in the enabled set are ignored")
@@ -95,10 +95,16 @@ struct ModuleRegistryTests {
     @Test("A module can only post activities under its own id")
     func sinkIsScoped() {
         let sink = ActivitySink(moduleID: "alpha", coordinator: coordinator)
-        sink.post(Activity(
-            id: "spoof", moduleID: "beta", priority: .alert, lifetime: .untilRemoved,
-            compactLeading: nil, compactTrailing: nil, expanded: nil
-        ))
-        #expect(coordinator.ranked.isEmpty)
+        sink.post(LiveActivity(id: "spoof", moduleID: "beta", kind: .system, accessibilityLabel: "spoof", presentation: .text("spoof")))
+        sink.show(TransientBanner(id: "spoof", moduleID: "beta", leading: IslandRegion { Text("spoof") }, accessibilityLabel: "spoof"))
+        #expect(coordinator.live.isEmpty)
+        #expect(coordinator.banner == nil)
+    }
+
+    @Test("A module can only end its own activities")
+    func sinkEndIsScoped() {
+        coordinator.post(LiveActivity(id: "beta.live", moduleID: "beta", kind: .live, accessibilityLabel: "beta", presentation: .text("B")))
+        ActivitySink(moduleID: "alpha", coordinator: coordinator).end("beta.live")
+        #expect(coordinator.live.map(\.id) == ["beta.live"])
     }
 }

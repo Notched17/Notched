@@ -62,7 +62,7 @@ struct IslandView: View {
         }
         .overlay { contrastOutline(shape) }
         .overlay { debugOutline(shape) }
-        .modifier(AlertBounce(trigger: model.activities.alertSerial, enabled: !model.accessibility.reduceMotion))
+        .modifier(AlertBounce(trigger: model.activities.bounceSerial, enabled: !model.accessibility.reduceMotion))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Notched")
     }

@@ -41,26 +41,39 @@ struct ModuleContext {
     let scheduler: RefreshScheduler
 }
 
-/// Lets one module post and remove its own activities, and only its own.
+/// Lets one module post, end and announce its own activities, and only its own.
 @MainActor
 struct ActivitySink {
     let moduleID: ModuleID
     let coordinator: ActivityCoordinator
 
-    func post(_ activity: Activity) {
+    /// Adds an activity, or updates the one with the same id in place. An
+    /// alert expands the island for it briefly (ISLAND-BEHAVIOR.md §1).
+    func post(_ activity: LiveActivity, alert: AlertRequest? = nil) {
         guard activity.moduleID == moduleID else {
             Log.modules.error("Module \(moduleID, privacy: .public) tried to post an activity for \(activity.moduleID, privacy: .public)")
             return
         }
-        coordinator.post(activity)
+        coordinator.post(activity, alert: alert)
     }
 
-    func remove(_ id: ActivityID) {
-        guard coordinator.ranked.contains(where: { $0.id == id && $0.moduleID == moduleID }) else { return }
-        coordinator.remove(id)
+    /// Takes an activity off the island at once; it stays under Recent per `dismissal`.
+    func end(_ id: ActivityID, dismissal: DismissalPolicy = .default) {
+        guard coordinator.live.contains(where: { $0.id == id && $0.activity.moduleID == moduleID }) else { return }
+        coordinator.end(id, dismissal: dismissal)
     }
 
-    func removeAll() {
-        coordinator.removeAll(from: moduleID)
+    /// Shows a short wide banner for a system event.
+    func show(_ banner: TransientBanner) {
+        guard banner.moduleID == moduleID else {
+            Log.modules.error("Module \(moduleID, privacy: .public) tried to show a banner for \(banner.moduleID, privacy: .public)")
+            return
+        }
+        coordinator.show(banner)
+    }
+
+    /// Removes everything this module shows, without Recent entries.
+    func endAll() {
+        coordinator.endAll(from: moduleID)
     }
 }

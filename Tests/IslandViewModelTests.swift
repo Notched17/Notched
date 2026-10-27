@@ -107,21 +107,17 @@ struct IslandViewModelTests {
         #expect(!model(forcePill: true).isOnNotchTopEdge(CGPoint(x: 960, y: 1243)))
     }
 
-    @Test("Compact slots widen the island symmetrically around the notch")
-    func compactWidensForSlots() {
+    @Test("The compact island widens symmetrically around the notch to fit the primary activity")
+    func compactWidensForPrimary() {
         let activities = ActivityCoordinator()
         let sut = IslandViewModel(
             geometry: NotchGeometry.resolve(NotchGeometryTests.air15),
             accessibility: AccessibilityOptions(),
             activities: activities
         )
+        sut.measuredCompactWidth = 40
         #expect(sut.compactSideWidth == 0)
-        activities.post(Activity(
-            id: "a", moduleID: "m", priority: .liveSession, lifetime: .untilRemoved,
-            compactLeading: ActivityContent(width: 24, accessibilityLabel: "a") { EmptyView() },
-            compactTrailing: ActivityContent(width: 40, accessibilityLabel: "b") { EmptyView() },
-            expanded: nil
-        ))
+        activities.post(LiveActivity(id: "a", moduleID: "m", kind: .live, accessibilityLabel: "a", presentation: .text("a")))
         // The wider slot (40) plus 20 pt of padding on each side of the 208 pt notch.
         #expect(sut.compactSideWidth == 60)
         #expect(sut.islandRect(for: .compact) == CGRect(x: 796, y: 1205.5, width: 328, height: 37.5))

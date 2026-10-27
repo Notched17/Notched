@@ -26,7 +26,7 @@ final class ModuleRegistry {
         for (id, module) in running where !enabled.contains(id) {
             module.stop()
             running[id] = nil
-            coordinator.removeAll(from: id)
+            coordinator.endAll(from: id)
             Log.modules.info("Stopped module \(id, privacy: .public)")
         }
         for type in moduleTypes {

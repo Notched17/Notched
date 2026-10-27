@@ -4,19 +4,20 @@
 import SwiftUI
 
 /// A DEBUG-only demo that proves activities flow from a module, through the
-/// coordinator, into the compact and expanded island. Triggered from the
-/// status menu's Debug submenu.
+/// coordinator, into the island: a transient banner and a live session.
+/// Triggered from the status menu's Debug submenu.
 @MainActor
 final class HelloModule: IslandModule {
     static let descriptor = ModuleDescriptor(
         id: "hello",
         name: "Hello",
         symbol: "hand.wave.fill",
-        summary: "A demo alert and live session that show how modules use the island.",
+        summary: "A demo banner and live session that show how modules use the island.",
         permissions: [],
         isDebugOnly: true
     )
 
+    private static let sessionID: ActivityID = "hello.session"
     private let context: ModuleContext
     private var sessionStart: Date?
 
@@ -28,25 +29,19 @@ final class HelloModule: IslandModule {
 
     func stop() {
         sessionStart = nil
-        context.activities.removeAll()
+        context.activities.endAll()
     }
 
-    /// A transient alert: it bounces in, then disappears after 4 seconds.
+    /// A transient banner: it bounces in, then the island returns after a moment.
     func showAlert() {
-        context.activities.post(Activity(
-            id: "hello.alert",
+        context.activities.show(TransientBanner(
+            id: "hello.banner",
             moduleID: Self.descriptor.id,
-            priority: .alert,
-            lifetime: .transient(.seconds(4)),
-            compactLeading: ActivityContent(width: 20, accessibilityLabel: "Hello") {
-                HelloWave(size: 15).islandMatchedGeometry(id: "hello.wave")
-            },
-            compactTrailing: ActivityContent(width: 40, accessibilityLabel: "Hello") {
+            leading: IslandRegion { HelloWave(size: 15) },
+            trailing: IslandRegion {
                 Text("Hello").font(.system(size: 13, weight: .semibold, design: .rounded))
             },
-            expanded: ActivityContent(width: 0, accessibilityLabel: "Hello from Notched") {
-                HelloAlertCard()
-            }
+            accessibilityLabel: "Hello from Notched"
         ))
     }
 
@@ -56,30 +51,32 @@ final class HelloModule: IslandModule {
     func toggleLiveSession() {
         if sessionStart != nil {
             sessionStart = nil
-            context.activities.remove("hello.session")
+            context.activities.end(Self.sessionID)
             return
         }
         let start = Date()
         sessionStart = start
-        context.activities.post(Activity(
-            id: "hello.session",
+        context.activities.post(LiveActivity(
+            id: Self.sessionID,
             moduleID: Self.descriptor.id,
-            priority: .liveSession,
-            lifetime: .untilRemoved,
-            compactLeading: ActivityContent(width: 18, accessibilityLabel: "Demo session") {
-                Image(systemName: "timer")
-                    .font(.system(size: 13, weight: .semibold))
-                    .islandMatchedGeometry(id: "hello.timer")
-            },
-            compactTrailing: ActivityContent(width: 40, accessibilityLabel: "Elapsed time") {
-                Text(timerInterval: start...Date.distantFuture, countsDown: false)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .multilineTextAlignment(.trailing)
-            },
-            expanded: ActivityContent(width: 0, accessibilityLabel: "Demo live session") {
-                HelloSessionCard(start: start)
-            }
+            kind: .live,
+            accessibilityLabel: "Demo session",
+            presentation: ActivityPresentation(
+                compactLeading: IslandRegion {
+                    Image(systemName: "timer").font(.system(size: 13, weight: .semibold))
+                },
+                compactTrailing: IslandRegion { HelloElapsed(start: start, size: 13) },
+                minimal: IslandRegion { HelloElapsed(start: start, size: 11) },
+                expanded: ExpandedPresentation(
+                    leading: ExpandedRegion {
+                        Image(systemName: "timer").font(.system(size: 22, weight: .semibold))
+                    },
+                    trailing: ExpandedRegion { HelloElapsed(start: start, size: 22) },
+                    center: ExpandedRegion {
+                        Text("Demo live session").font(.system(.headline, design: .rounded))
+                    }
+                )
+            )
         ))
     }
 }
@@ -98,45 +95,14 @@ private struct HelloWave: View {
     }
 }
 
-private struct HelloAlertCard: View {
-    var body: some View {
-        HStack(spacing: Spacing.l) {
-            HelloWave(size: 34)
-                .islandMatchedGeometry(id: "hello.wave")
-                .frame(width: 52, height: 52)
-                .background(.white.opacity(0.08), in: Circle())
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("Hello from Notched")
-                    .font(.system(.title3, design: .rounded, weight: .semibold))
-                Text("This demo alert came from a module, through the activity coordinator, into the island.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-        }
-    }
-}
-
-private struct HelloSessionCard: View {
+private struct HelloElapsed: View {
     let start: Date
+    let size: CGFloat
 
     var body: some View {
-        HStack(spacing: Spacing.l) {
-            Image(systemName: "timer")
-                .font(.system(size: 28, weight: .semibold))
-                .islandMatchedGeometry(id: "hello.timer")
-                .frame(width: 52, height: 52)
-                .background(.white.opacity(0.08), in: Circle())
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("Demo live session")
-                    .font(.system(.title3, design: .rounded, weight: .semibold))
-                Text(timerInterval: start...Date.distantFuture, countsDown: false)
-                    .font(.system(size: 28, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-            }
-            Spacer(minLength: 0)
-        }
+        Text(timerInterval: start...Date.distantFuture, countsDown: false)
+            .font(.system(size: size, weight: .semibold, design: .rounded))
+            .monospacedDigit()
     }
 }
 #endif

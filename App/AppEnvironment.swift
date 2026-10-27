@@ -40,7 +40,7 @@ final class AppEnvironment {
         modules = ModuleRegistry(moduleTypes: Self.moduleTypes, coordinator: activities, scheduler: scheduler)
         fullscreen = FullscreenMonitor()
         islands = IslandManager(accessibility: accessibility, activities: activities, fullscreen: fullscreen)
-        expiryTimer.action = { [weak activities] in activities?.expire(at: Date()) }
+        expiryTimer.action = { [weak activities] in activities?.advance(to: Date()) }
     }
 
     func start() {

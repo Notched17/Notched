@@ -2,40 +2,45 @@
 
 import SwiftUI
 
-/// The compact island's two slots, either side of the notch (or of the pill's centre).
+/// The compact island's two sides, either side of the notch (or of the pill's
+/// centre). Both always show the same activity (or banner).
 struct CompactContentView: View {
     let model: IslandViewModel
 
     var body: some View {
-        // Like iPhone's Dynamic Island: each slot hugs its outer edge, with
-        // equal margins, and keeps a small gap from the notch.
         let side = model.compactSideWidth
         let inner = IslandMetrics.compactSlotInnerGap
         let outer = max(IslandMetrics.compactSlotPadding - inner, 0)
+        let content = model.compactContent
         HStack(spacing: 0) {
-            slot(model.activities.leading)
+            region(content?.leading, id: content?.id, isLeading: true)
                 .frame(width: max(side - outer - inner, 0), alignment: .leading)
                 .padding(.leading, outer)
                 .padding(.trailing, inner)
             Color.clear
                 .frame(width: model.geometry.compactBaseSize.width)
-            slot(model.activities.trailing)
+            region(content?.trailing, id: content?.id, isLeading: false)
                 .frame(width: max(side - outer - inner, 0), alignment: .trailing)
                 .padding(.leading, inner)
                 .padding(.trailing, outer)
         }
         .frame(height: model.geometry.compactBaseSize.height)
         .foregroundStyle(.white)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(content?.accessibilityLabel ?? "")
     }
 
     @ViewBuilder
-    private func slot(_ slot: ActivityCoordinator.Slot?) -> some View {
+    private func region(_ region: IslandRegion?, id: String?, isLeading: Bool) -> some View {
         ZStack {
-            if let slot {
-                slot.content.view()
-                    .id(slot.activityID)
+            if let region, let id {
+                region.view()
+                    .fixedSize()
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+                        model.reportCompactWidth(width, for: id, leading: isLeading)
+                    }
+                    .id(id)
                     .transition(Motion.contentSwap)
-                    .accessibilityLabel(slot.content.accessibilityLabel)
             }
         }
     }

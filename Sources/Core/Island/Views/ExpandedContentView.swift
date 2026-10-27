@@ -2,8 +2,8 @@
 
 import SwiftUI
 
-/// Everything inside the expanded island: the header row and the content area
-/// that modules fill in later milestones.
+/// Everything inside the expanded island: the header row and the primary
+/// activity's regions. (Step 2 replaces the stack with the region layout.)
 struct ExpandedContentView: View {
     let model: IslandViewModel
 
@@ -12,13 +12,21 @@ struct ExpandedContentView: View {
             ExpandedHeaderView(model: model)
                 .frame(height: model.headerHeight)
             Group {
-                if let activity = model.activities.ranked.first(where: { $0.expanded != nil }),
-                   let content = activity.expanded {
-                    content.view()
-                        .id(activity.id)
-                        .transition(Motion.contentSwap)
-                        .accessibilityElement(children: .contain)
-                        .accessibilityLabel(content.accessibilityLabel)
+                if let record = model.activities.primary {
+                    let expanded = record.activity.presentation.expanded
+                    VStack(spacing: Spacing.s) {
+                        HStack {
+                            expanded.leading?.view()
+                            Spacer(minLength: 0)
+                            expanded.trailing?.view()
+                        }
+                        expanded.center?.view()
+                        expanded.bottom?.view()
+                    }
+                    .id(record.id)
+                    .transition(Motion.contentSwap)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel(record.activity.accessibilityLabel)
                 } else {
                     IslandEmptyState()
                 }

@@ -8,10 +8,11 @@ import AppKit
 ///
 /// Commands: expand, collapse, pill?on=, outline?on=, reduce-motion?on=,
 /// reduce-transparency?on=, increase-contrast?on= (on=default clears an override),
-/// fullscreen-fallback?on=, hello-alert, hello-session?on=.
+/// fullscreen-fallback?on=, hello-alert, hello-session?on=, settings?pane=,
+/// theme?notch=&pill=.
 @MainActor
 enum DebugCommands {
-    static func handle(_ url: URL, environment: AppEnvironment) {
+    static func handle(_ url: URL, environment: AppEnvironment, windows: WindowCoordinator) {
         guard url.scheme == "dynamicnotch", url.host == "debug" else { return }
         let command = url.lastPathComponent
         let value = URLComponents(url: url, resolvingAgainstBaseURL: false)?
@@ -23,7 +24,12 @@ enum DebugCommands {
         switch command {
         case "expand": environment.islands.expandAll()
         case "collapse": environment.islands.collapseAll()
-        case "pill": environment.islands.configuration.forcePill = on
+        case "pill": environment.settings.debugForcePill = on
+        case "settings":
+            windows.showSettings(query(url, "pane").flatMap(SettingsPane.init(rawValue:)))
+        case "theme":
+            if let theme = query(url, "notch").flatMap(IslandTheme.init(rawValue:)) { environment.settings.notchTheme = theme }
+            if let theme = query(url, "pill").flatMap(IslandTheme.init(rawValue:)) { environment.settings.pillTheme = theme }
         case "outline":
             for controller in environment.islands.controllers.values { controller.model.debugOutline = on }
         case "reduce-motion": environment.accessibility.overrideReduceMotion = override
@@ -36,6 +42,10 @@ enum DebugCommands {
         default: Log.app.error("Unknown debug command \(command, privacy: .public)")
         }
     }
+
+    private static func query(_ url: URL, _ name: String) -> String? {
+        URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == name }?.value
+    }
 }
 
 /// The status menu's Debug submenu.
@@ -47,7 +57,7 @@ enum DebugMenu {
         menu.autoenablesItems = false
         menu.addItem(ClosureMenuItem(title: "Expand Island") { environment.islands.expandAll() })
         menu.addItem(ClosureMenuItem(title: "Collapse Island") { environment.islands.collapseAll() })
-        menu.addItem(ClosureMenuItem(title: "Toggle Pill Geometry") { environment.islands.configuration.forcePill.toggle() })
+        menu.addItem(ClosureMenuItem(title: "Toggle Pill Geometry") { environment.settings.debugForcePill.toggle() })
         menu.addItem(.separator())
         menu.addItem(ClosureMenuItem(title: "Show Hello Alert") { hello(environment)?.showAlert() })
         menu.addItem(ClosureMenuItem(title: "Toggle Hello Live Session") { hello(environment)?.toggleLiveSession() })
@@ -57,7 +67,8 @@ enum DebugMenu {
 
     /// The Hello demo module, turning it on first if needed.
     static func hello(_ environment: AppEnvironment) -> HelloModule? {
-        environment.enabledModules.insert(HelloModule.descriptor.id)
+        environment.settings.enabledModules.insert(HelloModule.descriptor.id)
+        environment.modules.reconcile(enabled: environment.settings.enabledModules)
         return environment.modules.module(HelloModule.descriptor.id) as? HelloModule
     }
 }

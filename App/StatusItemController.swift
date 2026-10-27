@@ -7,10 +7,12 @@ import AppKit
 final class StatusItemController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let environment: AppEnvironment
+    private let windows: WindowCoordinator
     private let pauseItem = NSMenuItem(title: "Pause Island", action: #selector(togglePause), keyEquivalent: "")
 
-    init(environment: AppEnvironment) {
+    init(environment: AppEnvironment, windows: WindowCoordinator) {
         self.environment = environment
+        self.windows = windows
         super.init()
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "capsule.fill", accessibilityDescription: "DynamicNotch")
@@ -24,9 +26,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.delegate = self
         menu.autoenablesItems = false
 
-        let settings = NSMenuItem(title: "Settings…", action: nil, keyEquivalent: ",")
-        settings.isEnabled = false
-        menu.addItem(settings)
+        menu.addItem(ClosureMenuItem(title: "Settings…", keyEquivalent: ",") { [weak self] in self?.windows.showSettings() })
 
         pauseItem.target = self
         menu.addItem(pauseItem)
@@ -42,10 +42,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        pauseItem.title = environment.islands.isPaused ? "Resume Island" : "Pause Island"
+        pauseItem.title = environment.settings.isPaused ? "Resume Island" : "Pause Island"
     }
 
     @objc private func togglePause() {
-        environment.islands.isPaused.toggle()
+        environment.settings.isPaused.toggle()
     }
 }

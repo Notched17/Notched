@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import CoreGraphics
+
 /// How the island reacts to the pointer and how it moves.
 struct IslandBehavior: Equatable, Sendable {
     var expandOnHover = true
@@ -13,4 +15,22 @@ struct IslandBehavior: Equatable, Sendable {
 struct IslandActions {
     var openSettings: () -> Void = {}
     var pauseIsland: () -> Void = {}
+}
+
+/// The island's look: themes per kind of display and the expanded size.
+struct IslandAppearance: Equatable, Sendable {
+    var notchTheme: IslandTheme = .notchBlack
+    var pillTheme: IslandTheme = .liquidGlass
+    var expandedScale: Double = 1
+
+    func theme(for kind: NotchGeometry.Kind) -> IslandTheme {
+        kind == .notch ? notchTheme : pillTheme
+    }
+
+    var expandedSize: CGSize {
+        CGSize(
+            width: (IslandMetrics.expandedBase.width * expandedScale).rounded(),
+            height: (IslandMetrics.expandedBase.height * expandedScale).rounded()
+        )
+    }
 }

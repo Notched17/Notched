@@ -5,6 +5,7 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var environment: AppEnvironment?
+    private var windows: WindowCoordinator?
     private var statusItemController: StatusItemController?
 
     /// True when the app is only hosting the unit-test bundle. Tests exercise
@@ -18,20 +19,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !Self.isRunningTests else { return }
         Log.app.info("DynamicNotch launched")
         let environment = AppEnvironment()
+        let windows = WindowCoordinator(environment: environment)
         self.environment = environment
+        self.windows = windows
+
+        NSApp.mainMenu = MainMenu.make { windows.showSettings() }
         environment.islands.actions = IslandActions(
-            openSettings: { Log.app.info("Settings window arrives in task 6") },
-            pauseIsland: { [weak environment] in environment?.islands.isPaused = true }
+            openSettings: { windows.showSettings() },
+            pauseIsland: { environment.settings.isPaused = true }
         )
-        statusItemController = StatusItemController(environment: environment)
+        statusItemController = StatusItemController(environment: environment, windows: windows)
         environment.start()
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
         #if DEBUG
-        guard let environment else { return }
-        for url in urls { DebugCommands.handle(url, environment: environment) }
+        guard let environment, let windows else { return }
+        for url in urls { DebugCommands.handle(url, environment: environment, windows: windows) }
         #endif
+    }
+
+    /// Opening the app again (e.g. from Finder or Spotlight) shows Settings,
+    /// since a menu-bar app has no other window to bring forward.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        windows?.showSettings()
+        return false
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

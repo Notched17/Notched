@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import AppKit
+import Observation
 
-/// Owns the app's long-lived services. Created once by `AppDelegate`.
+/// Owns the app's long-lived services and keeps them in step with Settings.
+/// Created once by `AppDelegate`.
 @MainActor
 final class AppEnvironment {
+    let settings: SettingsStore
     let accessibility: AccessibilityOptions
     let activities: ActivityCoordinator
     let modules: ModuleRegistry
@@ -21,12 +24,8 @@ final class AppEnvironment {
         return types
     }
 
-    /// Modules the user has turned on. Settings will own this in task 6.
-    var enabledModules: Set<ModuleID> = [] {
-        didSet { modules.reconcile(enabled: enabledModules) }
-    }
-
-    init() {
+    init(settings: SettingsStore = SettingsStore()) {
+        self.settings = settings
         accessibility = AccessibilityOptions()
         let expiryTimer = expiryTimer
         activities = ActivityCoordinator(scheduleWake: { date in expiryTimer.schedule(at: date) })
@@ -37,7 +36,26 @@ final class AppEnvironment {
     }
 
     func start() {
-        modules.reconcile(enabled: enabledModules)
+        applySettings()
         islands.start()
+    }
+
+    /// Pushes every setting to the services, and again whenever one changes.
+    private func applySettings() {
+        withObservationTracking {
+            islands.configuration = settings.islandConfiguration
+            islands.behavior = settings.islandBehavior
+            islands.appearance = IslandAppearance(
+                notchTheme: settings.notchTheme,
+                pillTheme: settings.pillTheme,
+                expandedScale: settings.expandedScale
+            )
+            islands.isPaused = settings.isPaused
+            islands.hideInFullscreen = settings.hideInFullscreen
+            islands.hideFromScreenCapture = settings.hideFromScreenCapture
+            modules.reconcile(enabled: settings.enabledModules)
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in self?.applySettings() }
+        }
     }
 }

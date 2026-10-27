@@ -23,6 +23,7 @@ final class IslandViewModel {
     var geometry: NotchGeometry
     var presentation: IslandPresentation = .compact
     var expandedSize: CGSize = IslandMetrics.expandedBase
+    var theme: IslandTheme = .notchBlack
     let accessibility: AccessibilityOptions
     let activities: ActivityCoordinator
     @ObservationIgnored var actions = IslandActions()
@@ -124,6 +125,19 @@ final class IslandViewModel {
         case (.pill, .expanded):
             IslandShapeMetrics(shoulder: 0, top: Radius.expandedPill, bottom: Radius.expandedPill)
         }
+    }
+
+    // MARK: Theme
+
+    /// Whether the theme shows in the current state. On a notch the compact
+    /// island always stays black, so it merges with the hardware.
+    var showsTheme: Bool {
+        geometry.kind == .pill || presentation == .expanded
+    }
+
+    /// Whether the island is currently drawn as glass.
+    var surfaceIsGlass: Bool {
+        showsTheme && theme.isGlass && !accessibility.reduceTransparency
     }
 
     // MARK: Expanded layout

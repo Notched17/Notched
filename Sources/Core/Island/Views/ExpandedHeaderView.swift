@@ -45,10 +45,10 @@ struct IslandHeaderControls: View {
     var body: some View {
         GlassEffectContainer(spacing: Spacing.s) {
             HStack(spacing: Spacing.s) {
-                IslandIconButton(symbol: "gearshape.fill", label: "Settings") {
+                IslandIconButton(symbol: "gearshape.fill", label: "Settings", onGlassSurface: model.surfaceIsGlass) {
                     model.actions.openSettings()
                 }
-                IslandIconButton(symbol: "pause.fill", label: "Pause island") {
+                IslandIconButton(symbol: "pause.fill", label: "Pause island", onGlassSurface: model.surfaceIsGlass) {
                     model.actions.pauseIsland()
                 }
             }

@@ -20,6 +20,10 @@ final class IslandManager {
         didSet { if configuration != oldValue { reconcileScreens() } }
     }
 
+    var appearance = IslandAppearance() {
+        didSet { if appearance != oldValue { reconcileScreens() } }
+    }
+
     var behavior: IslandBehavior {
         didSet { for controller in controllers.values { controller.behavior = behavior } }
     }
@@ -114,12 +118,13 @@ final class IslandManager {
                 forcePill: configuration.forcePill
             )
             if let controller = controllers[id] {
-                controller.update(geometry: geometry)
+                controller.update(geometry: geometry, appearance: appearance)
             } else {
                 let controller = IslandController(
                     displayID: id, geometry: geometry, behavior: behavior,
                     accessibility: accessibility, activities: activities, actions: actions
                 )
+                controller.update(geometry: geometry, appearance: appearance)
                 controller.setHiddenFromCapture(hideFromScreenCapture)
                 controllers[id] = controller
             }

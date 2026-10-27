@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Renders the placeholder app icon (a dark squircle with a black island) into
-// App/Assets.xcassets/AppIcon.appiconset. Run: swift scripts/make-placeholder-icon.swift
+// Renders the placeholder app icon into App/Assets.xcassets/AppIcon.appiconset.
+// The artwork is full-bleed: macOS 26 applies the rounded-square mask itself
+// (artwork with its own corners and padding gets a grey "legacy" frame).
+// Run: swift scripts/make-placeholder-icon.swift
 import AppKit
 
 let canvas: CGFloat = 1024
 let image = NSImage(size: NSSize(width: canvas, height: canvas), flipped: false) { _ in
-    let inset: CGFloat = 100
-    let body = NSRect(x: inset, y: inset, width: canvas - 2 * inset, height: canvas - 2 * inset)
-    let squircle = NSBezierPath(roundedRect: body, xRadius: 185, yRadius: 185)
-    NSGradient(colors: [NSColor(white: 0.30, alpha: 1), NSColor(white: 0.10, alpha: 1)])!
-        .draw(in: squircle, angle: 90)
-    // The island: a black capsule hanging from the top edge of the "screen".
-    let island = NSRect(x: canvas / 2 - 230, y: body.maxY - 70 - 150, width: 460, height: 150)
+    let body = NSRect(x: 0, y: 0, width: canvas, height: canvas)
+    NSGradient(colors: [NSColor(white: 0.32, alpha: 1), NSColor(white: 0.10, alpha: 1)])!
+        .draw(in: body, angle: -90)
+    // The island: a black capsule near the top, like the notch on a screen.
+    let island = NSRect(x: canvas / 2 - 260, y: canvas - 190 - 170, width: 520, height: 170)
     NSColor.black.setFill()
-    NSBezierPath(roundedRect: island, xRadius: 75, yRadius: 75).fill()
+    NSBezierPath(roundedRect: island, xRadius: 85, yRadius: 85).fill()
     // A small white dot and bar suggest live content.
     NSColor(white: 1, alpha: 0.92).setFill()
-    NSBezierPath(ovalIn: NSRect(x: island.minX + 45, y: island.midY - 30, width: 60, height: 60)).fill()
-    NSBezierPath(roundedRect: NSRect(x: island.maxX - 175, y: island.midY - 14, width: 130, height: 28), xRadius: 14, yRadius: 14).fill()
+    NSBezierPath(ovalIn: NSRect(x: island.minX + 52, y: island.midY - 34, width: 68, height: 68)).fill()
+    NSBezierPath(roundedRect: NSRect(x: island.maxX - 200, y: island.midY - 16, width: 148, height: 32), xRadius: 16, yRadius: 16).fill()
     return true
 }
 

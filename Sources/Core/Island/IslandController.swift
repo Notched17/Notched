@@ -69,9 +69,13 @@ final class IslandController {
 
     // MARK: Lifecycle
 
-    func update(geometry: NotchGeometry) {
-        guard geometry != model.geometry else { return }
+    func update(geometry: NotchGeometry, appearance: IslandAppearance) {
+        let size = appearance.expandedSize
+        let theme = appearance.theme(for: geometry.kind)
+        if model.theme != theme { model.theme = theme }
+        guard geometry != model.geometry || size != model.expandedSize else { return }
         model.geometry = geometry
+        model.expandedSize = size
         layoutWindows()
         Log.island.info("Island on \(self.displayID, privacy: .public) moved to \(NSStringFromRect(self.panel.frame), privacy: .public)")
     }

@@ -31,8 +31,7 @@ struct IslandView: View {
             bottomCornerRadius: metrics.bottom
         )
         ZStack(alignment: .top) {
-            shape
-                .fill(.black)
+            IslandSolidFill(shape: shape, model: model)
                 .contentShape(shape)
                 .onTapGesture { model.onSurfaceTap() }
 
@@ -48,12 +47,18 @@ struct IslandView: View {
         .frame(width: model.islandSize.width, height: model.islandSize.height)
         .animation(widthAnimation, value: model.compactSideWidth)
         .clipShape(shape)
+        // Glass goes after layout and around the content, so the content gets
+        // glass vibrancy. Disabled (black) on the compact notch.
+        .glassEffect(model.surfaceIsGlass ? model.theme.glass : .identity, in: shape)
         .background {
             // A soft shadow lifts the expanded island off bright windows. Never
-            // on the compact notch, where it would reveal the island.
-            shape
-                .fill(.black)
-                .shadow(color: .black.opacity(showsShadow ? 0.32 : 0), radius: 12, y: 6)
+            // on the compact notch, where it would reveal the island, and not
+            // under glass, which brings its own.
+            if !model.surfaceIsGlass {
+                shape
+                    .fill(.black)
+                    .shadow(color: .black.opacity(showsShadow ? 0.32 : 0), radius: 12, y: 6)
+            }
         }
         .overlay { contrastOutline(shape) }
         .overlay { debugOutline(shape) }

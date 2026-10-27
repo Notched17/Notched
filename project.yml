@@ -33,6 +33,10 @@ targets:
     sources:
       - path: App
       - path: Sources
+      - path: LICENSE
+        buildPhase: resources
+      - path: THIRD_PARTY_NOTICES.md
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: me.rkck.DynamicNotch

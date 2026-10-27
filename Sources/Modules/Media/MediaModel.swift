@@ -21,6 +21,10 @@ final class MediaModel {
     var liked: Bool?
     var canLike = false
     var visualizer: VisualizerStyle = .animated
+    /// Synced lyrics for this track, while lyrics are on (#13).
+    var lyrics: SyncedLyrics?
+    /// Show the current lyric line beside the notch instead of the bars.
+    var lyricsTicker = false
     @ObservationIgnored var actions = MediaActions()
     /// The Mac's audio outputs, for the output button (#16). Set while the module runs.
     @ObservationIgnored var outputs: AudioOutputService?
@@ -46,6 +50,7 @@ final class MediaModel {
         tintRGB = .white
         liked = nil
         canLike = false
+        lyrics = nil
     }
 
     private func applyArtwork(_ data: Data?) {

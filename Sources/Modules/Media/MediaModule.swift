@@ -31,6 +31,10 @@ final class MediaModule: IslandModule {
     private var pausedSince: Date?
     private var lastTrack: TrackKey?
     private var frontmostBundleID: String?
+    private var likeTask: Task<Void, Never>?
+    /// Exists only while lyrics are on, so nothing can look lyrics up otherwise (ADR-0009).
+    private var lyricsStore: LyricsStore?
+    private var lyricsTask: Task<Void, Never>?
     #if DEBUG
     /// Seconds instead of minutes, to check the paused lifecycle quickly.
     var debugLifecycle: MediaLifecycle?
@@ -66,6 +70,8 @@ final class MediaModule: IslandModule {
         isRunning = false
         observers.invalidate()
         endTimer.schedule(at: nil)
+        likeTask?.cancel()
+        applyLyricsSetting(false)
         service.stop()
         outputs.stop()
         model.outputs = nil
@@ -93,18 +99,23 @@ final class MediaModule: IslandModule {
 
     private func observeSettings() {
         guard isRunning else { return }
-        withObservationTracking {
+        let lyricsEnabled = withObservationTracking {
             service.preference = settings.backend
             service.ignoredApps = settings.ignoredApps
             model.visualizer = settings.visualizer
+            model.lyricsTicker = settings.lyricsTicker
             _ = settings.staleAfterMinutes
             _ = settings.endAfterMinutes
+            return settings.lyricsEnabled
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 self?.observeSettings()
                 self?.refresh(force: true)
             }
         }
+        // Outside the tracking closure: it reads the snapshot, which mustn't
+        // re-run this on every playback update.
+        applyLyricsSetting(lyricsEnabled)
     }
 
     private func frontmostChanged() {
@@ -142,7 +153,10 @@ final class MediaModule: IslandModule {
             return
         }
         let trackChanged = lastTrack != nil && snapshot.trackKey != lastTrack
-        if snapshot.trackKey != lastTrack { trackDidChange(snapshot) }
+        if snapshot.trackKey != lastTrack {
+            trackDidChange(snapshot)
+            loadLyrics(for: snapshot)
+        }
         lastTrack = snapshot.trackKey
         let changed = snapshot != model.snapshot
         model.update(snapshot)
@@ -182,9 +196,63 @@ final class MediaModule: IslandModule {
         isPosted = false
     }
 
+    /// Liking works for Apple Music only (#15): Spotify's scripting can't
+    /// change `starred`, and its Web API is a separate decision.
     private func trackDidChange(_ snapshot: NowPlayingSnapshot) {
-        model.liked = snapshot.liked
-        model.canLike = snapshot.liked != nil
+        likeTask?.cancel()
+        model.liked = nil
+        model.canLike = false
+        guard snapshot.sourceBundleID == ScriptablePlayer.music.bundleID else { return }
+        likeTask = Task { [weak self] in
+            guard let self else { return }
+            // Read the favourite only if already allowed; otherwise the heart
+            // shows empty and the first tap is what asks for permission.
+            switch await self.service.musicAutomationStatus() {
+            case .granted:
+                let liked = await self.service.musicFavorite()
+                guard !Task.isCancelled else { return }
+                self.model.liked = liked ?? false
+                self.model.canLike = true
+            case .notDetermined, .unknown:
+                guard !Task.isCancelled else { return }
+                self.model.liked = snapshot.liked ?? false
+                self.model.canLike = true
+            case .denied, .notRunning:
+                break
+            }
+        }
+    }
+
+    // MARK: Lyrics
+
+    private func applyLyricsSetting(_ enabled: Bool) {
+        if enabled {
+            guard lyricsStore == nil else { return }
+            let store = LyricsStore(fetcher: LRCLIBClient(), cacheDirectory: LyricsStore.defaultCacheDirectory)
+            store.isEnabled = true
+            lyricsStore = store
+            if let snapshot = service.snapshot { loadLyrics(for: snapshot) }
+        } else {
+            lyricsTask?.cancel()
+            lyricsTask = nil
+            lyricsStore?.isEnabled = false
+            lyricsStore = nil
+            model.lyrics = nil
+        }
+    }
+
+    private func loadLyrics(for snapshot: NowPlayingSnapshot) {
+        lyricsTask?.cancel()
+        model.lyrics = nil
+        guard let store = lyricsStore else { return }
+        let track = snapshot.trackKey
+        lyricsTask = Task { [weak self] in
+            let lyrics = await store.lyrics(for: snapshot)
+            guard !Task.isCancelled, let self, self.model.trackKey == track else { return }
+            self.model.lyrics = lyrics.flatMap { $0.lines.isEmpty ? nil : $0 }
+            // The compact side may switch between the bars and the ticker.
+            if self.settings.lyricsTicker, let current = self.service.snapshot { self.post(current, alert: nil) }
+        }
     }
 
     // MARK: Actions
@@ -195,7 +263,25 @@ final class MediaModule: IslandModule {
         NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
     }
 
-    private func toggleLike() {}
+    private func toggleLike() {
+        guard model.canLike else { return }
+        let target = !(model.liked ?? false)
+        model.liked = target
+        likeTask?.cancel()
+        likeTask = Task { [weak self] in
+            guard let self else { return }
+            let result = await self.service.setMusicFavorite(target)
+            guard !Task.isCancelled else { return }
+            if let result {
+                self.model.liked = result
+            } else {
+                // Declined, or Music didn't answer: hide the heart rather than lie.
+                self.log.notice("Couldn't favourite the track in Music")
+                self.model.canLike = await self.service.musicAutomationStatus() != .denied
+                self.model.liked = self.model.canLike ? !target : nil
+            }
+        }
+    }
 }
 
 /// The Now Playing activity's regions (#9).
@@ -203,9 +289,17 @@ final class MediaModule: IslandModule {
 enum MediaPresentation {
     static func make(model: MediaModel) -> ActivityPresentation {
         let showsBars = model.visualizer != .off
+        let ticker = model.lyricsTicker && model.lyrics != nil
+        let trailing: IslandRegion? = if ticker {
+            IslandRegion { MediaLyricLine(model: model, compact: true) }
+        } else if showsBars {
+            IslandRegion { MediaBarsView(model: model, height: 14) }
+        } else {
+            nil
+        }
         return ActivityPresentation(
             compactLeading: IslandRegion { MediaArtworkView(model: model, size: 20) },
-            compactTrailing: showsBars ? IslandRegion { MediaBarsView(model: model, height: 14) } : nil,
+            compactTrailing: trailing,
             minimal: IslandRegion { MediaMinimalView(model: model) },
             expanded: ExpandedPresentation(
                 leading: ExpandedRegion {

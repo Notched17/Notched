@@ -99,6 +99,11 @@ final class NowPlayingService {
         activeProvider?.send(command)
     }
 
+    /// Whether Notched may control Music, without asking.
+    func musicAutomationStatus() async -> AutomationStatus {
+        await runner.automationStatus(bundleID: ScriptablePlayer.music.bundleID, askIfNeeded: false)
+    }
+
     /// Whether the current Music track is a favourite (#15); nil if unknown.
     func musicFavorite() async -> Bool? {
         guard snapshot?.sourceBundleID == ScriptablePlayer.music.bundleID else { return nil }

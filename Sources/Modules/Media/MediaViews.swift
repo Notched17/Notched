@@ -121,6 +121,10 @@ struct MediaExpandedBottom: View {
                 MediaScrubber(timeline: snapshot.timeline, tint: .white) { model.actions.send(.seek($0)) }
             }
             MediaControlsRow(model: model)
+            if model.lyrics != nil {
+                MediaLyricLine(model: model)
+                    .padding(.top, Spacing.xxs)
+            }
         }
     }
 }

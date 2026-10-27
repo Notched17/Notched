@@ -2,7 +2,7 @@
 
 import CoreGraphics
 import Testing
-@testable import DynamicNotch
+@testable import Notched
 
 @Suite("NotchGeometry")
 struct NotchGeometryTests {

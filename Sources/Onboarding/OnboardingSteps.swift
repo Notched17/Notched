@@ -10,7 +10,7 @@ struct WelcomeStep: View {
         VStack(spacing: Spacing.xl) {
             WelcomeIsland()
             VStack(spacing: Spacing.s) {
-                Text("Welcome to DynamicNotch")
+                Text("Welcome to Notched")
                     .font(.system(.largeTitle, weight: .bold))
                 Text("Your Mac's notch, alive with what's happening.")
                     .font(.title3)
@@ -177,7 +177,7 @@ struct DoneStep: View {
                 message: "Rest the pointer on the notch to open the island. Settings live in the menu bar."
             )
             Form {
-                Toggle("Open DynamicNotch at login", isOn: $openAtLogin)
+                Toggle("Open Notched at login", isOn: $openAtLogin)
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)

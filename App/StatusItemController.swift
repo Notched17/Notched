@@ -15,7 +15,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         self.windows = windows
         super.init()
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "capsule.tophalf.filled", accessibilityDescription: "DynamicNotch")
+            button.image = NSImage(systemSymbolName: "capsule.tophalf.filled", accessibilityDescription: "Notched")
             button.image?.isTemplate = true
         }
         statusItem.menu = makeMenu()
@@ -30,7 +30,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         pauseItem.target = self
         menu.addItem(pauseItem)
         menu.addItem(.separator())
-        menu.addItem(ClosureMenuItem(title: "About DynamicNotch") { [weak self] in self?.windows.showSettings(.about) })
+        menu.addItem(ClosureMenuItem(title: "About Notched") { [weak self] in self?.windows.showSettings(.about) })
 
         #if DEBUG
         menu.addItem(.separator())
@@ -38,7 +38,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         #endif
 
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit DynamicNotch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit Notched", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         return menu
     }
 

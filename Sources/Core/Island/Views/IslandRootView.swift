@@ -64,7 +64,7 @@ struct IslandView: View {
         .overlay { debugOutline(shape) }
         .modifier(AlertBounce(trigger: model.activities.alertSerial, enabled: !model.accessibility.reduceMotion))
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("DynamicNotch")
+        .accessibilityLabel("Notched")
     }
 
     private var widthAnimation: Animation {

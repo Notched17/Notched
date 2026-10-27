@@ -2,7 +2,7 @@
 
 import CoreGraphics
 import Testing
-@testable import DynamicNotch
+@testable import Notched
 
 @Suite("Fullscreen detection")
 struct FullscreenDetectionTests {
@@ -85,7 +85,7 @@ struct FullscreenDetectionTests {
         #expect(WindowListFullscreenHeuristic.fullscreenDisplays(windows: windows, screens: Self.screens, ownPID: 1).isEmpty)
     }
 
-    @Test("DynamicNotch's own windows and non-normal layers are ignored")
+    @Test("Notched's own windows and non-normal layers are ignored")
     func ignoresOwnAndOverlayWindows() {
         let windows = [
             window(CGRect(x: 0, y: 0, width: 1920, height: 1243), pid: 1),

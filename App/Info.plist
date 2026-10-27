@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>DynamicNotch</string>
+	<string>Notched</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -22,10 +22,10 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>me.rkck.DynamicNotch</string>
+			<string>me.rkck.Notched</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>dynamicnotch</string>
+				<string>notched</string>
 			</array>
 		</dict>
 	</array>
@@ -38,20 +38,20 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>DynamicNotch controls Music and Spotify and reads what's playing when you turn on Now Playing.</string>
+	<string>Notched controls Music and Spotify and reads what's playing when you turn on Now Playing.</string>
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>DynamicNotch listens to the audio that's playing so the visualiser can move with the music.</string>
+	<string>Notched listens to the audio that's playing so the visualiser can move with the music.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>DynamicNotch shows when your headphones and other Bluetooth devices connect.</string>
+	<string>Notched shows when your headphones and other Bluetooth devices connect.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>DynamicNotch shows your upcoming events in the island when you turn on Calendar.</string>
+	<string>Notched shows your upcoming events in the island when you turn on Calendar.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 Charlie Auchter. Free software under the GNU GPL v3 or later.</string>
 	<key>NSLocationUsageDescription</key>
-	<string>DynamicNotch uses your approximate location to show local weather.</string>
+	<string>Notched uses your approximate location to show local weather.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>DynamicNotch uses your approximate location to show local weather.</string>
+	<string>Notched uses your approximate location to show local weather.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>DynamicNotch shows and completes today's reminders when you turn on Reminders.</string>
+	<string>Notched shows and completes today's reminders when you turn on Reminders.</string>
 </dict>
 </plist>

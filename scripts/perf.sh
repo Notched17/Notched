@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Measures DynamicNotch's idle CPU and memory (CLAUDE.md budget: CPU < 0.5%,
+# Measures Notched's idle CPU and memory (CLAUDE.md budget: CPU < 0.5%,
 # memory < 120 MB). Samples `top` every 2 s for the given duration.
 # Usage: scripts/perf.sh [seconds=60]
 set -euo pipefail
 seconds="${1:-60}"
-pid=$(pgrep -x DynamicNotch | head -1) || { echo "DynamicNotch is not running"; exit 1; }
+pid=$(pgrep -x Notched | head -1) || { echo "Notched is not running"; exit 1; }
 samples=$(( seconds / 2 + 1 ))
 echo "Sampling PID $pid for ${seconds}s ($samples samples)…"
 top -l "$samples" -s 2 -pid "$pid" -stats pid,cpu,mem 2>/dev/null \

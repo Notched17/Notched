@@ -17,7 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard !Self.isRunningTests else { return }
-        Log.app.info("DynamicNotch launched")
+        Log.app.info("Notched launched")
         let environment = AppEnvironment()
         let windows = WindowCoordinator(environment: environment)
         self.environment = environment

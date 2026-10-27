@@ -3,7 +3,7 @@
 Run the Terminal commands from inside the project folder:
 
 ```bash
-cd "$HOME/Documents/Personal Projects/DynamicNotch"
+cd "$HOME/Documents/Personal Projects/Notched"
 ```
 
 ## 1. Tools

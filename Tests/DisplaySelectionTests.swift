@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import Testing
-@testable import DynamicNotch
+@testable import Notched
 
 @Suite("DisplaySelection")
 struct DisplaySelectionTests {

@@ -27,7 +27,7 @@ extension Permission {
         }
     }
 
-    /// Why DynamicNotch might ask, in one sentence.
+    /// Why Notched might ask, in one sentence.
     var purpose: String {
         switch self {
         case .accessibility: "Replace the volume and brightness HUDs."

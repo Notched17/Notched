@@ -5,7 +5,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p build
 xcodegen generate --quiet
-xcodebuild -project DynamicNotch.xcodeproj -scheme DynamicNotch -derivedDataPath build test > build/test.log 2>&1
+xcodebuild -project Notched.xcodeproj -scheme Notched -derivedDataPath build test > build/test.log 2>&1
 status=$?
 grep -E "error:|warning:|✘|recorded an issue" build/test.log | grep -v -E "iOSSimulator|appintentsmetadataprocessor" | sort -u | head -40
 grep -E "^✔ Test run|^✘ Test run|\*\* TEST" build/test.log | tail -2

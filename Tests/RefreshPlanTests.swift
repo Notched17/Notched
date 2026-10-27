@@ -2,7 +2,7 @@
 
 import Foundation
 import Testing
-@testable import DynamicNotch
+@testable import Notched
 
 @Suite("RefreshPlan")
 struct RefreshPlanTests {

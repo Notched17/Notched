@@ -1,4 +1,4 @@
-# DynamicNotch: project brief for Claude Code
+# Notched: project brief for Claude Code
 
 A personal, free and open-source (GPL-3.0) macOS "Dynamic Island" for the MacBook notch. It is built by one student developer (Charlie) for daily use, with optional donations later. **Quality over quantity.** The research shows users love the focused, polished apps (Alcove, MediaMate) and complain about the bloated ones (Droppy, Atoll, Notchy): high idle CPU, constant permission prompts and regressions. This app must feel like Apple shipped it.
 
@@ -8,13 +8,13 @@ A personal, free and open-source (GPL-3.0) macOS "Dynamic Island" for the MacBoo
 
 - Dev machine: macOS 27.2 "Golden Gate", latest Xcode. The machine may or may not have a notch, so detect it and support both.
 - **Deployment target: macOS 26.0.** That lets us use the native Liquid Glass APIs with no back-ports.
-- The project folder path contains a space (`.../Personal Projects/DynamicNotch`). Always quote paths in shell commands.
+- The project folder path contains a space (`.../Personal Projects/Notched`). Always quote paths in shell commands.
 - The project is generated with **XcodeGen** from `project.yml`. Never hand-edit `.xcodeproj`. Change `project.yml` and run `xcodegen generate`.
 - Build from the CLI:
-  `xcodebuild -project DynamicNotch.xcodeproj -scheme DynamicNotch -configuration Debug -derivedDataPath build build`
+  `xcodebuild -project Notched.xcodeproj -scheme Notched -configuration Debug -derivedDataPath build build`
   Use the Xcode MCP server (`xcode`) if it is connected.
-- Bundle ID prefix: `me.rkck`. Main app: `me.rkck.DynamicNotch`.
-- Signing: use a stable **Apple Development** certificate (a free personal team works), not ad-hoc. Ad-hoc signatures change on every build, so macOS forgets the Accessibility, Input Monitoring and Screen Recording grants each time. Always run the app from a stable install location (copy it to `~/Applications/DynamicNotch.app` before launching) for the same reason.
+- Bundle ID prefix: `me.rkck`. Main app: `me.rkck.Notched`.
+- Signing: use a stable **Apple Development** certificate (a free personal team works), not ad-hoc. Ad-hoc signatures change on every build, so macOS forgets the Accessibility, Input Monitoring and Screen Recording grants each time. Always run the app from a stable install location (copy it to `~/Applications/Notched.app` before launching) for the same reason.
 - No App Sandbox. Hardened Runtime on. Key features need private frameworks, Accessibility and `/usr/bin/perl` (mediaremote-adapter), so this is a direct-download app, never Mac App Store.
 
 ## Licence rules (important)

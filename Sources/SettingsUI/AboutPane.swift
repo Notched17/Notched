@@ -16,7 +16,7 @@ struct AboutPane: View {
                         .frame(width: 96, height: 96)
                         .accessibilityHidden(true)
                     VStack(spacing: Spacing.xs) {
-                        Text("DynamicNotch")
+                        Text("Notched")
                             .font(.system(.title, weight: .semibold))
                         Text("Version \(Bundle.main.shortVersion) (\(Bundle.main.buildNumber))")
                             .foregroundStyle(.secondary)
@@ -40,7 +40,7 @@ struct AboutPane: View {
                     Button("Show Welcome Again", action: showWelcome)
                 }
             } footer: {
-                Text("DynamicNotch is free software: you can redistribute it and modify it under the terms of the GNU General Public License, version 3 or later.")
+                Text("Notched is free software: you can redistribute it and modify it under the terms of the GNU General Public License, version 3 or later.")
             }
         }
         .formStyle(.grouped)

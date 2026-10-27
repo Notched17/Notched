@@ -2,7 +2,7 @@
 
 import SwiftUI
 
-/// Live status of every privacy permission DynamicNotch can use, which
+/// Live status of every privacy permission Notched can use, which
 /// modules need it, and a shortcut to the right System Settings pane (#77).
 struct PermissionsPane: View {
     let permissions: PermissionCenter
@@ -22,7 +22,7 @@ struct PermissionsPane: View {
                     )
                 }
             } footer: {
-                Text("DynamicNotch only asks for a permission when you turn on a module that needs it. You can change any of these in System Settings > Privacy & Security.")
+                Text("Notched only asks for a permission when you turn on a module that needs it. You can change any of these in System Settings > Privacy & Security.")
             }
         }
         .formStyle(.grouped)

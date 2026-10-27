@@ -2,7 +2,7 @@
 
 import AppKit
 import Testing
-@testable import DynamicNotch
+@testable import Notched
 
 @Suite("Review fixes", .serialized)
 @MainActor
@@ -40,7 +40,7 @@ struct ReviewFixTests {
     @Test("Observers are removed when their tokens are released")
     func tokensRemoveObserversOnRelease() {
         let counter = Counter()
-        let name = Notification.Name("me.rkck.DynamicNotch.tests.\(UUID().uuidString)")
+        let name = Notification.Name("me.rkck.Notched.tests.\(UUID().uuidString)")
         var tokens: NotificationTokens? = NotificationTokens()
         tokens?.observe(name) { counter.value += 1 }
         NotificationCenter.default.post(name: name, object: nil)

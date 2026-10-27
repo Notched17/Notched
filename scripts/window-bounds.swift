@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Prints the on-screen windows owned by DynamicNotch with their bounds in
+// Prints the on-screen windows owned by Notched with their bounds in
 // AppKit (bottom-left origin) coordinates. Window bounds need no Screen
 // Recording permission. Run: swift scripts/window-bounds.swift
 import AppKit
@@ -7,7 +7,7 @@ import AppKit
 let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
 let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
 var found = 0
-for window in info where (window[kCGWindowOwnerName as String] as? String) == "DynamicNotch" {
+for window in info where (window[kCGWindowOwnerName as String] as? String) == "Notched" {
     guard let dict = window[kCGWindowBounds as String] as? NSDictionary,
           let cg = CGRect(dictionaryRepresentation: dict) else { continue }
     // Convert from Core Graphics (top-left origin) to AppKit (bottom-left origin).
@@ -16,4 +16,4 @@ for window in info where (window[kCGWindowOwnerName as String] as? String) == "D
     print("window \(window[kCGWindowNumber as String] ?? "?") layer \(layer): \(NSStringFromRect(appKit))")
     found += 1
 }
-if found == 0 { print("no DynamicNotch windows on screen") }
+if found == 0 { print("no Notched windows on screen") }

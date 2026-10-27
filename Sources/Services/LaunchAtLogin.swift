@@ -4,7 +4,7 @@ import AppKit
 import Observation
 import ServiceManagement
 
-/// Opens DynamicNotch at login through `SMAppService.mainApp` (#77). The state
+/// Opens Notched at login through `SMAppService.mainApp` (#77). The state
 /// lives in macOS (System Settings > General > Login Items), so it's read back
 /// rather than stored.
 @MainActor

@@ -3,7 +3,7 @@
 import CoreGraphics
 import SwiftUI
 import Testing
-@testable import DynamicNotch
+@testable import Notched
 
 @Suite("IslandViewModel geometry")
 @MainActor

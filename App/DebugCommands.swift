@@ -4,7 +4,7 @@
 import AppKit
 
 /// DEBUG-only commands, sent as URLs so scripts can drive the island into a
-/// state and screenshot it, e.g. `open -g "dynamicnotch://debug/expand"`.
+/// state and screenshot it, e.g. `open -g "notched://debug/expand"`.
 ///
 /// Commands: expand, collapse, pill?on=, outline?on=, reduce-motion?on=,
 /// reduce-transparency?on=, increase-contrast?on= (on=default clears an override),
@@ -13,7 +13,7 @@ import AppKit
 @MainActor
 enum DebugCommands {
     static func handle(_ url: URL, environment: AppEnvironment, windows: WindowCoordinator) {
-        guard url.scheme == "dynamicnotch", url.host == "debug" else { return }
+        guard url.scheme == "notched", url.host == "debug" else { return }
         let command = url.lastPathComponent
         let value = URLComponents(url: url, resolvingAgainstBaseURL: false)?
             .queryItems?.first { $0.name == "on" }?.value

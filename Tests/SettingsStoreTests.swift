@@ -2,16 +2,19 @@
 
 import Foundation
 import Testing
-@testable import DynamicNotch
+@testable import Notched
 
-@Suite("SettingsStore")
+// Serialized: every test shares one scratch defaults domain, emptied at the
+// start of each test, so test runs never leave preference files behind.
+@Suite("SettingsStore", .serialized)
 @MainActor
 struct SettingsStoreTests {
-    /// A throwaway defaults domain per test.
+    static let domain = "me.rkck.Notched.tests"
+
+    /// The scratch defaults domain, emptied.
     private func freshDefaults() -> UserDefaults {
-        let name = "me.rkck.DynamicNotch.tests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defaults.removePersistentDomain(forName: name)
+        let defaults = UserDefaults(suiteName: Self.domain)!
+        defaults.removePersistentDomain(forName: Self.domain)
         return defaults
     }
 

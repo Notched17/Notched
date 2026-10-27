@@ -44,7 +44,7 @@ final class HelloModule: IslandModule {
             compactTrailing: ActivityContent(width: 40, accessibilityLabel: "Hello") {
                 Text("Hello").font(.system(size: 13, weight: .semibold, design: .rounded))
             },
-            expanded: ActivityContent(width: 0, accessibilityLabel: "Hello from DynamicNotch") {
+            expanded: ActivityContent(width: 0, accessibilityLabel: "Hello from Notched") {
                 HelloAlertCard()
             }
         ))
@@ -106,7 +106,7 @@ private struct HelloAlertCard: View {
                 .frame(width: 52, height: 52)
                 .background(.white.opacity(0.08), in: Circle())
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("Hello from DynamicNotch")
+                Text("Hello from Notched")
                     .font(.system(.title3, design: .rounded, weight: .semibold))
                 Text("This demo alert came from a module, through the activity coordinator, into the island.")
                     .font(.callout)

@@ -3,9 +3,9 @@
 import os
 
 /// One `os.Logger` subsystem per area or module, as CLAUDE.md asks.
-/// Filter everything with: `log stream --predicate 'subsystem BEGINSWITH "me.rkck.DynamicNotch"'`.
+/// Filter everything with: `log stream --predicate 'subsystem BEGINSWITH "me.rkck.Notched"'`.
 enum Log {
-    static let root = "me.rkck.DynamicNotch"
+    static let root = "me.rkck.Notched"
 
     static let app = Logger(subsystem: "\(root).app", category: "lifecycle")
     static let island = Logger(subsystem: "\(root).island", category: "island")

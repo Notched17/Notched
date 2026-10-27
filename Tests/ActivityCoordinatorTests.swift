@@ -3,7 +3,7 @@
 import Foundation
 import SwiftUI
 import Testing
-@testable import DynamicNotch
+@testable import Notched
 
 @Suite("ActivityCoordinator")
 @MainActor

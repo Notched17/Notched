@@ -2,7 +2,7 @@
 
 import SwiftUI
 import Testing
-@testable import DynamicNotch
+@testable import Notched
 
 /// Records what happens to test modules.
 @MainActor

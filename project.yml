@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# DynamicNotch is generated with XcodeGen. Never edit the .xcodeproj by hand:
+# Notched is generated with XcodeGen. Never edit the .xcodeproj by hand:
 # change this file and run `xcodegen generate`.
-name: DynamicNotch
+name: Notched
 
 options:
   bundleIdPrefix: me.rkck
@@ -27,7 +27,7 @@ settings:
     ENABLE_APP_SANDBOX: NO
 
 targets:
-  DynamicNotch:
+  Notched:
     type: application
     platform: macOS
     sources:
@@ -39,15 +39,15 @@ targets:
         buildPhase: resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: me.rkck.DynamicNotch
-        PRODUCT_NAME: DynamicNotch
+        PRODUCT_BUNDLE_IDENTIFIER: me.rkck.Notched
+        PRODUCT_NAME: Notched
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         COMBINE_HIDPI_IMAGES: YES
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: DynamicNotch
+        CFBundleDisplayName: Notched
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSUIElement: true
@@ -55,44 +55,44 @@ targets:
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSHumanReadableCopyright: "Copyright © 2026 Charlie Auchter. Free software under the GNU GPL v3 or later."
         CFBundleURLTypes:
-          - CFBundleURLName: me.rkck.DynamicNotch
-            CFBundleURLSchemes: [dynamicnotch]
+          - CFBundleURLName: me.rkck.Notched
+            CFBundleURLSchemes: [notched]
         # Usage strings for later milestones. They do nothing until a module
         # the user has turned on actually requests the permission.
-        NSAppleEventsUsageDescription: "DynamicNotch controls Music and Spotify and reads what's playing when you turn on Now Playing."
-        NSCalendarsFullAccessUsageDescription: "DynamicNotch shows your upcoming events in the island when you turn on Calendar."
-        NSRemindersFullAccessUsageDescription: "DynamicNotch shows and completes today's reminders when you turn on Reminders."
-        NSBluetoothAlwaysUsageDescription: "DynamicNotch shows when your headphones and other Bluetooth devices connect."
-        NSLocationWhenInUseUsageDescription: "DynamicNotch uses your approximate location to show local weather."
-        NSLocationUsageDescription: "DynamicNotch uses your approximate location to show local weather."
-        NSAudioCaptureUsageDescription: "DynamicNotch listens to the audio that's playing so the visualiser can move with the music."
+        NSAppleEventsUsageDescription: "Notched controls Music and Spotify and reads what's playing when you turn on Now Playing."
+        NSCalendarsFullAccessUsageDescription: "Notched shows your upcoming events in the island when you turn on Calendar."
+        NSRemindersFullAccessUsageDescription: "Notched shows and completes today's reminders when you turn on Reminders."
+        NSBluetoothAlwaysUsageDescription: "Notched shows when your headphones and other Bluetooth devices connect."
+        NSLocationWhenInUseUsageDescription: "Notched uses your approximate location to show local weather."
+        NSLocationUsageDescription: "Notched uses your approximate location to show local weather."
+        NSAudioCaptureUsageDescription: "Notched listens to the audio that's playing so the visualiser can move with the music."
 
-  DynamicNotchTests:
+  NotchedTests:
     type: bundle.unit-test
     platform: macOS
     sources:
       - path: Tests
     dependencies:
-      - target: DynamicNotch
+      - target: Notched
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: me.rkck.DynamicNotchTests
+        PRODUCT_BUNDLE_IDENTIFIER: me.rkck.NotchedTests
         GENERATE_INFOPLIST_FILE: YES
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/DynamicNotch.app/Contents/MacOS/DynamicNotch"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Notched.app/Contents/MacOS/Notched"
         BUNDLE_LOADER: "$(TEST_HOST)"
 
 schemes:
-  DynamicNotch:
+  Notched:
     build:
       targets:
-        DynamicNotch: all
-        DynamicNotchTests: [test]
+        Notched: all
+        NotchedTests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
-        - DynamicNotchTests
+        - NotchedTests
     profile:
       config: Release
     analyze:

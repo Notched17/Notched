@@ -1,6 +1,6 @@
 # Third-party notices
 
-DynamicNotch is licensed under GPL-3.0-or-later. It adapts code and techniques from the projects below. Each adapted file says so in a comment at its top.
+Notched is licensed under GPL-3.0-or-later. It adapts code and techniques from the projects below. Each adapted file says so in a comment at its top.
 
 ## DynamicNotchKit
 
@@ -38,6 +38,6 @@ SOFTWARE.
 
 - Source: https://github.com/TheBoredTeam/MacroVisionKit
 - Licence: MIT. Copyright (c) 2024 github.com/theboringhumane
-- Used for: the technique of detecting fullscreen spaces per display by reading `CGSCopyManagedDisplaySpaces` (a space with a `TileLayoutManager` is fullscreen). DynamicNotch reimplements it as a `dlopen`/`dlsym` wrapper that fails gracefully.
+- Used for: the technique of detecting fullscreen spaces per display by reading `CGSCopyManagedDisplaySpaces` (a space with a `TileLayoutManager` is fullscreen). Notched reimplements it as a `dlopen`/`dlsym` wrapper that fails gracefully.
 
 The MIT licence text above applies to MacroVisionKit too.

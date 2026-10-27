@@ -17,7 +17,7 @@ struct GeneralPane: View {
             } footer: {
                 if launchAtLogin.requiresApproval {
                     HStack {
-                        Text("Allow DynamicNotch in Login Items to finish turning this on.")
+                        Text("Allow Notched in Login Items to finish turning this on.")
                         Button("Open Login Items…") { launchAtLogin.openLoginItemsSettings() }
                             .buttonStyle(.link)
                     }

@@ -44,7 +44,7 @@ final class WindowCoordinator {
         window.contentMinSize = NSSize(width: 640, height: 440)
         window.isReleasedWhenClosed = false
         window.center()
-        window.setFrameAutosaveName("DynamicNotchSettings")
+        window.setFrameAutosaveName("NotchedSettings")
         trackTitle(of: window)
         return window
     }
@@ -74,7 +74,7 @@ final class WindowCoordinator {
         window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.title = "Welcome to DynamicNotch"
+        window.title = "Welcome to Notched"
         window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
         window.center()

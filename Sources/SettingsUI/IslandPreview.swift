@@ -21,7 +21,7 @@ struct IslandPreview: View {
     }
 
     var body: some View {
-        let stage = CGSize(width: model.expandedSize.width + 80, height: model.expandedSize.height + 36)
+        let stage = CGSize(width: model.expandedWidth + 80, height: model.maxExpandedHeight + 36)
         VStack(spacing: Spacing.m) {
             GeometryReader { proxy in
                 let scale = proxy.size.width / stage.width
@@ -68,7 +68,7 @@ struct IslandPreview: View {
     private func refresh() {
         model.geometry = Self.geometry(for: settings)
         model.theme = settings.theme(for: model.geometry.kind)
-        model.expandedSize = IslandAppearance(expandedScale: settings.expandedScale).expandedSize
+        model.expandedScale = settings.expandedScale
     }
 
     private func hover(_ inside: Bool) {

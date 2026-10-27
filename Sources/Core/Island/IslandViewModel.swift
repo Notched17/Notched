@@ -22,7 +22,8 @@ struct IslandShapeMetrics: Equatable, Sendable {
 final class IslandViewModel {
     var geometry: NotchGeometry
     var presentation: IslandPresentation = .compact
-    var expandedSize: CGSize = IslandMetrics.expandedBase
+    /// The Expanded size setting (#72), scaling the expanded island's width.
+    var expandedScale: Double = 1
     var theme: IslandTheme = .notchBlack
     let accessibility: AccessibilityOptions
     let activities: ActivityCoordinator
@@ -62,6 +63,10 @@ final class IslandViewModel {
         return nil
     }
 
+    /// The primary activity's update count, so its compact content animates changes.
+    var compactRevision: Int { activities.banner == nil ? activities.primary?.revision ?? 0 : 0 }
+    var compactIsStale: Bool { activities.banner == nil && activities.primary?.isStale == true }
+
     /// The widest compact region's natural width, measured by the view.
     var measuredCompactWidth: CGFloat = 0
     @ObservationIgnored private var compactWidths: (id: String, leading: CGFloat, trailing: CGFloat)?
@@ -85,16 +90,66 @@ final class IslandViewModel {
     func islandRect(for presentation: IslandPresentation) -> CGRect {
         switch presentation {
         case .compact: geometry.compactRect(leadingWidth: compactSideWidth, trailingWidth: compactSideWidth)
-        case .expanded: geometry.expandedRect(size: expandedSize)
+        case .expanded: geometry.expandedRect(size: CGSize(width: expandedWidth, height: expandedHeight))
         }
     }
 
     /// The island panel never resizes during interaction (ADR-0002): it is
-    /// always big enough for the expanded island and the widest compact island,
-    /// plus room for the shadow.
+    /// always big enough for the tallest expanded island and the widest
+    /// compact island, plus room for the shadow.
     var panelFrame: CGRect {
-        let largest = islandRect(for: .expanded).union(islandRect(for: .compact))
+        let tallest = geometry.expandedRect(size: CGSize(width: expandedWidth, height: maxExpandedHeight))
+        let largest = tallest.union(islandRect(for: .compact))
         return extendedPastTopEdge(geometry.panelFrame(for: largest, padding: IslandMetrics.expandedPadding))
+    }
+
+    // MARK: Expanded size
+
+    /// Wide enough to give the regions beside the camera housing as much room
+    /// as iPhone does; the pill uses iPhone's largest expanded width.
+    var expandedWidth: CGFloat {
+        let base: CGFloat = if geometry.kind == .notch, let notch = geometry.hardwareNotch {
+            notch.width + 2 * IslandMetrics.expandedSideRoom
+        } else {
+            IslandMetrics.expandedPillWidth
+        }
+        return (base * expandedScale).rounded()
+    }
+
+    /// The expanded island's height follows its content, between Apple's
+    /// minimum and maximum (taller content is truncated).
+    var expandedHeight: CGFloat {
+        let measured = expandedPageHeights[expandedPageKey] ?? 0
+        return min(max(measured + IslandMetrics.expandedBottomInset, minExpandedHeight), maxExpandedHeight)
+    }
+
+    var minExpandedHeight: CGFloat { headerHeight + IslandMetrics.expandedMinContentHeight }
+    var maxExpandedHeight: CGFloat { headerHeight + IslandMetrics.expandedMaxContentHeight }
+
+    /// Measured content height of each expanded page, so a page that was shown
+    /// before opens at the right size straight away.
+    var expandedPageHeights: [String: CGFloat] = [:]
+
+    func reportExpandedHeight(_ height: CGFloat, for page: String) {
+        let rounded = height.rounded(.up)
+        if expandedPageHeights[page] != rounded { expandedPageHeights[page] = rounded }
+    }
+
+    /// The activity the expanded island shows: the alerting one, else the primary.
+    var expandedActivity: ActivityRecord? {
+        if let alert = activities.alert, let record = activities.live.first(where: { $0.id == alert.activityID }) {
+            return record
+        }
+        return activities.primary
+    }
+
+    var expandedPageKey: String { expandedActivity.map { "activity.\($0.id)" } ?? "home" }
+
+    /// The camera housing the expanded regions wrap around: the notch plus a
+    /// small gap each side. The pill has none.
+    var housingSize: CGSize {
+        guard geometry.kind == .notch else { return .zero }
+        return CGSize(width: headerNotchGap, height: headerHeight)
     }
 
     /// Where the pointer counts as "on the island" for a presentation.

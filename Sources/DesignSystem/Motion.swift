@@ -65,4 +65,13 @@ enum Motion {
 
     /// Short transition for content that swaps in place (compact slots, labels).
     @MainActor static var contentSwap: AnyTransition { .opacity.combined(with: .scale(scale: 0.9)) }
+
+    /// How activity content animates when a module updates it. The island
+    /// owns this timing (modules' own animations are dropped); Apple caps
+    /// Live Activity content animations at 2 s.
+    static let content = Animation.smooth(duration: 0.45)
+    /// The expanded island growing or shrinking to fit new content.
+    static let resize = Animation.spring(response: 0.38, dampingFraction: 0.86)
+    /// Stale content dims until the module updates it.
+    static let staleOpacity: Double = 0.55
 }

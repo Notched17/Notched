@@ -70,12 +70,11 @@ final class IslandController {
     // MARK: Lifecycle
 
     func update(geometry: NotchGeometry, appearance: IslandAppearance) {
-        let size = appearance.expandedSize
         let theme = appearance.theme(for: geometry.kind)
         if model.theme != theme { model.theme = theme }
-        guard geometry != model.geometry || size != model.expandedSize else { return }
+        guard geometry != model.geometry || appearance.expandedScale != model.expandedScale else { return }
         model.geometry = geometry
-        model.expandedSize = size
+        model.expandedScale = appearance.expandedScale
         layoutWindows()
         Log.island.info("Island on \(self.displayID, privacy: .public) moved to \(NSStringFromRect(self.panel.frame), privacy: .public)")
     }
@@ -256,11 +255,14 @@ final class IslandController {
         }
     }
 
-    /// The compact island grows and shrinks with its activities; keep the
-    /// sensor (and, rarely, the panel) fitted to it.
+    /// The compact island grows and shrinks with its activities, and the
+    /// expanded island with its content; keep the sensor, the expanded
+    /// tracking area (and, rarely, the panel) fitted to them.
     private func observeCompactLayout() {
         withObservationTracking {
             _ = model.islandRect(for: .compact)
+            _ = model.islandRect(for: .expanded)
+            _ = model.panelFrame
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 self?.layoutWindows()
@@ -276,6 +278,13 @@ final class IslandController {
         if panel.frame != frame { panel.setFrame(frame, display: true) }
         let sensorFrame = model.sensorFrame
         if sensor.frame != sensorFrame { sensor.setFrame(sensorFrame, display: false) }
-        updateMouseHandling(expanded: model.presentation == .expanded)
+        if model.presentation == .expanded {
+            // Follow the content-sized island without re-arming tracking,
+            // which would report the pointer leaving and entering again.
+            let zone = model.hotZone(for: .expanded)
+            hostingView.trackingRectInWindow = zone.offsetBy(dx: -panel.frame.minX, dy: -panel.frame.minY)
+        } else {
+            updateMouseHandling(expanded: false)
+        }
     }
 }

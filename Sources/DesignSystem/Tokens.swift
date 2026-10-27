@@ -31,8 +31,18 @@ enum IslandMetrics {
     static let compactSlotPadding: CGFloat = 20
     /// The inner gap between compact slot content and the notch.
     static let compactSlotInnerGap: CGFloat = 6
-    /// The expanded island at 100% size.
-    static let expandedBase = CGSize(width: 600, height: 190)
+    /// Room beside the camera housing on each side of the expanded island,
+    /// so a notched Mac gets as much space there as iPhone does (488 pt wide
+    /// around a 208 pt notch at 100% size).
+    static let expandedSideRoom: CGFloat = 140
+    /// The expanded pill's width at 100% size (iPhone's largest expanded width).
+    static let expandedPillWidth: CGFloat = 408
+    /// The expanded island's content below the housing row, from Apple's
+    /// Live Activity dimensions (84–160 pt tall overall).
+    static let expandedMinContentHeight: CGFloat = 46
+    static let expandedMaxContentHeight: CGFloat = 160
+    /// Space between the expanded content and the island's bottom edge.
+    static let expandedBottomInset: CGFloat = 16
     /// Panel padding around the expanded island so its shadow isn't clipped.
     static let expandedPadding: CGFloat = 20
     /// How far the notch island's windows reach above the screen's top edge.

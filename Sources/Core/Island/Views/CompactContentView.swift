@@ -34,7 +34,9 @@ struct CompactContentView: View {
     private func region(_ region: IslandRegion?, id: String?, isLeading: Bool) -> some View {
         ZStack {
             if let region, let id {
-                region.view()
+                IslandRegionHost(revision: model.compactRevision, isStale: model.compactIsStale) {
+                    region.view()
+                }
                     .fixedSize()
                     .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
                         model.reportCompactWidth(width, for: id, leading: isLeading)

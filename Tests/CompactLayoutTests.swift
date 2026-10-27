@@ -118,6 +118,33 @@ struct CompactLayoutTests {
         #expect(sut.bubbles[0].maxX - sut.island.minX <= 208 + 180)
     }
 
+    @Test("An idle pill keeps its standard size")
+    func idlePill() {
+        let sut = layout(pill, primary: nil)
+        #expect(sut.island.size == CGSize(width: 190, height: 32))
+    }
+
+    @Test("On the pill there's no camera to work around, so a live activity's regions sit together around a small gap")
+    func pillHugsContent() {
+        let sut = layout(pill, primary: .init(leading: 18, trailing: 40))
+        #expect(sut.middleWidth == IslandMetrics.pillCompactMiddle)
+        #expect(sut.island.width == 2 * 60 + IslandMetrics.pillCompactMiddle)
+        #expect(sut.island.midX == 960)
+    }
+
+    @Test("Side by side on the pill, the two activities are kept apart by a divider gap")
+    func pillSideBySideGap() {
+        let sut = layout(pill, mode: .sideBySide, primary: .init(leading: 16, trailing: 36), secondary: .init(leading: 16, trailing: 20))
+        #expect(sut.middleWidth == IslandMetrics.pillSideBySideMiddle)
+        #expect(sut.isSideBySide)
+    }
+
+    @Test("On a notch the middle is always the camera housing")
+    func notchMiddleIsHousing() {
+        #expect(layout(primary: .init(leading: 18, trailing: 40)).middleWidth == 208)
+        #expect(layout(primary: nil).middleWidth == 208)
+    }
+
     @Test("On the pill, bubbles sit beside it, centred on it")
     func pillBubbles() throws {
         let sut = layout(pill, primary: .init(leading: 18, trailing: 40), minimal: [20])

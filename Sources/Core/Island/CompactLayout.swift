@@ -14,6 +14,7 @@ import CoreGraphics
 ///   the third one left of it. Circles, growing into ovals up to 45 pt.
 /// - Side by side (iPhone 18 Pro): the first two activities take one side of
 ///   the notch each; a third becomes a trailing bubble.
+/// - On the pill, which has no camera, a live activity's sides sit together.
 /// - Everything together stays within the notch + 90 pt either side; the
 ///   island's sides shrink to fit. With two or more activities content is
 ///   width-limited, so modules show their reduced form.
@@ -32,6 +33,8 @@ struct CompactLayout: Equatable {
 
     /// The shape attached to the notch.
     var island: CGRect
+    /// The gap between the two sides: the camera housing on a notch.
+    var middleWidth: CGFloat = 0
     /// How far the island reaches left and right of the notch.
     var leadingSide: CGFloat
     var trailingSide: CGFloat
@@ -44,14 +47,22 @@ struct CompactLayout: Equatable {
     static func resolve(geometry: NotchGeometry, mode: Mode, primary: Widths?, secondary: Widths?, minimal: [CGFloat],
                         isBanner: Bool = false) -> CompactLayout {
         guard let primary else {
-            return CompactLayout(island: geometry.compactRect(leading: 0, trailing: 0), leadingSide: 0, trailingSide: 0,
-                                 bubbles: [], isWidthLimited: false, isSideBySide: false)
+            return CompactLayout(island: geometry.compactRect(leading: 0, trailing: 0), middleWidth: geometry.compactBaseSize.width,
+                                 leadingSide: 0, trailingSide: 0, bubbles: [], isWidthLimited: false, isSideBySide: false)
         }
         let padding = IslandMetrics.compactSlotPadding
+        let sideBySide = mode == .sideBySide && secondary != nil
+        // A notch's middle is the camera housing. The pill has none, so a live
+        // pill hugs its content, like a Live Activity in the macOS menu bar;
+        // side by side, a divider gap keeps the two activities apart.
+        let middle: CGFloat = if geometry.kind == .notch {
+            geometry.compactBaseSize.width
+        } else {
+            sideBySide ? IslandMetrics.pillSideBySideMiddle : IslandMetrics.pillCompactMiddle
+        }
         // A banner is "wide compact": it may use the whole budget on each side.
         let cap = isBanner ? IslandMetrics.compactWidthBudget - padding : IslandMetrics.compactRegionMaxWidth
         let capped = { (width: CGFloat) in min(max(width, 0), cap) }
-        let sideBySide = mode == .sideBySide && secondary != nil
         var leadingSide: CGFloat
         var trailingSide: CGFloat
         if sideBySide, let secondary {
@@ -92,15 +103,15 @@ struct CompactLayout: Equatable {
             }
         }
 
-        let island = geometry.compactRect(leading: leadingSide, trailing: trailingSide)
+        let island = geometry.compactRect(leading: leadingSide, trailing: trailingSide, middle: middle)
         var bubbles: [CGRect] = []
         for (index, width) in bubbleWidths.enumerated() {
             let x = index == 0 ? island.maxX + gap : island.minX - gap - width
             let rect = CGRect(x: x, y: island.midY - bubbleHeight / 2, width: width, height: bubbleHeight)
             bubbles.append(NotchGeometry.align(rect, scale: geometry.scale))
         }
-        return CompactLayout(island: island, leadingSide: leadingSide, trailingSide: trailingSide, bubbles: bubbles,
-                             isWidthLimited: !bubbles.isEmpty || sideBySide, isSideBySide: sideBySide)
+        return CompactLayout(island: island, middleWidth: middle, leadingSide: leadingSide, trailingSide: trailingSide,
+                             bubbles: bubbles, isWidthLimited: !bubbles.isEmpty || sideBySide, isSideBySide: sideBySide)
     }
 
     /// Every hit region: the island, then the bubbles.

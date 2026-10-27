@@ -27,6 +27,7 @@ struct MinimalBubblesView: View {
                 }
                 .offset(x: frame.minX - panel.minX, y: panel.maxY - frame.maxY)
                 .transition(Motion.bud(fromLeading: index == 0, distance: frame.width + IslandMetrics.bubbleGap,
+                                       fades: model.bubbleStyle == .glass,
                                        reduceMotion: model.accessibility.reduceMotion))
             }
         }

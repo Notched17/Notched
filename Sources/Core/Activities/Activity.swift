@@ -72,6 +72,8 @@ struct LiveActivity: Identifiable {
     let id: ActivityID
     let moduleID: ModuleID
     var kind: ActivityKind
+    /// A short name for lists, e.g. "Timer" or a song's title.
+    var title: String
     /// Orders activities within a class; higher wins. Ties go to the one started first.
     var relevance: Double
     /// False for activities the user must not lose sight of (a call, screen recording).
@@ -90,6 +92,7 @@ struct LiveActivity: Identifiable {
         id: ActivityID,
         moduleID: ModuleID,
         kind: ActivityKind,
+        title: String,
         relevance: Double = 0,
         isHideable: Bool = true,
         staleDate: Date? = nil,
@@ -101,6 +104,7 @@ struct LiveActivity: Identifiable {
         self.id = id
         self.moduleID = moduleID
         self.kind = kind
+        self.title = title
         self.relevance = relevance
         self.isHideable = isHideable
         self.staleDate = staleDate

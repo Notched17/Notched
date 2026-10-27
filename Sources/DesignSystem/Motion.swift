@@ -82,13 +82,16 @@ enum Motion {
     /// A bubble emerges from under the island's edge, growing as it travels
     /// out to its place, and slips back under it to merge. With Reduce
     /// Motion it simply fades.
-    @MainActor static func bud(fromLeading: Bool, distance: CGFloat, reduceMotion: Bool) -> AnyTransition {
+    /// Glass is translucent, so a glass bubble can't hide under the island:
+    /// it also fades as it merges (`fades`).
+    @MainActor static func bud(fromLeading: Bool, distance: CGFloat, fades: Bool = false, reduceMotion: Bool) -> AnyTransition {
         if reduceMotion { return .opacity }
         let offset = fromLeading ? -distance : distance
-        return .modifier(
+        let bud = AnyTransition.modifier(
             active: BudEffect(offset: offset, scale: 0.55, anchor: fromLeading ? .leading : .trailing),
             identity: BudEffect(offset: 0, scale: 1, anchor: fromLeading ? .leading : .trailing)
         )
+        return fades ? bud.combined(with: .opacity) : bud
     }
 }
 

@@ -60,6 +60,7 @@ final class HelloModule: IslandModule {
             id: Self.sessionID,
             moduleID: Self.descriptor.id,
             kind: .live,
+            title: "Demo session",
             accessibilityLabel: "Demo session",
             presentation: ActivityPresentation(
                 compactLeading: IslandRegion {

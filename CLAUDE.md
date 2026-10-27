@@ -138,3 +138,9 @@ For the whole screen: `screencapture -x /tmp/screen.png`. Look at the image befo
   - Never cover the password field or the user picker.
   - Test with the feature set to auto-disable after a crash, i.e. if the last session didn't exit cleanly.
 - **The app is a menu-bar agent (`LSUIElement`).** The status item must always offer: Settings, Pause island, Quit.
+
+## Token economy (delegation)
+- Delegate file searches, "where is X" lookups, and summarising to the `Explore` subagent (runs on Haiku).
+- Delegate every `xcodebuild`, test, `xcodegen` and perf-script run to `build-runner` (Haiku). It returns pass/fail plus only the failing lines.
+- Keep planning, design decisions, Swift 6 concurrency work, all code edits, debugging and screenshot critique on the main model. Do not hand these to Haiku.
+- Read only the file ranges you need. Don't re-read files you just edited.

@@ -45,6 +45,13 @@ enum IslandMetrics {
     static let bubblePadding: CGFloat = 6
     /// A bubble grows from a circle into an oval up to this width (Apple: 45 pt).
     static let bubbleMaxWidth: CGFloat = 45
+    /// The pill has no camera housing: with an activity live, its two sides
+    /// sit together around this small gap (like a Live Activity in the macOS
+    /// menu bar).
+    static let pillCompactMiddle: CGFloat = 0
+    /// Side by side on the pill: the gap (with a hairline divider) between
+    /// the two activities, standing in for the camera that separates them on a notch.
+    static let pillSideBySideMiddle: CGFloat = 17
     /// Side by side: the gap between one activity's leading and trailing content.
     static let sideBySideGap: CGFloat = 6
     /// Room beside the camera housing on each side of the expanded island,

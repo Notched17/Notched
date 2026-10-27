@@ -89,7 +89,7 @@ private struct ActivityRow: View {
                 record.activity.presentation.compactLeading.view()
                     .frame(width: 28, height: 28)
                     .background(.white.opacity(0.08), in: ConcentricRectangle(corners: .concentric(minimum: 8), isUniform: true))
-                Text(record.activity.accessibilityLabel)
+                Text(record.activity.title)
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
                 Spacer(minLength: Spacing.s)
@@ -106,7 +106,11 @@ private struct ActivityRow: View {
         }
         .buttonStyle(.plain)
         .environment(\.islandMode, .compact)
-        .accessibilityElement(children: .combine)
+        // VoiceOver reads the activity's full description, plus the row's detail.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(record.activity.accessibilityLabel)
+        .accessibilityValue(detail ?? "")
+        .accessibilityAddTraits(.isButton)
     }
 }
 

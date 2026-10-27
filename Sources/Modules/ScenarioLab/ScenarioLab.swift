@@ -170,7 +170,7 @@ final class ScenarioLab {
     private func musicActivity() -> LiveActivity {
         let start = started(.music)
         return LiveActivity(
-            id: Demo.music.activityID, moduleID: Demo.music.moduleID, kind: .media,
+            id: Demo.music.activityID, moduleID: Demo.music.moduleID, kind: .media, title: "Golden Hour",
             keylineTint: DemoBars.tint,
             accessibilityLabel: "Golden Hour by Notched Demo, playing",
             presentation: ActivityPresentation(
@@ -191,7 +191,7 @@ final class ScenarioLab {
         let start = timerStart
         let glyph = done ? "bell.fill" : "timer"
         return LiveActivity(
-            id: Demo.timer.activityID, moduleID: Demo.timer.moduleID, kind: .live,
+            id: Demo.timer.activityID, moduleID: Demo.timer.moduleID, kind: .live, title: done ? "Timer Done" : "Timer",
             keylineTint: DemoTimerStyle.tint,
             accessibilityLabel: done ? "Timer done" : "Timer, 5 minutes",
             presentation: ActivityPresentation(
@@ -248,7 +248,7 @@ final class ScenarioLab {
     private func callActivity() -> LiveActivity {
         let start = started(.call)
         return LiveActivity(
-            id: Demo.call.activityID, moduleID: Demo.call.moduleID, kind: .system,
+            id: Demo.call.activityID, moduleID: Demo.call.moduleID, kind: .system, title: "Sam Rivera",
             isHideable: false,
             keylineTint: DemoCallStyle.tint,
             accessibilityLabel: "Call with Sam Rivera",
@@ -280,7 +280,7 @@ final class ScenarioLab {
     private func agentActivity() -> LiveActivity {
         let start = started(.agent)
         return LiveActivity(
-            id: Demo.agent.activityID, moduleID: Demo.agent.moduleID, kind: .live,
+            id: Demo.agent.activityID, moduleID: Demo.agent.moduleID, kind: .live, title: "Claude Code",
             keylineTint: DemoAgentStyle.tint,
             accessibilityLabel: "Claude Code working on Notched",
             presentation: ActivityPresentation(
@@ -299,7 +299,7 @@ final class ScenarioLab {
     private func downloadActivity() -> LiveActivity {
         let progress = downloadProgress
         return LiveActivity(
-            id: Demo.download.activityID, moduleID: Demo.download.moduleID, kind: .live,
+            id: Demo.download.activityID, moduleID: Demo.download.moduleID, kind: .live, title: "Golden Gate 4K.mov",
             keylineTint: DemoDownloadStyle.tint,
             accessibilityLabel: "Downloading Golden Gate 4K.mov, \(Int(progress * 100)) percent",
             presentation: ActivityPresentation(

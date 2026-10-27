@@ -118,7 +118,7 @@ struct IslandViewModelTests {
         sut.reportWidth(18, for: "a.leading")
         sut.reportWidth(40, for: "a.trailing")
         #expect(sut.islandRect(for: .compact) == CGRect(x: 856, y: 1205.5, width: 208, height: 37.5))
-        activities.post(LiveActivity(id: "a", moduleID: "m", kind: .live, accessibilityLabel: "a", presentation: .text("a")))
+        activities.post(LiveActivity(id: "a", moduleID: "m", kind: .live, title: "a", accessibilityLabel: "a", presentation: .text("a")))
         // The wider region (40) plus 20 pt of padding on each side of the 208 pt notch.
         #expect(sut.islandRect(for: .compact) == CGRect(x: 796, y: 1205.5, width: 328, height: 37.5))
     }
@@ -131,8 +131,8 @@ struct IslandViewModelTests {
             accessibility: AccessibilityOptions(),
             activities: activities
         )
-        activities.post(LiveActivity(id: "a", moduleID: "m", kind: .live, accessibilityLabel: "a", presentation: .text("a")))
-        activities.post(LiveActivity(id: "b", moduleID: "m", kind: .live, accessibilityLabel: "b", presentation: .text("b")))
+        activities.post(LiveActivity(id: "a", moduleID: "m", kind: .live, title: "a", accessibilityLabel: "a", presentation: .text("a")))
+        activities.post(LiveActivity(id: "b", moduleID: "m", kind: .live, title: "b", accessibilityLabel: "b", presentation: .text("b")))
         #expect(sut.compactScene.bubbles.map(\.id) == ["b"])
         activities.show(TransientBanner(id: "charging", moduleID: "m", leading: IslandRegion { Text("⚡︎") }, accessibilityLabel: "Charging"))
         #expect(sut.compactScene.primary?.key == "banner.charging")
@@ -149,7 +149,7 @@ struct IslandViewModelTests {
         )
         sut.multipleActivityMode = .sideBySide
         for id in ["a", "b", "c"] {
-            activities.post(LiveActivity(id: ActivityID(id), moduleID: "m", kind: .live, accessibilityLabel: id, presentation: .text(id)))
+            activities.post(LiveActivity(id: ActivityID(id), moduleID: "m", kind: .live, title: id, accessibilityLabel: id, presentation: .text(id)))
         }
         #expect(sut.compactScene.primary?.activityID == "a")
         #expect(sut.compactScene.secondary?.activityID == "b")

@@ -43,7 +43,7 @@ struct ActivityCoordinatorTests {
         staleDate: Date? = nil
     ) -> LiveActivity {
         LiveActivity(
-            id: id, moduleID: module, kind: kind, relevance: relevance, isHideable: hideable,
+            id: id, moduleID: module, kind: kind, title: id.rawValue, relevance: relevance, isHideable: hideable,
             staleDate: staleDate, accessibilityLabel: id.rawValue, presentation: .text(id.rawValue)
         )
     }

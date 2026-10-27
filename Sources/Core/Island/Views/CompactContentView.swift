@@ -22,7 +22,14 @@ struct CompactContentView: View {
             }
             .modifier(ActivityElement(content: layout.isSideBySide ? scene.primary : nil))
             Color.clear
-                .frame(width: model.geometry.compactBaseSize.width)
+                .frame(width: layout.middleWidth)
+                .overlay {
+                    // Side by side on the pill, a hairline stands in for the
+                    // camera that separates the two activities on a notch.
+                    if layout.isSideBySide && model.geometry.kind == .pill {
+                        Capsule().fill(.white.opacity(0.22)).frame(width: 1, height: 16)
+                    }
+                }
             side(width: layout.trailingSide, isLeading: false) {
                 if layout.isSideBySide {
                     pair(scene.secondary)

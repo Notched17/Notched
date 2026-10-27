@@ -24,7 +24,7 @@ final class AlphaTestModule: IslandModule {
     func start() {
         ModuleEventLog.shared.events.append("alpha.start")
         context.activities.post(LiveActivity(
-            id: "alpha.live", moduleID: "alpha", kind: .live,
+            id: "alpha.live", moduleID: "alpha", kind: .live, title: "Alpha",
             accessibilityLabel: "alpha", presentation: .text("A")
         ))
     }
@@ -95,7 +95,7 @@ struct ModuleRegistryTests {
     @Test("A module can only post activities under its own id")
     func sinkIsScoped() {
         let sink = ActivitySink(moduleID: "alpha", coordinator: coordinator)
-        sink.post(LiveActivity(id: "spoof", moduleID: "beta", kind: .system, accessibilityLabel: "spoof", presentation: .text("spoof")))
+        sink.post(LiveActivity(id: "spoof", moduleID: "beta", kind: .system, title: "Spoof", accessibilityLabel: "spoof", presentation: .text("spoof")))
         sink.show(TransientBanner(id: "spoof", moduleID: "beta", leading: IslandRegion { Text("spoof") }, accessibilityLabel: "spoof"))
         #expect(coordinator.live.isEmpty)
         #expect(coordinator.banner == nil)
@@ -103,7 +103,7 @@ struct ModuleRegistryTests {
 
     @Test("A module can only end its own activities")
     func sinkEndIsScoped() {
-        coordinator.post(LiveActivity(id: "beta.live", moduleID: "beta", kind: .live, accessibilityLabel: "beta", presentation: .text("B")))
+        coordinator.post(LiveActivity(id: "beta.live", moduleID: "beta", kind: .live, title: "Beta", accessibilityLabel: "beta", presentation: .text("B")))
         ActivitySink(moduleID: "alpha", coordinator: coordinator).end("beta.live")
         #expect(coordinator.live.map(\.id) == ["beta.live"])
     }

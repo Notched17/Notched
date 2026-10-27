@@ -15,7 +15,7 @@ Modules post **`LiveActivity`** values through their scoped `ActivitySink`. An a
 - a **relevance** (higher wins within its kind)
 - **`isHideable`**
 - an optional **stale date**, **keyline tint** and **`openAction`**
-- an accessibility label
+- a short **title** for lists ("Timer", a song's name), and a fuller accessibility label for VoiceOver
 - an **`ActivityPresentation`**: named regions (`compactLeading`, `compactTrailing?`, `minimal`, and `expanded` leading / trailing / center / bottom) instead of free-form views.
 
 `ActivityCoordinator` stays pure and clock-injected. Its rules are pinned by scenario tests (`ActivityCoordinatorTests`):
@@ -31,6 +31,8 @@ Modules post **`LiveActivity`** values through their scoped `ActivitySink`. An a
 9. **Deadlines:** stale dates, alert and banner ends and Recent dismissals all go through one `nextDeadline` and a one-shot wake. There is no polling.
 
 **The island owns layout and animation.** Each region renders inside `IslandRegionHost`, which drops a module's own animations and applies the island's short content animation. That means numeric-text rolls, symbol effects and blur-replace swaps, all ≤ 2 s. Stale content dims. Expanded regions are placed by `ExpandedRegionsLayout` with Apple's algorithm (`ExpandedRegionsGeometry`, tested). The expanded island is the notch + 2 × 140 pt wide (408 pt on the pill), and its height follows the content (notch row + 46…160 pt).
+
+**The pill has no camera to work around.** Idle, it keeps its standard 190 pt. With an activity live, its leading and trailing regions sit together, like a Live Activity in the macOS menu bar, rather than keeping an empty middle that only exists on iPhone because of the camera. Side by side, a 17 pt gap with a hairline divider separates the two activities.
 
 **Interaction (ISLAND-BEHAVIOR.md §6):**
 

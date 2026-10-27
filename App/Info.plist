@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>DynamicNotch</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>me.rkck.DynamicNotch</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>dynamicnotch</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>DynamicNotch controls Music and Spotify and reads what's playing when you turn on Now Playing.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>DynamicNotch listens to the audio that's playing so the visualiser can move with the music.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>DynamicNotch shows when your headphones and other Bluetooth devices connect.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>DynamicNotch shows your upcoming events in the island when you turn on Calendar.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2026 Charlie Auchter. Free software under the GNU GPL v3 or later.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>DynamicNotch uses your approximate location to show local weather.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>DynamicNotch uses your approximate location to show local weather.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>DynamicNotch shows and completes today's reminders when you turn on Reminders.</string>
+</dict>
+</plist>

@@ -128,6 +128,9 @@ final class IslandController {
     /// AppKit tracking areas never report a pointer that lands exactly on the
     /// screen's top row, which is where a pointer thrown at the notch ends up.
     func pointerMoved(to location: CGPoint) {
+        // A paused or fullscreen-hidden island must not wake (or buzz) when the
+        // pointer goes to the top of the screen, e.g. to reveal the menu bar.
+        guard !isHidden else { return }
         switch hover.state {
         case .compact:
             guard model.isOnNotchTopEdge(location) else { return }

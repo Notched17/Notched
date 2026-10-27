@@ -4,11 +4,12 @@ import SwiftUI
 
 struct AppearancePane: View {
     @Bindable var settings: SettingsStore
+    let accessibility: AccessibilityOptions
 
     var body: some View {
         Form {
             Section {
-                IslandPreview(settings: settings)
+                IslandPreview(settings: settings, accessibility: accessibility)
             } footer: {
                 Text("Rest the pointer on the preview, or choose Replay, to try your settings.")
             }

@@ -9,7 +9,7 @@ import AppKit
 /// Commands: expand, collapse, pill?on=, outline?on=, reduce-motion?on=,
 /// reduce-transparency?on=, increase-contrast?on= (on=default clears an override),
 /// fullscreen-fallback?on=, hello-alert, hello-session?on=, settings?pane=,
-/// theme?notch=&pill=.
+/// theme?notch=&pill=, onboarding?step=, launch-at-login?on=, appearance?mode=dark|light|system.
 @MainActor
 enum DebugCommands {
     static func handle(_ url: URL, environment: AppEnvironment, windows: WindowCoordinator) {
@@ -25,6 +25,12 @@ enum DebugCommands {
         case "expand": environment.islands.expandAll()
         case "collapse": environment.islands.collapseAll()
         case "pill": environment.settings.debugForcePill = on
+        case "appearance":
+            switch query(url, "mode") {
+            case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
+            case "light": NSApp.appearance = NSAppearance(named: .aqua)
+            default: NSApp.appearance = nil
+            }
         case "launch-at-login": environment.launchAtLogin.setEnabled(on)
             Log.app.info("Launch at login status: \(String(describing: environment.launchAtLogin.status), privacy: .public)")
         case "onboarding": windows.showOnboarding(startAt: query(url, "step").flatMap(OnboardingView.Step.init(name:)) ?? .welcome)
@@ -76,22 +82,3 @@ enum DebugMenu {
     }
 }
 #endif
-
-/// An `NSMenuItem` that runs a closure.
-@MainActor
-final class ClosureMenuItem: NSMenuItem {
-    private let handler: @MainActor () -> Void
-
-    init(title: String, keyEquivalent: String = "", handler: @escaping @MainActor () -> Void) {
-        self.handler = handler
-        super.init(title: title, action: #selector(run), keyEquivalent: keyEquivalent)
-        target = self
-    }
-
-    @available(*, unavailable)
-    required init(coder: NSCoder) {
-        fatalError("init(coder:) is not supported")
-    }
-
-    @objc private func run() { handler() }
-}

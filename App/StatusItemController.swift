@@ -15,7 +15,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         self.windows = windows
         super.init()
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "capsule.fill", accessibilityDescription: "DynamicNotch")
+            button.image = NSImage(systemSymbolName: "capsule.tophalf.filled", accessibilityDescription: "DynamicNotch")
             button.image?.isTemplate = true
         }
         statusItem.menu = makeMenu()

@@ -32,6 +32,7 @@ final class WindowCoordinator {
             permissions: environment.permissions,
             scheduler: environment.scheduler,
             launchAtLogin: environment.launchAtLogin,
+            accessibility: environment.accessibility,
             showWelcome: { [weak self] in self?.showOnboarding() }
         )
         let controller = NSHostingController(rootView: SettingsRootView(navigation: settingsNavigation, context: context))

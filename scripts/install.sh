@@ -9,7 +9,7 @@ config="${1:-Debug}"
 app_name="DynamicNotch.app"
 dest="$HOME/Applications/$app_name"
 
-[ -d DynamicNotch.xcodeproj ] || xcodegen generate --quiet
+xcodegen generate --quiet
 xcodebuild -project DynamicNotch.xcodeproj -scheme DynamicNotch -configuration "$config" \
   -derivedDataPath build build -quiet
 

@@ -2,8 +2,8 @@
 
 import Foundation
 
-/// Block-based notification observers that run their handler on the main actor
-/// and are removed together with `invalidate()`.
+/// Block-based notification observers that run their handler on the main actor.
+/// They're removed by `invalidate()` or when this object goes away.
 @MainActor
 final class NotificationTokens {
     private var tokens: [(center: NotificationCenter, token: any NSObjectProtocol)] = []
@@ -23,5 +23,10 @@ final class NotificationTokens {
     func invalidate() {
         for entry in tokens { entry.center.removeObserver(entry.token) }
         tokens.removeAll()
+    }
+
+    /// Notification centers keep block observers alive until they're removed.
+    isolated deinit {
+        invalidate()
     }
 }

@@ -25,6 +25,8 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     DEAD_CODE_STRIPPING: YES
     ENABLE_APP_SANDBOX: NO
+    # The app has no App Intents; quiet the metadata tool's "nothing to extract" notice.
+    LM_FILTER_WARNINGS: YES
 
 targets:
   DynamicNotch:

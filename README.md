@@ -32,8 +32,23 @@ To use your own signing team, change `DEVELOPMENT_TEAM` in `project.yml` (or ove
 ## Tests
 
 ```bash
-xcodebuild -project DynamicNotch.xcodeproj -scheme DynamicNotch -derivedDataPath build test
+scripts/test.sh        # regenerates the project, runs the unit tests, prints failures
 ```
+
+## Development scripts
+
+| Script | What it does |
+|---|---|
+| `scripts/install.sh [Debug\|Release]` | Build, install to `~/Applications`, relaunch |
+| `scripts/test.sh` | Run the unit tests (full log in `build/test.log`) |
+| `scripts/perf.sh [seconds]` | Sample idle CPU and memory of the running app |
+| `swift scripts/window-bounds.swift` | Print the island windows' frames |
+| `swift scripts/hit-test.swift x,y …` | Ask the window server which window a click at a point would hit |
+| `scripts/settings-shot.sh <pane> <file.png>` | Screenshot a Settings pane |
+
+Debug builds accept `dynamicnotch://debug/…` URLs so scripts can drive the island, for example `open -g "dynamicnotch://debug/expand"`. Commands: `expand`, `collapse`, `pill?on=1`, `outline?on=1`, `hello-alert`, `hello-session?on=1`, `theme?notch=liquidGlass&pill=tintedGlass`, `settings?pane=appearance`, `onboarding?step=modules`, `reduce-motion?on=1`, `reduce-transparency?on=1`, `increase-contrast?on=1`, `fullscreen-fallback?on=1`, `appearance?mode=dark`, `launch-at-login?on=1`. Release builds ignore them.
+
+Logs: `log stream --level debug --predicate 'subsystem BEGINSWITH "me.rkck.DynamicNotch"'`.
 
 ## Project layout
 

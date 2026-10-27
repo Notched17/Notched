@@ -11,11 +11,11 @@ struct IslandPreview: View {
     @State private var pendingExpand: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(settings: SettingsStore) {
+    init(settings: SettingsStore, accessibility: AccessibilityOptions) {
         self.settings = settings
         _model = State(initialValue: IslandViewModel(
             geometry: Self.geometry(for: settings),
-            accessibility: AccessibilityOptions(),
+            accessibility: accessibility,
             activities: ActivityCoordinator()
         ))
     }
@@ -36,6 +36,7 @@ struct IslandPreview: View {
             }
             .aspectRatio(stage.width / stage.height, contentMode: .fit)
             .frame(maxWidth: 480)
+            .frame(maxWidth: .infinity)
             .onHover(perform: hover)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Island preview")

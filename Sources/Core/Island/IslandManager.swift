@@ -15,15 +15,37 @@ struct IslandConfiguration: Equatable, Sendable {
 @MainActor
 final class IslandManager {
     private(set) var controllers: [DisplayID: IslandController] = [:]
+
     var configuration: IslandConfiguration {
         didSet { if configuration != oldValue { reconcileScreens() } }
     }
 
+    var behavior: IslandBehavior {
+        didSet { for controller in controllers.values { controller.behavior = behavior } }
+    }
+
+    /// Pause hides every island until resumed (status menu or Settings).
+    var isPaused = false {
+        didSet { if isPaused != oldValue { applyVisibility() } }
+    }
+
+    var hideFromScreenCapture = false {
+        didSet { for controller in controllers.values { controller.setHiddenFromCapture(hideFromScreenCapture) } }
+    }
+
+    let accessibility: AccessibilityOptions
+    var actions = IslandActions()
+    var onPauseChanged: (Bool) -> Void = { _ in }
+
     private let observers = NotificationTokens()
     private var pendingReconcile: Task<Void, Never>?
 
-    init(configuration: IslandConfiguration = IslandConfiguration()) {
+    init(configuration: IslandConfiguration = IslandConfiguration(),
+         behavior: IslandBehavior = IslandBehavior(),
+         accessibility: AccessibilityOptions) {
         self.configuration = configuration
+        self.behavior = behavior
+        self.accessibility = accessibility
     }
 
     func start() {
@@ -46,6 +68,9 @@ final class IslandManager {
         for controller in controllers.values { controller.tearDown() }
         controllers.removeAll()
     }
+
+    func expandAll() { for controller in controllers.values { controller.expand() } }
+    func collapseAll() { for controller in controllers.values { controller.collapse() } }
 
     /// Screen notifications arrive in bursts; settle for 200 ms before rebuilding.
     private func scheduleReconcile() {
@@ -76,8 +101,18 @@ final class IslandManager {
             if let controller = controllers[id] {
                 controller.update(geometry: geometry)
             } else {
-                controllers[id] = IslandController(displayID: id, geometry: geometry)
+                let controller = IslandController(
+                    displayID: id, geometry: geometry, behavior: behavior,
+                    accessibility: accessibility, actions: actions
+                )
+                controller.setHiddenFromCapture(hideFromScreenCapture)
+                controllers[id] = controller
             }
         }
+        applyVisibility()
+    }
+
+    private func applyVisibility() {
+        for controller in controllers.values { controller.setHidden(isPaused) }
     }
 }

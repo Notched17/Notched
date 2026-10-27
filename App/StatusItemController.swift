@@ -4,10 +4,13 @@ import AppKit
 
 /// The menu-bar status item. It must always offer Settings, Pause island and Quit.
 @MainActor
-final class StatusItemController: NSObject {
+final class StatusItemController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    private let environment: AppEnvironment
+    private let pauseItem = NSMenuItem(title: "Pause Island", action: #selector(togglePause), keyEquivalent: "")
 
-    override init() {
+    init(environment: AppEnvironment) {
+        self.environment = environment
         super.init()
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "capsule.fill", accessibilityDescription: "DynamicNotch")
@@ -18,16 +21,31 @@ final class StatusItemController: NSObject {
 
     private func makeMenu() -> NSMenu {
         let menu = NSMenu()
+        menu.delegate = self
+        menu.autoenablesItems = false
+
         let settings = NSMenuItem(title: "Settings…", action: nil, keyEquivalent: ",")
         settings.isEnabled = false
         menu.addItem(settings)
-        let pause = NSMenuItem(title: "Pause Island", action: nil, keyEquivalent: "")
-        pause.isEnabled = false
-        menu.addItem(pause)
+
+        pauseItem.target = self
+        menu.addItem(pauseItem)
+
+        #if DEBUG
         menu.addItem(.separator())
-        let quit = NSMenuItem(title: "Quit DynamicNotch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        menu.addItem(quit)
-        menu.autoenablesItems = false
+        menu.addItem(DebugMenu.make(environment: environment))
+        #endif
+
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Quit DynamicNotch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         return menu
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        pauseItem.title = environment.islands.isPaused ? "Resume Island" : "Pause Island"
+    }
+
+    @objc private func togglePause() {
+        environment.islands.isPaused.toggle()
     }
 }

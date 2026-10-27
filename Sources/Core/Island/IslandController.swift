@@ -1,39 +1,205 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import AppKit
+import SwiftUI
 
-/// Owns the panel and model for the island on one display.
+/// Owns the panels and model for the island on one display, and turns pointer
+/// events into one continuous compact ↔ expanded morph.
+///
+/// Click-through (ADR-0002): the island panel has a fixed size and never
+/// resizes during interaction, so the morph can't glitch. While compact it
+/// ignores the mouse completely and an invisible sensor window, exactly the
+/// size of the compact island, detects hover and clicks. While expanded the
+/// island panel takes the mouse and detects the pointer leaving.
 @MainActor
 final class IslandController {
     let displayID: DisplayID
     let model: IslandViewModel
+    var behavior: IslandBehavior
+
     private let panel: IslandPanel
     private let hostingView: IslandHostingView
+    private let sensor: IslandSensorPanel
+    private var hover = HoverStateMachine()
+    private var hoverTimer: Task<Void, Never>?
+    /// Identifies the latest presentation change, so a superseded animation's
+    /// completion can't switch mouse handling under a newer one.
+    private var transitionID = 0
+    private var isHidden = false
 
-    init(displayID: DisplayID, geometry: NotchGeometry) {
+    init(displayID: DisplayID, geometry: NotchGeometry, behavior: IslandBehavior,
+         accessibility: AccessibilityOptions, actions: IslandActions) {
         self.displayID = displayID
-        model = IslandViewModel(geometry: geometry)
-        let frame = model.panelFrame(for: model.presentation)
+        self.behavior = behavior
+        model = IslandViewModel(geometry: geometry, accessibility: accessibility)
+        let frame = model.panelFrame
         panel = IslandPanel(contentRect: frame)
         hostingView = IslandHostingView(rootView: IslandRootView(model: model))
         hostingView.frame = CGRect(origin: .zero, size: frame.size)
         hostingView.autoresizingMask = [.width, .height]
         panel.contentView = hostingView
-        panel.setFrame(frame, display: true)
+        sensor = IslandSensorPanel(contentRect: model.islandRect(for: .compact))
+
+        model.actions = IslandActions(
+            openSettings: { [weak self] in
+                self?.send(.forceCollapse)
+                actions.openSettings()
+            },
+            pauseIsland: { [weak self] in
+                self?.send(.forceCollapse)
+                actions.pauseIsland()
+            }
+        )
+        model.onSurfaceTap = { [weak self] in self?.send(.clicked) }
+        hostingView.onPointer = { [weak self] event in
+            self?.islandPointer(event)
+        }
+        sensor.onEvent = { [weak self] event in
+            self?.sensorEvent(event)
+        }
+
+        layoutWindows()
+        sensor.orderFrontRegardless()
         panel.orderFrontRegardless()
         Log.island.info("Island on \(displayID, privacy: .public): \(String(describing: geometry.kind), privacy: .public) panel \(NSStringFromRect(frame), privacy: .public)")
     }
 
+    // MARK: Lifecycle
+
     func update(geometry: NotchGeometry) {
         guard geometry != model.geometry else { return }
         model.geometry = geometry
-        let frame = model.panelFrame(for: model.presentation)
-        panel.setFrame(frame, display: true)
-        Log.island.info("Island on \(self.displayID, privacy: .public) moved to \(NSStringFromRect(frame), privacy: .public)")
+        layoutWindows()
+        Log.island.info("Island on \(self.displayID, privacy: .public) moved to \(NSStringFromRect(self.panel.frame), privacy: .public)")
+    }
+
+    func setHidden(_ hidden: Bool) {
+        guard hidden != isHidden else { return }
+        isHidden = hidden
+        if hidden {
+            send(.forceCollapse)
+            panel.orderOut(nil)
+            sensor.orderOut(nil)
+        } else {
+            sensor.orderFrontRegardless()
+            panel.orderFrontRegardless()
+        }
+    }
+
+    func setHiddenFromCapture(_ hidden: Bool) {
+        panel.hiddenFromCapture = hidden
     }
 
     func tearDown() {
-        panel.orderOut(nil)
-        panel.close()
+        hoverTimer?.cancel()
+        for window in [panel, sensor] as [NSWindow] {
+            window.orderOut(nil)
+            window.close()
+        }
+    }
+
+    // MARK: Interaction
+
+    func expand() { send(.forceExpand) }
+    func collapse() { send(.forceCollapse) }
+
+    /// Events from the sensor only matter while the island is compact.
+    private func sensorEvent(_ event: IslandSensorPanel.Event) {
+        guard hover.state == .compact || hover.state == .pendingExpand else { return }
+        switch event {
+        case .entered: send(.pointerEntered)
+        case .exited: send(.pointerExited)
+        case .clicked: send(.clicked)
+        }
+    }
+
+    /// Events from the island panel only matter while it is expanded.
+    private func islandPointer(_ event: IslandHostingView.PointerEvent) {
+        guard hover.state == .expanded || hover.state == .pendingCollapse else { return }
+        switch event {
+        case .entered: send(.pointerEntered)
+        case .exited: send(.pointerExited)
+        }
+    }
+
+    private func send(_ event: HoverStateMachine.Event) {
+        let before = hover.state
+        let effects = hover.handle(event, hoverEnabled: behavior.expandOnHover, hoverDelay: behavior.hoverDelay)
+        Log.island.debug("hover \(String(describing: event), privacy: .public): \(String(describing: before), privacy: .public) → \(String(describing: self.hover.state), privacy: .public)")
+        for effect in effects { perform(effect) }
+    }
+
+    private func perform(_ effect: HoverStateMachine.Effect) {
+        switch effect {
+        case .scheduleExpand(let delay):
+            schedule(.expandDelayElapsed, after: delay)
+        case .scheduleCollapse(let delay):
+            schedule(.collapseGraceElapsed, after: delay)
+        case .cancelTimers:
+            hoverTimer?.cancel()
+            hoverTimer = nil
+        case .expand(let reason):
+            if reason == .hover && behavior.hapticsEnabled {
+                NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+            }
+            present(.expanded)
+        case .collapse:
+            present(.compact)
+        }
+    }
+
+    private func schedule(_ event: HoverStateMachine.Event, after delay: Duration) {
+        hoverTimer?.cancel()
+        hoverTimer = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            self?.send(event)
+        }
+    }
+
+    // MARK: Morph
+
+    private func present(_ target: IslandPresentation) {
+        guard model.presentation != target else { return }
+        transitionID += 1
+        let id = transitionID
+
+        if target == .expanded {
+            // Take the mouse now, so the expanded content is clickable at once.
+            updateMouseHandling(expanded: true)
+        }
+        withAnimation(animation(for: target), completionCriteria: .removed) {
+            model.presentation = target
+        } completion: { [weak self] in
+            guard let self, self.transitionID == id, self.model.presentation == .compact else { return }
+            // Fully collapsed: let clicks through again and hand hover back to the sensor.
+            self.updateMouseHandling(expanded: false)
+        }
+    }
+
+    private func animation(for target: IslandPresentation) -> Animation {
+        if model.accessibility.reduceMotion { return Motion.reduced }
+        return target == .expanded ? behavior.animationStyle.expand : behavior.animationStyle.collapse
+    }
+
+    private func updateMouseHandling(expanded: Bool) {
+        panel.ignoresMouseEvents = !expanded
+        if expanded {
+            let island = model.islandRect(for: .expanded)
+            hostingView.trackingRectInWindow = island.offsetBy(dx: -panel.frame.minX, dy: -panel.frame.minY)
+            hostingView.resetTracking()
+        } else {
+            sensor.resetTracking()
+        }
+    }
+
+    /// Sizes the island panel (only when geometry or sizes change, never during
+    /// the morph) and fits the sensor to the compact island.
+    private func layoutWindows() {
+        let frame = model.panelFrame
+        if panel.frame != frame { panel.setFrame(frame, display: true) }
+        let compact = model.islandRect(for: .compact)
+        if sensor.frame != compact { sensor.setFrame(compact, display: false) }
+        updateMouseHandling(expanded: model.presentation == .expanded)
     }
 }

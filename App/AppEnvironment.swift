@@ -5,10 +5,12 @@ import AppKit
 /// Owns the app's long-lived services. Created once by `AppDelegate`.
 @MainActor
 final class AppEnvironment {
+    let accessibility: AccessibilityOptions
     let islands: IslandManager
 
     init() {
-        islands = IslandManager()
+        accessibility = AccessibilityOptions()
+        islands = IslandManager(accessibility: accessibility)
     }
 
     func start() {

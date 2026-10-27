@@ -19,7 +19,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Log.app.info("DynamicNotch launched")
         let environment = AppEnvironment()
         self.environment = environment
-        statusItemController = StatusItemController()
+        environment.islands.actions = IslandActions(
+            openSettings: { Log.app.info("Settings window arrives in task 6") },
+            pauseIsland: { [weak environment] in environment?.islands.isPaused = true }
+        )
+        statusItemController = StatusItemController(environment: environment)
         environment.start()
     }
 

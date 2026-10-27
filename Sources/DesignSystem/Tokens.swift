@@ -28,9 +28,6 @@ enum Radius {
 enum IslandMetrics {
     /// The expanded island at 100% size.
     static let expandedBase = CGSize(width: 600, height: 190)
-    /// Panel padding around the island so shadows aren't clipped. Kept to zero
-    /// for the compact notch so the panel never covers anything beside it.
-    static let compactNotchPadding: CGFloat = 0
-    static let compactPillPadding: CGFloat = NotchGeometry.pillGap
+    /// Panel padding around the expanded island so its shadow isn't clipped.
     static let expandedPadding: CGFloat = 20
 }

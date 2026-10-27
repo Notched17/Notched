@@ -4,6 +4,7 @@ import AppKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var environment: AppEnvironment?
     private var statusItemController: StatusItemController?
 
     /// True when the app is only hosting the unit-test bundle. Tests exercise
@@ -16,7 +17,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard !Self.isRunningTests else { return }
         Log.app.info("DynamicNotch launched")
+        let environment = AppEnvironment()
+        self.environment = environment
         statusItemController = StatusItemController()
+        environment.start()
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        #if DEBUG
+        guard let environment else { return }
+        for url in urls { DebugCommands.handle(url, environment: environment) }
+        #endif
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

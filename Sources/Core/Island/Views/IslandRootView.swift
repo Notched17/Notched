@@ -2,19 +2,28 @@
 
 import SwiftUI
 
-/// Fills the island panel and pins the island to its top centre.
+/// Fills the island panel and places the island and its minimal bubbles at
+/// their screen positions. The compact island can be asymmetric (an empty
+/// trailing side hides), so it is placed by its frame rather than centred.
 struct IslandRootView: View {
     let model: IslandViewModel
 
     var body: some View {
-        VStack(spacing: 0) {
+        let panel = model.panelFrame
+        let island = model.islandRect(for: model.presentation)
+        ZStack(alignment: .topLeading) {
             IslandView(model: model)
-            Spacer(minLength: 0)
+                .offset(x: island.minX - panel.minX, y: panel.maxY - island.maxY)
+            MinimalBubblesView(model: model, panel: panel)
         }
-        .padding(.top, model.topInset)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .animation(layoutAnimation, value: model.compactLayout)
         .ignoresSafeArea()
         .environment(\.colorScheme, .dark)
+    }
+
+    private var layoutAnimation: Animation {
+        model.accessibility.reduceMotion ? Motion.reduced : .spring(response: 0.36, dampingFraction: 0.8)
     }
 }
 
@@ -45,7 +54,6 @@ struct IslandView: View {
         }
         .environment(\.islandNamespace, namespace)
         .frame(width: model.islandSize.width, height: model.islandSize.height)
-        .animation(widthAnimation, value: model.compactSideWidth)
         .animation(resizeAnimation, value: model.expandedHeight)
         .environment(\.islandReduceMotion, model.accessibility.reduceMotion)
         .clipShape(shape)
@@ -69,10 +77,6 @@ struct IslandView: View {
         .accessibilityLabel("Notched")
     }
 
-    private var widthAnimation: Animation {
-        model.accessibility.reduceMotion ? Motion.reduced : .spring(response: 0.36, dampingFraction: 0.8)
-    }
-
     private var resizeAnimation: Animation {
         model.accessibility.reduceMotion ? Motion.reduced : Motion.resize
     }
@@ -89,6 +93,9 @@ struct IslandView: View {
         if model.accessibility.increaseContrast,
            model.presentation == .expanded || model.geometry.kind == .pill {
             shape.stroke(.white.opacity(0.35), lineWidth: 1)
+        } else if model.showsExpandedKeyline {
+            // The keyline (ISLAND-BEHAVIOR.md §4): a subtle tinted border in dark surroundings.
+            shape.stroke((model.expandedActivity?.activity.keylineTint ?? .white).opacity(0.28), lineWidth: 1)
         }
     }
 

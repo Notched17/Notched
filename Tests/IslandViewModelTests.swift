@@ -107,7 +107,7 @@ struct IslandViewModelTests {
         #expect(!model(forcePill: true).isOnNotchTopEdge(CGPoint(x: 960, y: 1243)))
     }
 
-    @Test("The compact island widens symmetrically around the notch to fit the primary activity")
+    @Test("The compact island widens around the notch to fit the primary activity's measured regions")
     func compactWidensForPrimary() {
         let activities = ActivityCoordinator()
         let sut = IslandViewModel(
@@ -115,11 +115,44 @@ struct IslandViewModelTests {
             accessibility: AccessibilityOptions(),
             activities: activities
         )
-        sut.measuredCompactWidth = 40
-        #expect(sut.compactSideWidth == 0)
+        sut.reportWidth(18, for: "a.leading")
+        sut.reportWidth(40, for: "a.trailing")
+        #expect(sut.islandRect(for: .compact) == CGRect(x: 856, y: 1205.5, width: 208, height: 37.5))
         activities.post(LiveActivity(id: "a", moduleID: "m", kind: .live, accessibilityLabel: "a", presentation: .text("a")))
-        // The wider slot (40) plus 20 pt of padding on each side of the 208 pt notch.
-        #expect(sut.compactSideWidth == 60)
+        // The wider region (40) plus 20 pt of padding on each side of the 208 pt notch.
         #expect(sut.islandRect(for: .compact) == CGRect(x: 796, y: 1205.5, width: 328, height: 37.5))
+    }
+
+    @Test("A banner pre-empts the primary activity, and the bubbles merge back into the island")
+    func bannerPreemptsCompact() {
+        let activities = ActivityCoordinator()
+        let sut = IslandViewModel(
+            geometry: NotchGeometry.resolve(NotchGeometryTests.air15),
+            accessibility: AccessibilityOptions(),
+            activities: activities
+        )
+        activities.post(LiveActivity(id: "a", moduleID: "m", kind: .live, accessibilityLabel: "a", presentation: .text("a")))
+        activities.post(LiveActivity(id: "b", moduleID: "m", kind: .live, accessibilityLabel: "b", presentation: .text("b")))
+        #expect(sut.compactScene.bubbles.map(\.id) == ["b"])
+        activities.show(TransientBanner(id: "charging", moduleID: "m", leading: IslandRegion { Text("⚡︎") }, accessibilityLabel: "Charging"))
+        #expect(sut.compactScene.primary?.key == "banner.charging")
+        #expect(sut.compactScene.bubbles.isEmpty)
+    }
+
+    @Test("Side by side, the second activity takes the trailing side instead of a bubble")
+    func sideBySideScene() {
+        let activities = ActivityCoordinator()
+        let sut = IslandViewModel(
+            geometry: NotchGeometry.resolve(NotchGeometryTests.air15),
+            accessibility: AccessibilityOptions(),
+            activities: activities
+        )
+        sut.multipleActivityMode = .sideBySide
+        for id in ["a", "b", "c"] {
+            activities.post(LiveActivity(id: ActivityID(id), moduleID: "m", kind: .live, accessibilityLabel: id, presentation: .text(id)))
+        }
+        #expect(sut.compactScene.primary?.activityID == "a")
+        #expect(sut.compactScene.secondary?.activityID == "b")
+        #expect(sut.compactScene.bubbles.map(\.id) == ["c"])
     }
 }

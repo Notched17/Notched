@@ -8,6 +8,8 @@ struct IslandBehavior: Equatable, Sendable {
     var hoverDelay: Duration = .milliseconds(150)
     var animationStyle: AnimationStyle = .smooth
     var hapticsEnabled = true
+    /// Click to expand instead of opening the activity (a setting).
+    var clickExpands = false
 }
 
 /// What the island's own controls ask the rest of the app to do.
@@ -22,6 +24,8 @@ struct IslandAppearance: Equatable, Sendable {
     var notchTheme: IslandTheme = .notchBlack
     var pillTheme: IslandTheme = .liquidGlass
     var expandedScale: Double = 1
+    var multipleActivities: CompactLayout.Mode = .bubbles
+    var keyline = true
 
     func theme(for kind: NotchGeometry.Kind) -> IslandTheme {
         kind == .notch ? notchTheme : pillTheme

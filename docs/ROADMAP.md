@@ -29,6 +29,22 @@ Goal: a beautiful, stable island that appears in the right place on every displa
 
 ---
 
+## M1.5: Island behaviour (iPhone parity) and rename
+
+Goal: the island *behaves* like the iPhone Dynamic Island before media is built on it. Spec: `docs/ISLAND-BEHAVIOR.md`. Decisions: ADR-0006 (live activity model) and ADR-0007 (minimal bubbles).
+
+| # | Feature | Spec and acceptance criteria | Approach |
+|---|---|---|---|
+| — | 🟨 Rename to Notched | Product, bundle ID `me.rkck.Notched`, URL scheme `notched`, logs, scripts, docs. Old install removed, settings migrated, TCC reset. | One `chore` commit. |
+| 8 | 🟨 Live activity model | One primary activity owns both compact sides. Kind → relevance → start order. Up to 3 on the island (bubbles), the rest listed. Sticky swap, hide (non-hideable system activities), stale, ended → Recent. | `LiveActivity`, `ActivityPresentation` regions, `ActivityCoordinator` with scenario tests. |
+| 8 | 🟨 Alerts and banners | Alerting updates expand the island for a few seconds and return. They queue, and wait while the pointer is on the island. Transient banners (wide compact, 2 s) for system events. | Coordinator deadlines + `HoverStateMachine` `.alerting`. |
+| 8 | 🟨 Presentation template | Expanded regions laid out with Apple's algorithm. The island owns animation (≤ 2 s, numeric text, blur-replace). Height follows content. | `ExpandedRegionsLayout`, `IslandRegionHost`. |
+| 8 | 🟨 Minimal bubbles + side by side | Detached black circles/ovals 6 pt from the island that bud off and merge back. Width budget notch + 2 × 90 pt. Click-through between them. Setting: Bubbles / Side by side (iPhone 18 Pro). Keyline in Dark Mode. | Drawn in the island panel; one sensor window per region (ADR-0007). `CompactLayout` tested. |
+| 8 | 🟨 Interaction | Hover expands the hovered activity. Click opens it ("Click to expand" setting). Click a bubble → primary. Two-finger swipe cycles / hides. Right-click → Hide. Expanded paging + Home activity list (Live, Hidden, Recent). Esc. | `SwipeRecognizer` tested; context menu; non-activating key focus after a click. |
+| — | 🟨 Scenario Lab (DEBUG) | Music, Timer, Call, Claude Code, Download demos, a Charging banner, a Timer Done alert and a scripted full demo, through the real coordinator. | Debug ▸ Scenario Lab, `notched://debug/lab?…`. |
+
+---
+
 ## M2: Media
 
 | # | Feature | Spec | Approach and risk |
@@ -47,7 +63,10 @@ Goal: a beautiful, stable island that appears in the right place on every displa
 
 | # | Feature | Spec | Approach |
 |---|---|---|---|
-| 8 | Several activities + priority | Finish the coordinator: queue transient alerts, show two compact items (leading/trailing), add a "Live activities" list in the expanded view, and add user-adjustable priority. | Already scaffolded in M1. |
+| 8 | User-adjustable priority | Let the user reorder activity kinds or pin a module above others. The rest of #8 shipped in M1.5. | Feeds `ActivityCoordinator` relevance. |
+| — | "Call" system activity | "In a call" + duration for FaceTime, Zoom, Teams and Phone-via-iPhone, as a non-hideable `system` activity with mute/end where possible. Caller name and ringing aren't detectable. | Core Audio per-process microphone use + a list of known call apps (public, heuristic). `docs/ISLAND-BEHAVIOR.md` §7. |
+| — | Screen recording | A red recording indicator with elapsed time and a **Stop** button, as a non-hideable `system` activity. | Private CGS screen-watcher notifications + the `screencapture` process, via a `Services/Private/` wrapper. Stop sends the system shortcut or ends `screencapture`. §7. |
+| — | Downloads | Download progress (ring in minimal, bar in expanded) for browser downloads into `~/Downloads`. | FSEvents on `~/Downloads` + the `com.apple.progress.fractionCompleted` xattr browsers write (heuristic). §7. |
 | 25 | Caps Lock indicator | Small transient compact alert on toggle. | `NSEvent` global monitor for `.flagsChanged`. |
 | 26 | Mac battery | Alerts when charging starts or stops, at low battery (20/10%, configurable) and when full. Expanded view shows % and time remaining. Hidden on desktop Macs. | IOKit `IOPSNotificationCreateRunLoopSource` and `IOPSCopyPowerSourcesInfo`. |
 | 27 | Bluetooth connect toast | "AirPods Pro connected" with a device-type SF Symbol. | IOBluetooth connection notifications (`IOBluetoothDevice.register(forConnectNotifications:)`) or CoreAudio device added/removed for audio devices. Needs the Bluetooth permission. |
@@ -68,7 +87,8 @@ Goal: a beautiful, stable island that appears in the right place on every displa
 | 51 | Weather | Compact temperature and condition symbol (optional). Expanded: current conditions, hourly forecast, high/low. | **Open-Meteo** (free, no key). Location via CoreLocation (approximate is enough), or a manual city setting for people who refuse Location. Refresh every 30 min only while it matters; cache. |
 | 55 | Colour picker | A button in the expanded tools row starts a system eyedropper. The result shows the swatch plus HEX/RGB/HSL with copy buttons, and keeps a recent-colours row. | `NSColorSampler` (public, no Screen Recording permission needed). |
 | 62 | Claude Code usage | Expanded "AI" tab: today's and this week's Claude Code token usage and estimated cost, plus active sessions. | **Free, local, no login:** parse Claude Code's session logs (JSONL under `~/.claude/projects/`; inspect the actual files and check the format before writing the parser), with a unit-tested parser. Use FSEvents to watch for changes. Plan-limit percentages are **optional and later**: the only source is an undocumented endpoint, so ask Charlie before touching any credentials. Never read or store OAuth tokens in M4. |
-| 63 | Coding-agent status + approve/deny | While Claude Code works, the compact island shows "Claude is working…" with the project name. When Claude Code asks for permission, the island expands with the tool request and **Allow / Deny** buttons. A notification shows when the agent finishes. | **Claude Code hooks** (check the current hooks docs for the event names, e.g. PreToolUse / PermissionRequest / Notification / Stop). A small helper CLI (`notched-hook`, installed by the app into `~/.local/bin`) sends hook events over a **Unix domain socket** in Application Support, and for approval requests waits for the reply. Study farouqaldori/vibe-notch (Apache-2.0) for the pattern. The app offers a one-click "Install Claude Code hooks" that edits `~/.claude/settings.json` safely (back it up first, merge, never clobber). The socket must be user-only (0600). |
+| 63 | Coding-agent status + approve/deny | While Claude Code works, the compact island shows "Claude is working…" with the project name. When Claude Code asks for permission, the island expands with the tool request and **Allow / Deny** buttons. A notification shows when the agent finishes. | **Claude Code hooks** (check the current hooks docs for the event names, e.g. PreToolUse / PermissionRequest / Notification / Stop). A small helper CLI (`notched-hook`, installed by the app into `~/.local/bin`) sends hook events through the **Activity API** (below; a Unix domain socket in Application Support is the fallback), and for approval requests waits for the reply. Study farouqaldori/vibe-notch (Apache-2.0) for the pattern. The app offers a one-click "Install Claude Code hooks" that edits `~/.claude/settings.json` safely (back it up first, merge, never clobber). The socket must be user-only (0600). |
+| — | Activity API | Third-party tools post live activities: a `notched://` URL scheme for one-shots, and a localhost-only HTTP endpoint with **per-client tokens** (and optionally XPC) for live updates. Payloads map onto `LiveActivity` regions with a small set of templates. | Its own module with a settings pane to approve and revoke clients. #63's Claude Code hooks use this API rather than a private socket. §7. |
 | 64 | Terminal in the notch | An expanded "Terminal" tab hosting a real shell. | **SwiftTerm** (MIT) `LocalProcessTerminalView`. Typing needs key status: when the terminal tab is focused, allow the panel to become key temporarily, and drop key status on collapse. Esc collapses. |
 | 71 | Layout editor | Choose which modules appear in the compact leading/trailing slots and the order of the expanded tabs, by drag and drop in Settings. | Persist in SettingsStore and feed into ActivityCoordinator priority. |
 
@@ -101,3 +121,4 @@ Goal: a beautiful, stable island that appears in the right place on every displa
 - ⏸ **54 Teleprompter.** Wanted later: scrolling script under the camera, optionally voice-following (Speech framework).
 - ⏸ **61 Face Unlock.** Parked: a third-party app cannot securely unlock macOS. It would need to store the password, and Mac cameras have no depth sensing, so a photo could spoof it. A possible safe alternative is "presence": the island greets you or wakes when you sit down, with no unlocking. Decide later.
 - Ideas from the research worth considering after M6: 75 energy modes UI (the scheduler already exists), 40/41 file shelf + AirDrop, 37 timers, 53 webcam mirror.
+- ✖ **Maps turn-by-turn.** Not possible on the Mac: Mac Maps has no live navigation, and although macOS Tahoe shows an iPhone's Live Activities in the menu bar, no API lets another app read them (only an untested Accessibility scrape). At most a later experiment (`docs/ISLAND-BEHAVIOR.md` §7).

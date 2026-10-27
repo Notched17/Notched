@@ -27,11 +27,20 @@ final class SettingsStore {
         static let enabledModules = "modules.enabled"
         static let hasCompletedOnboarding = "onboarding.completed"
         static let debugForcePill = "debug.forcePill"
+        static let multipleActivities = "activities.multipleActivities"
+        static let alertExpansion = "activities.alertExpansion"
+        static let alertDuration = "activities.alertDuration"
+        static let bannerDuration = "activities.bannerDuration"
+        static let recentRetention = "activities.recentRetention"
+        static let clickBehavior = "island.clickBehavior"
+        static let keyline = "appearance.keyline"
     }
 
     static let hoverDelayRange: ClosedRange<Double> = 0...1
     static let widthOffsetRange: ClosedRange<Double> = -20...60
     static let expandedScaleRange: ClosedRange<Double> = 0.85...1.25
+    static let alertDurationRange: ClosedRange<Double> = 2...8
+    static let bannerDurationRange: ClosedRange<Double> = 1.5...3
 
     @ObservationIgnored private let defaults: UserDefaults
 
@@ -85,6 +94,42 @@ final class SettingsStore {
         }
     }
 
+    // MARK: Live Activities
+
+    /// Several activities: detached bubbles (iPhone) or side by side (iPhone 18 Pro).
+    var multipleActivities: CompactLayout.Mode {
+        didSet { defaults.set(multipleActivities.rawValue, forKey: Key.multipleActivities) }
+    }
+    /// Expand the island briefly for an alerting update.
+    var alertExpansion: Bool { didSet { defaults.set(alertExpansion, forKey: Key.alertExpansion) } }
+
+    /// Seconds an alert keeps the island expanded.
+    var alertDuration: Double {
+        didSet {
+            // @Observable makes this a computed property, so only re-assign when
+            // clamping changes the value (one extra pass, never a loop).
+            let clamped = alertDuration.clamped(to: Self.alertDurationRange)
+            guard clamped == alertDuration else { alertDuration = clamped; return }
+            defaults.set(alertDuration, forKey: Key.alertDuration)
+        }
+    }
+
+    /// Seconds a transient banner shows.
+    var bannerDuration: Double {
+        didSet {
+            // @Observable makes this a computed property, so only re-assign when
+            // clamping changes the value (one extra pass, never a loop).
+            let clamped = bannerDuration.clamped(to: Self.bannerDurationRange)
+            guard clamped == bannerDuration else { bannerDuration = clamped; return }
+            defaults.set(bannerDuration, forKey: Key.bannerDuration)
+        }
+    }
+
+    var recentRetention: RecentRetention { didSet { defaults.set(recentRetention.rawValue, forKey: Key.recentRetention) } }
+    var clickBehavior: ClickBehavior { didSet { defaults.set(clickBehavior.rawValue, forKey: Key.clickBehavior) } }
+    /// A subtle border around bubbles and the expanded island in dark surroundings.
+    var keyline: Bool { didSet { defaults.set(keyline, forKey: Key.keyline) } }
+
     // MARK: Modules and lifecycle
 
     var enabledModules: Set<ModuleID> {
@@ -114,6 +159,13 @@ final class SettingsStore {
         expandedScale = (defaults.object(forKey: Key.expandedScale) as? Double ?? 1).clamped(to: Self.expandedScaleRange)
         enabledModules = Set((defaults.array(forKey: Key.enabledModules) as? [String] ?? []).map { ModuleID($0) })
         hasCompletedOnboarding = defaults.object(forKey: Key.hasCompletedOnboarding) as? Bool ?? false
+        multipleActivities = defaults.string(forKey: Key.multipleActivities).flatMap(CompactLayout.Mode.init(rawValue:)) ?? .bubbles
+        alertExpansion = defaults.object(forKey: Key.alertExpansion) as? Bool ?? true
+        alertDuration = (defaults.object(forKey: Key.alertDuration) as? Double ?? 4).clamped(to: Self.alertDurationRange)
+        bannerDuration = (defaults.object(forKey: Key.bannerDuration) as? Double ?? 2).clamped(to: Self.bannerDurationRange)
+        recentRetention = (defaults.object(forKey: Key.recentRetention) as? Int).flatMap(RecentRetention.init(rawValue:)) ?? .fifteenMinutes
+        clickBehavior = defaults.string(forKey: Key.clickBehavior).flatMap(ClickBehavior.init(rawValue:)) ?? .open
+        keyline = defaults.object(forKey: Key.keyline) as? Bool ?? true
         #if DEBUG
         debugForcePill = defaults.object(forKey: Key.debugForcePill) as? Bool ?? false
         #endif
@@ -126,7 +178,27 @@ final class SettingsStore {
             expandOnHover: expandOnHover,
             hoverDelay: .milliseconds(Int((hoverDelay * 1000).rounded())),
             animationStyle: animationStyle,
-            hapticsEnabled: hapticsEnabled
+            hapticsEnabled: hapticsEnabled,
+            clickExpands: clickBehavior == .expand
+        )
+    }
+
+    var activityConfiguration: ActivityCoordinator.Configuration {
+        ActivityCoordinator.Configuration(
+            alertExpansionEnabled: alertExpansion,
+            alertDuration: .milliseconds(Int((alertDuration * 1000).rounded())),
+            bannerDuration: .milliseconds(Int((bannerDuration * 1000).rounded())),
+            recentRetention: recentRetention.duration
+        )
+    }
+
+    var islandAppearance: IslandAppearance {
+        IslandAppearance(
+            notchTheme: notchTheme,
+            pillTheme: pillTheme,
+            expandedScale: expandedScale,
+            multipleActivities: multipleActivities,
+            keyline: keyline
         )
     }
 

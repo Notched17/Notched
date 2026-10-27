@@ -2,9 +2,10 @@
 
 import AppKit
 
-/// An invisible window exactly over the compact island. While the island is
-/// compact the main island panel ignores the mouse entirely (so everything
-/// beside it stays clickable), and this sensor detects hover and clicks.
+/// An invisible window exactly over the compact island, or over one minimal
+/// bubble. While the island is compact the main island panel ignores the
+/// mouse entirely (so everything beside and between them stays clickable),
+/// and these sensors detect hover, clicks, right-clicks and swipes.
 ///
 /// Resizing an invisible window has no visual cost, which is why hover
 /// detection lives here instead of in a resizing island panel (ADR-0002).
@@ -14,6 +15,8 @@ final class IslandSensorPanel: NSPanel {
         /// The pointer's screen position when the exit was reported.
         case exited(CGPoint)
         case clicked
+        case rightClicked
+        case scrolled(SwipeRecognizer.Sample)
     }
 
     private let sensorView = SensorView()
@@ -77,4 +80,27 @@ private final class SensorView: NSView {
     // panel, so report where the pointer actually is.
     override func mouseExited(with event: NSEvent) { onEvent(.exited(NSEvent.mouseLocation)) }
     override func mouseDown(with event: NSEvent) { onEvent(.clicked) }
+    override func rightMouseDown(with event: NSEvent) { onEvent(.rightClicked) }
+    override func scrollWheel(with event: NSEvent) { onEvent(.scrolled(SwipeRecognizer.Sample(event))) }
+}
+
+extension SwipeRecognizer.Sample {
+    /// A trackpad scroll event's deltas and gesture phase.
+    init(_ event: NSEvent) {
+        let phase: SwipeRecognizer.Phase = if !event.momentumPhase.isEmpty {
+            .momentum
+        } else if event.phase.contains(.began) {
+            .began
+        } else if event.phase.contains(.changed) {
+            .changed
+        } else if event.phase.contains(.ended) {
+            .ended
+        } else if event.phase.contains(.cancelled) {
+            .cancelled
+        } else {
+            .none
+        }
+        self.init(deltaX: event.scrollingDeltaX, deltaY: event.scrollingDeltaY, phase: phase,
+                  isDirectionInverted: event.isDirectionInvertedFromDevice)
+    }
 }

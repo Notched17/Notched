@@ -74,4 +74,33 @@ enum Motion {
     static let resize = Animation.spring(response: 0.38, dampingFraction: 0.86)
     /// Stale content dims until the module updates it.
     static let staleOpacity: Double = 0.55
+
+    /// A minimal bubble budding off the island, or merging back: elastic,
+    /// "a living organism" (WWDC23).
+    static let budOff = Animation.spring(response: 0.5, dampingFraction: 0.7)
+
+    /// A bubble emerges from under the island's edge, growing as it travels
+    /// out to its place, and slips back under it to merge. With Reduce
+    /// Motion it simply fades.
+    @MainActor static func bud(fromLeading: Bool, distance: CGFloat, reduceMotion: Bool) -> AnyTransition {
+        if reduceMotion { return .opacity }
+        let offset = fromLeading ? -distance : distance
+        return .modifier(
+            active: BudEffect(offset: offset, scale: 0.55, anchor: fromLeading ? .leading : .trailing),
+            identity: BudEffect(offset: 0, scale: 1, anchor: fromLeading ? .leading : .trailing)
+        )
+    }
+}
+
+/// The bud transition's geometry: slide in from the island's edge while growing.
+struct BudEffect: ViewModifier {
+    let offset: CGFloat
+    let scale: CGFloat
+    let anchor: UnitPoint
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(scale, anchor: anchor)
+            .offset(x: offset)
+    }
 }

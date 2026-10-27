@@ -11,16 +11,22 @@ struct ExpandedContentView: View {
     var body: some View {
         let rect = model.islandRect(for: .expanded)
         let pageKey = model.expandedPageKey
+        let pages = model.pages
         ZStack(alignment: .top) {
-            Group {
-                if let record = model.expandedActivity {
-                    ActivityExpandedView(record: record, housing: model.housingSize)
-                } else {
-                    HomeView(model: model)
+            VStack(spacing: Spacing.s) {
+                Group {
+                    if let record = model.expandedActivity {
+                        ActivityExpandedView(record: record, housing: model.housingSize)
+                    } else {
+                        HomeView(model: model)
+                    }
+                }
+                .id(pageKey)
+                .transition(AnyTransition(.blurReplace).combined(with: .opacity))
+                if pages.count > 1, model.activities.alert == nil {
+                    PageIndicator(count: pages.count, current: pages.firstIndex(of: model.currentPage) ?? 0)
                 }
             }
-            .id(pageKey)
-            .transition(Motion.contentSwap)
             .fixedSize(horizontal: false, vertical: true)
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
                 model.reportExpandedHeight(height, for: pageKey)
@@ -74,17 +80,22 @@ struct ActivityExpandedView: View {
     }
 }
 
-/// The expanded island with nothing live: time and controls beside the
-/// camera housing, and a quiet note below.
+/// The expanded island's Home page: time and controls beside the camera
+/// housing, and below them every activity (or a quiet note when there are none).
 struct HomeView: View {
     let model: IslandViewModel
 
     var body: some View {
+        let activities = model.activities
         VStack(spacing: Spacing.s) {
             ExpandedHeaderView(model: model)
                 .frame(height: model.headerHeight)
-            IslandEmptyState()
-                .padding(.top, Spacing.xxs)
+            if activities.live.isEmpty && activities.recent.isEmpty {
+                IslandEmptyState()
+                    .padding(.top, Spacing.xxs)
+            } else {
+                ActivityListView(model: model)
+            }
         }
     }
 }

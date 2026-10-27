@@ -1,6 +1,6 @@
 # ADR-0004: Activity ranking and compact-slot rules
 
-- Status: accepted (M1; M3 extends queueing and user-adjustable priority)
+- Status: superseded by ADR-0006 (M1.5)
 - Date: 2026-10-27
 
 ## Context

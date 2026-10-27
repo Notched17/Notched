@@ -41,55 +41,110 @@ final class IslandViewModel {
         self.activities = activities
     }
 
-    /// What the compact island shows beside the notch: a banner pre-empts the
-    /// primary activity. Leading and trailing always come from the same source.
+    /// How several activities share the compact island (a setting).
+    var multipleActivityMode: CompactLayout.Mode = .bubbles
+    /// The keyline setting: a subtle border on bubbles and the expanded island.
+    var keylineEnabled = true
+
+    /// Beside a glass pill, bubbles are glass too; beside a notch, black.
+    var bubbleStyle: BubbleStyle {
+        geometry.kind == .pill && theme.isGlass && !accessibility.reduceTransparency ? .glass : .black
+    }
+
+    /// Like iPhone, the keyline only shows when the background is dark, and
+    /// never on the compact island attached to the notch (it would outline
+    /// the hardware). Glass brings its own edge.
+    var showsKeyline: Bool {
+        keylineEnabled && accessibility.isDarkAppearance && bubbleStyle == .black
+    }
+
+    var showsExpandedKeyline: Bool {
+        keylineEnabled && accessibility.isDarkAppearance && presentation == .expanded && !surfaceIsGlass
+    }
+
+    // MARK: Compact
+
+    /// One activity's (or a banner's) compact content. Leading and trailing
+    /// always come from the same source.
     struct CompactContent {
-        let id: String
+        /// Identity, and the prefix of its measured widths.
+        let key: String
+        /// Nil for a banner.
+        let activityID: ActivityID?
         let leading: IslandRegion
         let trailing: IslandRegion?
         let accessibilityLabel: String
+        let revision: Int
+        let isStale: Bool
     }
 
-    var compactContent: CompactContent? {
+    /// Everything the compact island shows: a banner pre-empts the primary
+    /// activity and the bubbles merge back in; otherwise the primary (and, side
+    /// by side, the second activity) plus up to two bubbles.
+    struct CompactScene {
+        var primary: CompactContent?
+        var secondary: CompactContent?
+        /// Trailing bubble first, then leading.
+        var bubbles: [ActivityRecord] = []
+    }
+
+    var compactScene: CompactScene {
         if let banner = activities.banner {
-            return CompactContent(id: "banner.\(banner.id)", leading: banner.leading, trailing: banner.trailing,
-                                  accessibilityLabel: banner.accessibilityLabel)
+            let content = CompactContent(
+                key: "banner.\(banner.id)", activityID: nil, leading: banner.leading, trailing: banner.trailing,
+                accessibilityLabel: banner.accessibilityLabel, revision: 0, isStale: false
+            )
+            return CompactScene(primary: content)
         }
-        if let primary = activities.primary {
-            let presentation = primary.activity.presentation
-            return CompactContent(id: primary.id.rawValue, leading: presentation.compactLeading,
-                                  trailing: presentation.compactTrailing, accessibilityLabel: primary.activity.accessibilityLabel)
+        guard let primary = activities.primary else { return CompactScene() }
+        var bubbles = activities.minimal
+        var secondary: CompactContent?
+        if multipleActivityMode == .sideBySide, !bubbles.isEmpty {
+            secondary = compactContent(for: bubbles.removeFirst())
         }
-        return nil
+        return CompactScene(primary: compactContent(for: primary), secondary: secondary, bubbles: bubbles)
     }
 
-    /// The primary activity's update count, so its compact content animates changes.
-    var compactRevision: Int { activities.banner == nil ? activities.primary?.revision ?? 0 : 0 }
-    var compactIsStale: Bool { activities.banner == nil && activities.primary?.isStale == true }
-
-    /// The widest compact region's natural width, measured by the view.
-    var measuredCompactWidth: CGFloat = 0
-    @ObservationIgnored private var compactWidths: (id: String, leading: CGFloat, trailing: CGFloat)?
-
-    /// Called by the compact view with each region's natural width.
-    func reportCompactWidth(_ width: CGFloat, for id: String, leading: Bool) {
-        var widths = compactWidths?.id == id ? compactWidths! : (id: id, leading: 0, trailing: 0)
-        if leading { widths.leading = width } else { widths.trailing = width }
-        compactWidths = widths
-        let widest = max(widths.leading, widths.trailing).rounded(.up)
-        if measuredCompactWidth != widest { measuredCompactWidth = widest }
+    private func compactContent(for record: ActivityRecord) -> CompactContent {
+        let presentation = record.activity.presentation
+        return CompactContent(
+            key: record.id.rawValue, activityID: record.id, leading: presentation.compactLeading,
+            trailing: presentation.compactTrailing, accessibilityLabel: record.activity.accessibilityLabel,
+            revision: record.revision, isStale: record.isStale
+        )
     }
 
-    /// How far the compact island grows on each side to fit its content; 0 when idle.
-    var compactSideWidth: CGFloat {
-        guard compactContent != nil, measuredCompactWidth > 0 else { return 0 }
-        return measuredCompactWidth + IslandMetrics.compactSlotPadding
+    /// Where the compact island and its bubbles go, from the measured widths.
+    var compactLayout: CompactLayout {
+        let scene = compactScene
+        return CompactLayout.resolve(
+            geometry: geometry, mode: multipleActivityMode,
+            primary: scene.primary.map(compactWidths), secondary: scene.secondary.map(compactWidths),
+            minimal: scene.bubbles.map { measuredWidths[Self.minimalKey($0.id)] ?? 0 }
+        )
+    }
+
+    private func compactWidths(_ content: CompactContent) -> CompactLayout.Widths {
+        CompactLayout.Widths(
+            leading: measuredWidths["\(content.key).leading"] ?? 0,
+            trailing: content.trailing == nil ? nil : measuredWidths["\(content.key).trailing"] ?? 0
+        )
+    }
+
+    static func minimalKey(_ id: ActivityID) -> String { "\(id.rawValue).minimal" }
+
+    /// Natural widths of compact and minimal regions, measured by the views.
+    private(set) var measuredWidths: [String: CGFloat] = [:]
+
+    func reportWidth(_ width: CGFloat, for key: String) {
+        let rounded = width.rounded(.up)
+        if measuredWidths[key] != rounded { measuredWidths[key] = rounded }
     }
 
     /// The island rect in global screen coordinates for a presentation.
     func islandRect(for presentation: IslandPresentation) -> CGRect {
         switch presentation {
-        case .compact: geometry.compactRect(leadingWidth: compactSideWidth, trailingWidth: compactSideWidth)
+        case .compact: compactLayout.island
         case .expanded: geometry.expandedRect(size: CGSize(width: expandedWidth, height: expandedHeight))
         }
     }
@@ -99,7 +154,7 @@ final class IslandViewModel {
     /// compact island, plus room for the shadow.
     var panelFrame: CGRect {
         let tallest = geometry.expandedRect(size: CGSize(width: expandedWidth, height: maxExpandedHeight))
-        let largest = tallest.union(islandRect(for: .compact))
+        let largest = compactLayout.hitRegions.reduce(tallest) { $0.union($1) }
         return extendedPastTopEdge(geometry.panelFrame(for: largest, padding: IslandMetrics.expandedPadding))
     }
 
@@ -140,10 +195,92 @@ final class IslandViewModel {
         if let alert = activities.alert, let record = activities.live.first(where: { $0.id == alert.activityID }) {
             return record
         }
-        return activities.primary
+        switch currentPage {
+        case .activity(let id): return activities.live.first { $0.id == id }
+        case .home: return nil
+        }
     }
 
     var expandedPageKey: String { expandedActivity.map { "activity.\($0.id)" } ?? "home" }
+
+    // MARK: Pages
+
+    /// A page of the expanded island: one per live activity, then Home.
+    enum ExpandedPage: Hashable, Sendable {
+        case activity(ActivityID)
+        case home
+    }
+
+    /// The page the user asked for (by hovering an activity, or paging).
+    var selectedPage: ExpandedPage = .home
+
+    /// Every visible activity in rank order, then Home (ISLAND-BEHAVIOR.md §6).
+    var pages: [ExpandedPage] { activities.visible.map { .activity($0.id) } + [.home] }
+
+    /// The selected page, or the primary activity's if the selected one ended.
+    var currentPage: ExpandedPage {
+        if case .activity(let id) = selectedPage, !activities.visible.contains(where: { $0.id == id }) {
+            return activities.primary.map { .activity($0.id) } ?? .home
+        }
+        return selectedPage
+    }
+
+    /// Selects the page an island region leads to: the activity shown there, or Home.
+    func selectPage(for target: IslandTarget) {
+        switch target {
+        case .island:
+            selectedPage = activities.banner == nil ? (activities.primary.map { .activity($0.id) } ?? .home) : .home
+        case .bubble(let id):
+            selectedPage = .activity(id)
+        }
+    }
+
+    /// Moves to the next (or previous) page, stopping at the ends.
+    @discardableResult
+    func page(by offset: Int) -> Bool {
+        let all = pages
+        guard let index = all.firstIndex(of: currentPage) else { return false }
+        let next = index + offset
+        guard all.indices.contains(next) else { return false }
+        selectedPage = all[next]
+        return true
+    }
+
+    // MARK: Hit regions
+
+    /// What the pointer is on while the island is compact.
+    enum IslandTarget: Equatable, Sendable {
+        case island
+        case bubble(ActivityID)
+    }
+
+    /// The compact hit regions with what each one is: the island, then each bubble.
+    var compactTargets: [(target: IslandTarget, zone: CGRect)] {
+        let layout = compactLayout
+        var targets: [(IslandTarget, CGRect)] = [(.island, extendedPastTopEdge(layout.island))]
+        for (record, bubble) in zip(compactScene.bubbles, layout.bubbles) {
+            targets.append((.bubble(record.id), extendedToTopEdge(bubble)))
+        }
+        return targets
+    }
+
+    /// The compact region under a point, counting every edge as inside.
+    func compactTarget(at point: CGPoint) -> IslandTarget? {
+        compactTargets.first { Self.contains($0.zone, point) }?.target
+    }
+
+    /// A bubble's hot zone reaches up to the top edge, so throwing the pointer
+    /// at the top of the screen above it counts.
+    private func extendedToTopEdge(_ rect: CGRect) -> CGRect {
+        guard geometry.kind == .notch else { return rect }
+        var extended = rect
+        extended.size.height = geometry.screenFrame.maxY + IslandMetrics.topEdgeOverscan - rect.minY
+        return extended
+    }
+
+    private static func contains(_ zone: CGRect, _ point: CGPoint) -> Bool {
+        point.x >= zone.minX && point.x <= zone.maxX && point.y >= zone.minY && point.y <= zone.maxY
+    }
 
     /// The camera housing the expanded regions wrap around: the notch plus a
     /// small gap each side. The pill has none.
@@ -162,8 +299,10 @@ final class IslandViewModel {
     /// edge of the screen as outside, so a pointer pinned to the top row can
     /// produce false "exited" events; the controller checks them with this.
     func containsPointer(_ point: CGPoint, for presentation: IslandPresentation) -> Bool {
-        let zone = hotZone(for: presentation)
-        return point.x >= zone.minX && point.x <= zone.maxX && point.y >= zone.minY && point.y <= zone.maxY
+        switch presentation {
+        case .compact: compactTarget(at: point) != nil
+        case .expanded: Self.contains(hotZone(for: .expanded), point)
+        }
     }
 
     /// Whether an exit from the compact island is macOS pushing a thrown
@@ -183,8 +322,11 @@ final class IslandViewModel {
         return point.y >= geometry.screenFrame.maxY - 1 && containsPointer(point, for: .compact)
     }
 
-    /// The invisible hover sensor used while compact.
+    /// The invisible hover sensor over the compact island.
     var sensorFrame: CGRect { hotZone(for: .compact) }
+
+    /// Sensors over each minimal bubble, trailing first.
+    var bubbleSensorFrames: [CGRect] { compactTargets.dropFirst().map(\.zone) }
 
     /// On a notch, reach a little past the top of the screen so the top pixel
     /// row is strictly inside. A pill sits below the menu bar and needs nothing.

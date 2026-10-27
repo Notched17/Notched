@@ -34,7 +34,7 @@ App/                 entry point, AppDelegate, Info.plist, entitlements
 Sources/
   Core/
     Island/          NSPanel host, NotchGeometry, per-screen IslandController, hit-testing/click-through
-    Activities/      ActivityCoordinator (priority, queueing, several at once), Activity model
+    Activities/      ActivityCoordinator (ranking, primary + minimal, alerts, banners), LiveActivity + presentation regions
     Modules/         IslandModule protocol, ModuleRegistry
     Scheduling/      RefreshScheduler (single timer source, power-aware, pauses when hidden or asleep)
     Permissions/     PermissionCenter (status + request + deep-link to System Settings for each TCC permission)
@@ -54,14 +54,16 @@ docs/                research, roadmap, prompts, ADRs
 - `isEnabled`. Settings toggle it (#70). Everything except the core shell is **off by default** or asks on first use.
 - The permissions it requires. They are only requested when the user enables the module.
 - `start()` and `stop()` lifecycle. A disabled module must cost zero CPU: no timers, observers or processes.
-- It publishes `Activity` values (compact leading and trailing content, expanded content, priority, optional expiry) to the `ActivityCoordinator`.
+- It publishes `LiveActivity` values (kind, relevance, regions for compact leading/trailing, minimal and expanded, optional stale date and alert) and `TransientBanner`s to the `ActivityCoordinator` through its scoped `ActivitySink`.
 - It may provide a full expanded "tab" view and a settings pane.
 
-**ActivityCoordinator (#8)** decides what the compact island shows:
-- Priority order: alerts (battery low, device connected) > live sessions (timer, keep-awake, agent running) > media > idle.
-- At most one leading and one trailing compact item.
-- Short alerts are transient; when one expires the island returns to the previous state.
-- Everything else lives in the expanded view.
+**ActivityCoordinator (#8)** decides what the island shows, like the iPhone Dynamic Island (`docs/ISLAND-BEHAVIOR.md`, ADR-0006):
+- Ranking: kind (system > live > media > passive), then relevance, then start order.
+- One primary activity owns both compact sides; up to two more show as minimal bubbles; the rest are listed in the expanded view.
+- Users can swap the primary, and hide activities (except non-hideable system ones).
+- Activities go stale and end; ended ones stay under Recent for a while.
+- Alerting updates expand the island briefly, one at a time, never interrupting the user. Short system events use transient banners.
+- The island owns layout and animation: modules fill named regions only.
 - Unit-test this logic.
 
 **Event-driven, not polling.** Use system notifications, KVO, CoreAudio property listeners, IOKit notifications, `NWPathMonitor`, EventKit change notifications and `DistributedNotificationCenter`. Where polling is unavoidable, register with `RefreshScheduler`. It coalesces timers (tolerance ≥ 10%), runs slower on battery or Low Power Mode, and pauses while the screen is locked or asleep, or when the relevant UI is hidden.

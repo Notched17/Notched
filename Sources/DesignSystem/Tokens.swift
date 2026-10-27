@@ -31,6 +31,22 @@ enum IslandMetrics {
     static let compactSlotPadding: CGFloat = 20
     /// The inner gap between compact slot content and the notch.
     static let compactSlotInnerGap: CGFloat = 6
+    /// The widest a compact region can be (Apple: ~62 pt).
+    static let compactRegionMaxWidth: CGFloat = 64
+    /// The compact island plus its bubbles never reach further than this past
+    /// the notch on either side (on average), so app menus and status items
+    /// beside the notch stay usable.
+    static let compactWidthBudget: CGFloat = 90
+    /// Gap between the island and a detached minimal bubble.
+    static let bubbleGap: CGFloat = 6
+    /// How far a bubble sits inside the notch row, top and bottom.
+    static let bubbleInset: CGFloat = 2
+    /// Horizontal padding inside a bubble around its content.
+    static let bubblePadding: CGFloat = 6
+    /// A bubble grows from a circle into an oval up to this width (Apple: 45 pt).
+    static let bubbleMaxWidth: CGFloat = 45
+    /// Side by side: the gap between one activity's leading and trailing content.
+    static let sideBySideGap: CGFloat = 6
     /// Room beside the camera housing on each side of the expanded island,
     /// so a notched Mac gets as much space there as iPhone does (488 pt wide
     /// around a 208 pt notch at 100% size).

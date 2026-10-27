@@ -29,8 +29,21 @@ final class IslandPanel: NSPanel {
         isExcludedFromWindowsMenu = true
     }
 
-    override var canBecomeKey: Bool { false }
+    /// The panel only takes keyboard focus after a click inside the expanded
+    /// island, so Esc can collapse it. Hovering never steals typing from the
+    /// user's app.
+    var allowsKey = false
+    /// Esc while the panel has focus.
+    var onCancel: () -> Void = {}
+
+    override var canBecomeKey: Bool { allowsKey }
     override var canBecomeMain: Bool { false }
+
+    override func cancelOperation(_ sender: Any?) { onCancel() }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { onCancel() } else { super.keyDown(with: event) }
+    }
 
     /// Keep the frame exactly as set: the notch island deliberately reaches a
     /// couple of points past the top of the screen (see `topEdgeOverscan`).

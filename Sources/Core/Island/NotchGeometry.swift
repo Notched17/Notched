@@ -105,6 +105,16 @@ struct NotchGeometry: Equatable, Sendable {
         return centeredRect(width: compactBaseSize.width + 2 * side, height: compactBaseSize.height)
     }
 
+    /// The compact island reaching `leading` points left of the notch (or the
+    /// pill's middle) and `trailing` points right of it. The sides can differ:
+    /// an activity without a trailing region leaves that side at the notch.
+    func compactRect(leading: CGFloat, trailing: CGFloat) -> CGRect {
+        let base = centeredRect(width: compactBaseSize.width, height: compactBaseSize.height)
+        let rect = CGRect(x: base.minX - max(leading, 0), y: base.minY,
+                          width: base.width + max(leading, 0) + max(trailing, 0), height: base.height)
+        return Self.align(rect, scale: scale)
+    }
+
     /// The expanded island, hanging from `islandTop`, clamped to the screen width.
     func expandedRect(size: CGSize) -> CGRect {
         let maxWidth = screenFrame.width - 2 * Self.screenMargin

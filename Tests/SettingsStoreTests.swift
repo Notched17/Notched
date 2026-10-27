@@ -129,4 +129,68 @@ struct SettingsStoreTests {
         #expect(sut.theme(for: .notch) == .tintedGlass)
         #expect(sut.theme(for: .pill) == .notchBlack)
     }
+
+    // MARK: Live Activities (M1.5)
+
+    @Test("Live Activity settings default to iPhone-like behaviour")
+    func liveActivityDefaults() {
+        let sut = SettingsStore(defaults: freshDefaults())
+        #expect(sut.multipleActivities == .bubbles)
+        #expect(sut.alertExpansion)
+        #expect(sut.alertDuration == 4)
+        #expect(sut.bannerDuration == 2)
+        #expect(sut.recentRetention == .fifteenMinutes)
+        #expect(sut.clickBehavior == .open)
+        #expect(sut.keyline)
+    }
+
+    @Test("Live Activity settings survive a relaunch")
+    func liveActivityPersistence() {
+        let defaults = freshDefaults()
+        let first = SettingsStore(defaults: defaults)
+        first.multipleActivities = .sideBySide
+        first.alertExpansion = false
+        first.alertDuration = 6
+        first.bannerDuration = 2.5
+        first.recentRetention = .fourHours
+        first.clickBehavior = .expand
+        first.keyline = false
+
+        let second = SettingsStore(defaults: defaults)
+        #expect(second.multipleActivities == .sideBySide)
+        #expect(!second.alertExpansion)
+        #expect(second.alertDuration == 6)
+        #expect(second.bannerDuration == 2.5)
+        #expect(second.recentRetention == .fourHours)
+        #expect(second.clickBehavior == .expand)
+        #expect(!second.keyline)
+    }
+
+    @Test("Alert and banner durations are clamped to their ranges")
+    func durationClamping() {
+        let sut = SettingsStore(defaults: freshDefaults())
+        sut.alertDuration = 20
+        sut.bannerDuration = 0.5
+        #expect(sut.alertDuration == 8)
+        #expect(sut.bannerDuration == 1.5)
+    }
+
+    @Test("Live Activity settings map onto the coordinator, the island's behaviour and its appearance")
+    func liveActivityMapping() {
+        let sut = SettingsStore(defaults: freshDefaults())
+        sut.alertExpansion = false
+        sut.alertDuration = 6
+        sut.bannerDuration = 2.5
+        sut.recentRetention = .oneHour
+        sut.clickBehavior = .expand
+        sut.multipleActivities = .sideBySide
+        sut.keyline = false
+        #expect(sut.activityConfiguration == ActivityCoordinator.Configuration(
+            alertExpansionEnabled: false, alertDuration: .seconds(6),
+            bannerDuration: .milliseconds(2500), recentRetention: .seconds(3600)
+        ))
+        #expect(sut.islandBehavior.clickExpands)
+        #expect(sut.islandAppearance.multipleActivities == .sideBySide)
+        #expect(!sut.islandAppearance.keyline)
+    }
 }

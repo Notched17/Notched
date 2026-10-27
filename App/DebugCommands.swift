@@ -9,7 +9,11 @@ import AppKit
 /// Commands: expand, collapse, pill?on=, outline?on=, reduce-motion?on=,
 /// reduce-transparency?on=, increase-contrast?on= (on=default clears an override),
 /// fullscreen-fallback?on=, hello-alert, hello-session?on=, settings?pane=,
-/// theme?notch=&pill=, onboarding?step=, launch-at-login?on=, appearance?mode=dark|light|system.
+/// theme?notch=&pill=, onboarding?step=, launch-at-login?on=, appearance?mode=dark|light|system,
+/// lab?demo=music|timer|call|agent|download&do=start|end|stale|hide|unhide|primary,
+/// lab?banner=charging, lab?alert=timer, lab?run=full, lab?do=end-all, lab?download=0.74,
+/// page?id=home|music|timer|call|agent|download (expand to that page),
+/// setting?multiple=bubbles|sideBySide&click=open|expand&alerts=0|1&keyline=0|1.
 @MainActor
 enum DebugCommands {
     static func handle(_ url: URL, environment: AppEnvironment, windows: WindowCoordinator) {
@@ -48,7 +52,30 @@ enum DebugCommands {
         case "hello-alert": DebugMenu.hello(environment)?.showAlert()
         case "hello-session":
             if let hello = DebugMenu.hello(environment), hello.isLiveSessionRunning != on { hello.toggleLiveSession() }
+        case "lab": lab(url, environment.scenarioLab)
+        case "page":
+            let id = query(url, "id") ?? "home"
+            let page: IslandViewModel.ExpandedPage = ScenarioLab.Demo(rawValue: id).map { .activity($0.activityID) } ?? .home
+            environment.islands.expandAll(to: page)
+        case "setting":
+            if let mode = query(url, "multiple").flatMap(CompactLayout.Mode.init(rawValue:)) { environment.settings.multipleActivities = mode }
+            if let click = query(url, "click").flatMap(ClickBehavior.init(rawValue:)) { environment.settings.clickBehavior = click }
+            if let alerts = query(url, "alerts") { environment.settings.alertExpansion = alerts != "0" }
+            if let keyline = query(url, "keyline") { environment.settings.keyline = keyline != "0" }
         default: Log.app.error("Unknown debug command \(command, privacy: .public)")
+        }
+    }
+
+    private static func lab(_ url: URL, _ lab: ScenarioLab) {
+        if query(url, "run") == "full" { lab.runFullDemo() }
+        if query(url, "banner") == "charging" { lab.showChargingBanner() }
+        if query(url, "alert") == "timer" { lab.alertTimerDone() }
+        if let progress = query(url, "download").flatMap(Double.init) { lab.setDownloadProgress(progress) }
+        let action = query(url, "do")
+        if action == "end-all" { lab.endAll() }
+        if let demo = query(url, "demo").flatMap(ScenarioLab.Demo.init(rawValue:)),
+           let action = action.flatMap(ScenarioLab.Action.init(rawValue:)) {
+            lab.perform(action, on: demo)
         }
     }
 
@@ -70,6 +97,33 @@ enum DebugMenu {
         menu.addItem(.separator())
         menu.addItem(ClosureMenuItem(title: "Show Hello Alert") { hello(environment)?.showAlert() })
         menu.addItem(ClosureMenuItem(title: "Toggle Hello Live Session") { hello(environment)?.toggleLiveSession() })
+        menu.addItem(.separator())
+        menu.addItem(scenarioLab(environment.scenarioLab))
+        item.submenu = menu
+        return item
+    }
+
+    /// Debug ▸ Scenario Lab: demo activities driven through the real coordinator.
+    private static func scenarioLab(_ lab: ScenarioLab) -> NSMenuItem {
+        let item = NSMenuItem(title: "Scenario Lab", action: nil, keyEquivalent: "")
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        menu.addItem(ClosureMenuItem(title: "Run Full Demo") { lab.runFullDemo() })
+        menu.addItem(ClosureMenuItem(title: "End All") { lab.endAll() })
+        menu.addItem(.separator())
+        for demo in ScenarioLab.Demo.allCases {
+            let demoItem = NSMenuItem(title: demo.title, action: nil, keyEquivalent: "")
+            let demoMenu = NSMenu()
+            demoMenu.autoenablesItems = false
+            for action in ScenarioLab.Action.allCases {
+                demoMenu.addItem(ClosureMenuItem(title: action.title) { lab.perform(action, on: demo) })
+            }
+            demoItem.submenu = demoMenu
+            menu.addItem(demoItem)
+        }
+        menu.addItem(.separator())
+        menu.addItem(ClosureMenuItem(title: "Show “Charging 80%” Banner") { lab.showChargingBanner() })
+        menu.addItem(ClosureMenuItem(title: "Alert: Timer Done") { lab.alertTimerDone() })
         item.submenu = menu
         return item
     }

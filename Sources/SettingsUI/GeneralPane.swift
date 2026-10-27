@@ -50,6 +50,32 @@ struct GeneralPane: View {
             }
 
             Section {
+                Picker("Several activities", selection: $settings.multipleActivities) {
+                    ForEach(CompactLayout.Mode.allCases) { Text($0.title).tag($0) }
+                }
+                Picker("Clicking an activity", selection: $settings.clickBehavior) {
+                    ForEach(ClickBehavior.allCases) { Text($0.title).tag($0) }
+                }
+                Toggle("Expand the island for alerts", isOn: $settings.alertExpansion)
+                LabeledSlider(
+                    title: "Alert duration", value: $settings.alertDuration,
+                    range: SettingsStore.alertDurationRange, step: 0.5
+                ) { String(format: "%.1f s", $0) }
+                .disabled(!settings.alertExpansion)
+                LabeledSlider(
+                    title: "Banner duration", value: $settings.bannerDuration,
+                    range: SettingsStore.bannerDurationRange, step: 0.25
+                ) { String(format: "%.2f s", $0) }
+                Picker("Keep ended activities", selection: $settings.recentRetention) {
+                    ForEach(RecentRetention.allCases) { Text($0.title).tag($0) }
+                }
+            } header: {
+                Text("Live Activities")
+            } footer: {
+                Text("Bubbles show extra activities as small circles beside the island, like iPhone. Side by side shares the island between two activities, like iPhone 18 Pro. Ended activities stay in the island's list for the time you choose.")
+            }
+
+            Section {
                 Toggle("Hide from screenshots and screen sharing", isOn: $settings.hideFromScreenCapture)
             } footer: {
                 Text("Some screen-recording apps can still capture the island.")

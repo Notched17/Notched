@@ -16,6 +16,10 @@ final class AppEnvironment {
     let modules: ModuleRegistry
     let fullscreen: FullscreenMonitor
     let islands: IslandManager
+    #if DEBUG
+    /// Demo activities for trying the island (Debug ▸ Scenario Lab).
+    private(set) lazy var scenarioLab = ScenarioLab(activities: activities)
+    #endif
     private let expiryTimer = OneShotTimer()
     private let power = PowerStateMonitor()
     private let systemActivity = SystemActivityMonitor()
@@ -58,11 +62,8 @@ final class AppEnvironment {
         withObservationTracking {
             islands.configuration = settings.islandConfiguration
             islands.behavior = settings.islandBehavior
-            islands.appearance = IslandAppearance(
-                notchTheme: settings.notchTheme,
-                pillTheme: settings.pillTheme,
-                expandedScale: settings.expandedScale
-            )
+            islands.appearance = settings.islandAppearance
+            activities.configuration = settings.activityConfiguration
             islands.isPaused = settings.isPaused
             scheduler.context.islandVisible = !settings.isPaused
             islands.hideInFullscreen = settings.hideInFullscreen

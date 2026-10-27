@@ -21,10 +21,11 @@ struct AppearancePane: View {
                 Picker("Other displays", selection: $settings.pillTheme) {
                     ForEach(IslandTheme.allCases) { Text($0.title).tag($0) }
                 }
+                Toggle("Keyline in Dark Mode", isOn: $settings.keyline)
             } header: {
                 Text("Theme")
             } footer: {
-                Text("On a notched display the compact island always stays black, so it blends into the notch. With Reduce Transparency, glass themes use a solid colour.")
+                Text("On a notched display the compact island always stays black, so it blends into the notch. The keyline is a subtle border that keeps bubbles and the open island distinct in Dark Mode. With Reduce Transparency, glass themes use a solid colour.")
             }
 
             Section("Motion") {

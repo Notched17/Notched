@@ -50,6 +50,7 @@ final class IslandManager {
     private let observers = NotificationTokens()
     private var pendingReconcile: Task<Void, Never>?
     private var pointerMonitors: [Any] = []
+    private var lastSoundSerial: Int?
 
     init(configuration: IslandConfiguration = IslandConfiguration(),
          behavior: IslandBehavior = IslandBehavior(),
@@ -77,6 +78,7 @@ final class IslandManager {
         fullscreen.onChange = { [weak self] _ in self?.applyVisibility() }
         fullscreen.start()
         reconcileScreens()
+        observeAlertSounds()
     }
 
     func stop() {
@@ -89,6 +91,7 @@ final class IslandManager {
     }
 
     func expandAll() { for controller in controllers.values { controller.expand() } }
+    func expandAll(to page: IslandViewModel.ExpandedPage) { for controller in controllers.values { controller.expand(to: page) } }
     func collapseAll() { for controller in controllers.values { controller.collapse() } }
 
     /// Screen notifications arrive in bursts; settle for 200 ms before rebuilding.
@@ -111,6 +114,7 @@ final class IslandManager {
             controllers[id] = nil
             Log.displays.info("Removed island from \(id, privacy: .public)")
         }
+        defer { updateInteraction() }
         for (id, screen) in screens where wanted.contains(id) {
             let geometry = NotchGeometry.resolve(
                 screen.screenDescriptor,
@@ -126,6 +130,7 @@ final class IslandManager {
                 )
                 controller.update(geometry: geometry, appearance: appearance)
                 controller.setHiddenFromCapture(hideFromScreenCapture)
+                controller.onInteractionChange = { [weak self] in self?.updateInteraction() }
                 controllers[id] = controller
             }
         }
@@ -163,6 +168,28 @@ final class IslandManager {
     private func pointerMoved() {
         let location = NSEvent.mouseLocation
         for controller in controllers.values { controller.pointerMoved(to: location) }
+    }
+
+    /// Alerts and banners wait while the user is on any island.
+    private func updateInteraction() {
+        let interacting = controllers.values.contains { $0.isInteracting }
+        if activities.isInteracting != interacting { activities.isInteracting = interacting }
+    }
+
+    /// An alert's sound plays once, however many displays show it.
+    private func observeAlertSounds() {
+        withObservationTracking {
+            _ = activities.alert
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let alert = self.activities.alert, alert.serial != self.lastSoundSerial {
+                    self.lastSoundSerial = alert.serial
+                    if !self.isPaused, let sound = alert.sound { NSSound(named: NSSound.Name(sound))?.play() }
+                }
+                self.observeAlertSounds()
+            }
+        }
     }
 
     private func applyVisibility() {

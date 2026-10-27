@@ -11,6 +11,8 @@ struct HoverStateMachine: Sendable {
         case pendingExpand
         case expanded
         case pendingCollapse
+        /// Expanded for an alert; the pointer isn't on it.
+        case alerting
     }
 
     enum Event: Equatable, Sendable {
@@ -23,12 +25,16 @@ struct HoverStateMachine: Sendable {
         case forceCollapse
         /// Expand without the pointer, e.g. a debug command.
         case forceExpand
+        /// An activity alert wants the island expanded for a moment.
+        case alertBegan
+        case alertEnded
     }
 
     enum ExpandReason: Equatable, Sendable {
         case hover
         case click
         case programmatic
+        case alert
     }
 
     enum Effect: Equatable, Sendable {
@@ -37,6 +43,10 @@ struct HoverStateMachine: Sendable {
         case cancelTimers
         case expand(ExpandReason)
         case collapse
+        /// A click with Click to Open: open the activity (or make a bubble primary).
+        case activate
+        /// The pointer arrived during an alert; it's a normal hover now.
+        case userTookOverAlert
     }
 
     /// How long the pointer may be away before the island collapses, so a
@@ -49,7 +59,16 @@ struct HoverStateMachine: Sendable {
         self.state = state
     }
 
-    mutating func handle(_ event: Event, hoverEnabled: Bool, hoverDelay: Duration) -> [Effect] {
+    /// The pointer is on the island or the user has it open, so alerts and
+    /// banners wait (`ActivityCoordinator.isInteracting`).
+    var isInteracting: Bool {
+        switch state {
+        case .pendingExpand, .expanded, .pendingCollapse: true
+        case .compact, .alerting: false
+        }
+    }
+
+    mutating func handle(_ event: Event, hoverEnabled: Bool, hoverDelay: Duration, clickExpands: Bool) -> [Effect] {
         switch (state, event) {
         case (.compact, .pointerEntered):
             guard hoverEnabled else { return [] }
@@ -69,8 +88,30 @@ struct HoverStateMachine: Sendable {
             return [.cancelTimers]
 
         case (.compact, .clicked), (.pendingExpand, .clicked):
+            if clickExpands {
+                state = .expanded
+                return [.cancelTimers, .expand(.click)]
+            }
+            // Click to Open: like a tap on iPhone, open the activity rather than expand it.
+            let wasPending = state == .pendingExpand
+            state = .compact
+            return wasPending ? [.cancelTimers, .activate] : [.activate]
+
+        case (.compact, .alertBegan):
+            state = .alerting
+            return [.expand(.alert)]
+
+        case (.alerting, .alertEnded), (.alerting, .forceCollapse):
+            state = .compact
+            return [.collapse]
+
+        case (.alerting, .pointerEntered), (.alerting, .clicked):
             state = .expanded
-            return [.cancelTimers, .expand(.click)]
+            return [.userTookOverAlert]
+
+        case (.alerting, .forceExpand):
+            state = .expanded
+            return []
 
         case (.expanded, .pointerExited):
             state = .pendingCollapse

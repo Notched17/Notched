@@ -34,6 +34,7 @@ final class SettingsStore {
         static let recentRetention = "activities.recentRetention"
         static let clickBehavior = "island.clickBehavior"
         static let keyline = "appearance.keyline"
+        static let keepShowingForMedia = "general.keepShowingForMedia"
     }
 
     static let hoverDelayRange: ClosedRange<Double> = 0...1
@@ -52,6 +53,8 @@ final class SettingsStore {
     var hideInFullscreen: Bool { didSet { defaults.set(hideInFullscreen, forKey: Key.hideInFullscreen) } }
     var hideFromScreenCapture: Bool { didSet { defaults.set(hideFromScreenCapture, forKey: Key.hideFromScreenCapture) } }
     var isPaused: Bool { didSet { defaults.set(isPaused, forKey: Key.isPaused) } }
+    /// Over a fullscreen app, keep the island while media plays from another app (#5).
+    var keepShowingForMedia: Bool { didSet { defaults.set(keepShowingForMedia, forKey: Key.keepShowingForMedia) } }
     var expandOnHover: Bool { didSet { defaults.set(expandOnHover, forKey: Key.expandOnHover) } }
     var hapticsEnabled: Bool { didSet { defaults.set(hapticsEnabled, forKey: Key.hapticsEnabled) } }
 
@@ -132,6 +135,9 @@ final class SettingsStore {
 
     // MARK: Modules and lifecycle
 
+    /// The Now Playing module's settings.
+    let media: MediaSettings
+
     var enabledModules: Set<ModuleID> {
         didSet { defaults.set(enabledModules.map(\.rawValue).sorted(), forKey: Key.enabledModules) }
     }
@@ -149,6 +155,8 @@ final class SettingsStore {
         hideInFullscreen = defaults.object(forKey: Key.hideInFullscreen) as? Bool ?? true
         hideFromScreenCapture = defaults.object(forKey: Key.hideFromScreenCapture) as? Bool ?? false
         isPaused = defaults.object(forKey: Key.isPaused) as? Bool ?? false
+        keepShowingForMedia = defaults.object(forKey: Key.keepShowingForMedia) as? Bool ?? true
+        media = MediaSettings(defaults: defaults)
         expandOnHover = defaults.object(forKey: Key.expandOnHover) as? Bool ?? true
         hapticsEnabled = defaults.object(forKey: Key.hapticsEnabled) as? Bool ?? true
         notchTheme = defaults.string(forKey: Key.notchTheme).flatMap(IslandTheme.init(rawValue:)) ?? .notchBlack

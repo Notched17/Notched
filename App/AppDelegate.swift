@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var environment: AppEnvironment?
     private var windows: WindowCoordinator?
     private var statusItemController: StatusItemController?
+    private var terminationSignal: (any DispatchSourceSignal)?
 
     /// True when the app is only hosting the unit-test bundle. Tests exercise
     /// pure logic, so the island, status item and windows are never created.
@@ -18,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard !Self.isRunningTests else { return }
         Log.app.info("Notched launched")
+        quitGracefullyOnSIGTERM()
         let environment = AppEnvironment()
         let windows = WindowCoordinator(environment: environment)
         self.environment = environment
@@ -47,6 +49,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         windows?.showSettings()
         return false
+    }
+
+    /// `kill`/`pkill` (and scripts/install.sh) send SIGTERM, which would end
+    /// the process without `applicationWillTerminate`. Treat it as Quit.
+    private func quitGracefullyOnSIGTERM() {
+        signal(SIGTERM, SIG_IGN)
+        let source = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        source.setEventHandler { MainActor.assumeIsolated { NSApp.terminate(nil) } }
+        source.resume()
+        terminationSignal = source
+    }
+
+    /// Stops every module, so nothing they started (the media adapter's
+    /// perl process) outlives the app.
+    func applicationWillTerminate(_ notification: Notification) {
+        environment?.modules.stopAll()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

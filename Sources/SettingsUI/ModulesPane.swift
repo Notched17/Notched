@@ -6,10 +6,29 @@ import SwiftUI
 /// it needs (#70). Modules are off until turned on here or in onboarding.
 struct ModulesPane: View {
     @Bindable var settings: SettingsStore
+    @Bindable var navigation: SettingsNavigation
     let modules: [ModuleDescriptor]
+    let registry: ModuleRegistry
     let permissions: PermissionCenter
 
     var body: some View {
+        NavigationStack(path: $navigation.modulePath) {
+            form
+                .navigationTitle(SettingsPane.modules.title)
+                .navigationDestination(for: ModuleID.self) { id in
+                    registry.settingsPane(for: id)
+                        .navigationBarBackButtonHidden()
+                        .toolbar {
+                            ToolbarItem(placement: .navigation) {
+                                Button("Modules", systemImage: "chevron.left") { navigation.modulePath.removeAll() }
+                                    .help("Back to Modules")
+                            }
+                        }
+                }
+        }
+    }
+
+    private var form: some View {
         Form {
             if modules.isEmpty {
                 Section {
@@ -23,6 +42,11 @@ struct ModulesPane: View {
                 Section {
                     ForEach(modules) { module in
                         ModuleRow(module: module, isOn: ModuleToggle.binding(for: module, settings: settings, permissions: permissions))
+                        if registry.hasSettingsPane(module.id) {
+                            NavigationLink(value: module.id) {
+                                Text("\(module.name) Options")
+                            }
+                        }
                     }
                 } footer: {
                     Text("A module that's off uses no energy at all. Permissions are only requested when you turn on a module that needs them.")
@@ -44,7 +68,7 @@ enum ModuleToggle {
                 guard isOn else { settings.enabledModules.remove(module.id); return }
                 settings.enabledModules.insert(module.id)
                 Task {
-                    for permission in module.permissions where permissions.status(permission) != .granted {
+                    for permission in Permission.requestedUpFront(by: [module]) where permissions.status(permission) != .granted {
                         await permissions.request(permission)
                     }
                 }

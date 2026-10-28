@@ -25,20 +25,31 @@ protocol IslandModule: AnyObject {
     init(context: ModuleContext)
     func start()
     func stop()
-    /// An optional settings pane for the Modules section of Settings.
-    var settingsPane: AnyView? { get }
+    /// An optional settings pane, reached from Settings ▸ Modules. It exists
+    /// whether or not the module runs, so it's built from the type.
+    static func settingsPane(_ context: ModuleSettingsContext) -> AnyView?
 }
 
 extension IslandModule {
-    var settingsPane: AnyView? { nil }
+    static func settingsPane(_ context: ModuleSettingsContext) -> AnyView? { nil }
+}
+
+/// What a module's settings pane may use.
+@MainActor
+struct ModuleSettingsContext {
+    let settings: SettingsStore
+    /// To reach the running module, e.g. to show its live status.
+    let registry: ModuleRegistry
 }
 
 /// What a module may use. Its activity sink is scoped to its own id; any
-/// polling goes through the shared scheduler.
+/// polling goes through the shared scheduler. Settings are read (and
+/// observed) from the shared store, which holds each module's own settings.
 @MainActor
 struct ModuleContext {
     let activities: ActivitySink
     let scheduler: RefreshScheduler
+    let settings: SettingsStore
 }
 
 /// Lets one module post, end and announce its own activities, and only its own.

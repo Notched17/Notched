@@ -48,7 +48,9 @@ struct ModuleRegistryTests {
 
     private func makeRegistry() -> ModuleRegistry {
         ModuleEventLog.shared.events.removeAll()
-        return ModuleRegistry(moduleTypes: [AlphaTestModule.self, BetaTestModule.self], coordinator: coordinator)
+        let defaults = UserDefaults(suiteName: "ModuleRegistryTests.\(UUID().uuidString)")!
+        return ModuleRegistry(moduleTypes: [AlphaTestModule.self, BetaTestModule.self], coordinator: coordinator,
+                              settings: SettingsStore(defaults: defaults))
     }
 
     @Test("Descriptors are listed in registration order")

@@ -2,19 +2,6 @@
 
 import SwiftUI
 
-/// What the app shows about a module before it is ever created.
-struct ModuleDescriptor: Identifiable, Sendable {
-    let id: ModuleID
-    let name: String
-    /// SF Symbol name.
-    let symbol: String
-    let summary: String
-    /// Requested only when the user turns the module on.
-    let permissions: [Permission]
-    /// Shown only in DEBUG builds.
-    let isDebugOnly: Bool
-}
-
 /// A feature of the island (CLAUDE.md "Module contract").
 ///
 /// Modules are off by default. A disabled module is never instantiated, so it

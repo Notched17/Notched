@@ -2,20 +2,6 @@
 
 import SwiftUI
 
-struct ActivityID: Hashable, Sendable, ExpressibleByStringLiteral, CustomStringConvertible {
-    let rawValue: String
-    init(_ rawValue: String) { self.rawValue = rawValue }
-    init(stringLiteral value: String) { self.rawValue = value }
-    var description: String { rawValue }
-}
-
-struct ModuleID: Hashable, Sendable, Codable, ExpressibleByStringLiteral, CustomStringConvertible {
-    let rawValue: String
-    init(_ rawValue: String) { self.rawValue = rawValue }
-    init(stringLiteral value: String) { self.rawValue = value }
-    var description: String { rawValue }
-}
-
 /// The ranking class of a live activity, lowest first (ISLAND-BEHAVIOR.md §2).
 /// A higher class wins the attached (primary) slot.
 enum ActivityKind: Int, Comparable, CaseIterable, Sendable {

@@ -3,8 +3,8 @@
 import SwiftUI
 
 /// The lyric line being sung (#13), under the expanded controls or, as a
-/// ticker, beside the notch. It follows the interpolated playback position
-/// twice a second while playing, and each new line blurs in.
+/// ticker, beside the notch. While playing it redraws only when the line
+/// changes (`LyricLineSchedule`), and each new line blurs in.
 struct MediaLyricLine: View {
     let model: MediaModel
     var compact = false
@@ -12,7 +12,7 @@ struct MediaLyricLine: View {
     var body: some View {
         if let snapshot = model.snapshot, let lyrics = model.lyrics {
             if snapshot.isPlaying {
-                TimelineView(.periodic(from: .now, by: 0.5)) { context in
+                TimelineView(LyricLineSchedule(lyrics: lyrics, timeline: snapshot.timeline)) { context in
                     line(lyrics, at: snapshot.timeline.elapsed(at: context.date))
                 }
             } else {

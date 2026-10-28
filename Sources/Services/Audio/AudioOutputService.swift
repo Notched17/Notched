@@ -25,6 +25,9 @@ final class AudioOutputService {
     @ObservationIgnored private var dataSourceListener: Listener?
     @ObservationIgnored private let log = Log.module("media")
     @ObservationIgnored private var clients = 0
+    /// Switching can block for a moment (a Bluetooth device waking up), so
+    /// it never runs on the main thread.
+    @ObservationIgnored private let switchQueue = DispatchQueue(label: "me.rkck.Notched.audio-output-switch", qos: .userInitiated)
 
     /// Starts listening for the first holder.
     func acquire() {
@@ -59,13 +62,20 @@ final class AudioOutputService {
     }
 
     /// Makes a device the default output, like choosing it in Control Center.
+    /// The change runs off the main thread; the default-output listener
+    /// updates `current` once CoreAudio has switched.
     func select(_ device: AudioOutputDevice) {
-        var id = device.id
-        var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultOutputDevice,
-                                                 mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
-        let status = AudioObjectSetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil,
-                                                UInt32(MemoryLayout<AudioObjectID>.size), &id)
-        if status != noErr { log.error("Couldn't switch output to \(device.name, privacy: .public): \(status)") }
+        let deviceID = device.id
+        let name = device.name
+        let log = log
+        switchQueue.async {
+            var id = deviceID
+            var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+                                                     mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+            let status = AudioObjectSetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil,
+                                                    UInt32(MemoryLayout<AudioObjectID>.size), &id)
+            if status != noErr { log.error("Couldn't switch output to \(name, privacy: .public): \(status)") }
+        }
     }
 
     // MARK: Reading

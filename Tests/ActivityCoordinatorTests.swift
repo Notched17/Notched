@@ -48,8 +48,8 @@ struct ActivityCoordinatorTests {
         )
     }
 
-    private func banner(_ id: String, module: ModuleID = "test") -> TransientBanner {
-        TransientBanner(id: id, moduleID: module, leading: IslandRegion { Text(id) }, accessibilityLabel: id)
+    private func banner(_ id: String, module: ModuleID = "test", priority: BannerPriority = .normal) -> TransientBanner {
+        TransientBanner(id: id, moduleID: module, leading: IslandRegion { Text(id) }, priority: priority, accessibilityLabel: id)
     }
 
     private func ids(_ records: [ActivityRecord]) -> [ActivityID] { records.map(\.id) }
@@ -508,16 +508,78 @@ struct ActivityCoordinatorTests {
         #expect(sut.bounceSerial == 1)
     }
 
-    @Test("A banner during an alert waits for it, and the newest waiting banner wins")
+    @Test("Banners during an alert wait for it, then show one after the other in order")
     func bannerWaitsForAlert() {
         let sut = makeCoordinator()
-        sut.post(activity("a"), alert: AlertRequest())
-        sut.show(banner("old"))
-        sut.show(banner("new"))
+        sut.post(activity("a"), alert: AlertRequest(duration: .seconds(2)))
+        sut.show(banner("first"))
+        sut.show(banner("second"))
+        #expect(sut.banner == nil)
+        tick(sut, 2)
+        #expect(sut.banner?.id == "first")
+        tick(sut, 2)
+        #expect(sut.banner?.id == "second")
+        tick(sut, 2)
+        #expect(sut.banner == nil)
+        #expect(sut.bounceSerial == 2)
+    }
+
+    @Test("A waiting banner with the same id replaces the queued one: only the latest state shows")
+    func sameIdReplacesQueuedBanner() {
+        let sut = makeCoordinator()
+        sut.isInteracting = true
+        sut.show(banner("network"))
+        sut.show(banner("capslock"))
+        sut.show(banner("network"))
+        sut.isInteracting = false
+        #expect(sut.banner?.id == "capslock")
+        tick(sut, 2)
+        #expect(sut.banner?.id == "network")
+        tick(sut, 2)
+        #expect(sut.banner == nil)
+    }
+
+    @Test("A new banner waits for the one showing, unless it matters more")
+    func higherPriorityPreempts() {
+        let sut = makeCoordinator()
+        sut.show(banner("charging"))
+        sut.show(banner("airpods"))
+        #expect(sut.banner?.id == "charging")
+        sut.show(banner("low-battery", priority: .high))
+        #expect(sut.banner?.id == "low-battery")
+        tick(sut, 2)
+        #expect(sut.banner?.id == "airpods")
+    }
+
+    @Test("An alert cuts a banner short, and the banner doesn't come back")
+    func alertCutsBannerShort() {
+        let sut = makeCoordinator()
+        sut.show(banner("charging"))
+        sut.post(activity("timer"), alert: AlertRequest())
+        #expect(sut.alert?.activityID == "timer")
         #expect(sut.banner == nil)
         tick(sut, 4)
-        #expect(sut.banner?.id == "new")
-        tick(sut, 2)
+        #expect(sut.alert == nil)
+        #expect(sut.banner == nil)
+    }
+
+    @Test("A low-battery banner waits up to thirty seconds for the island")
+    func highPriorityWaitsThirtySeconds() {
+        let sut = makeCoordinator()
+        sut.isInteracting = true
+        sut.show(banner("low-battery", priority: .high))
+        tick(sut, 20)
+        sut.isInteracting = false
+        #expect(sut.banner?.id == "low-battery")
+    }
+
+    @Test("Turning a module off drops its waiting banners")
+    func endAllDropsWaitingBanners() {
+        let sut = makeCoordinator()
+        sut.isInteracting = true
+        sut.show(banner("x-banner", module: "x"))
+        sut.endAll(from: "x")
+        sut.isInteracting = false
         #expect(sut.banner == nil)
     }
 

@@ -60,7 +60,7 @@ Banners (ADR-0012) are short system events. They never take a minimal slot.
   - `receive(_:at:)` and `advance(to:)` return `.emit(Value)`, `.wake(Date)` or `.none`.
   - **Policy:** `settle` (a change must last this long), `cooldown` (the same value isn't announced again within it) and `maxPerWindow`/`window` (a rate limit).
   - **Flaps:** a change that reverts within `settle` emits nothing. When the rate limit holds a change back, only the **latest** state is announced once allowed, never the steps in between.
-- **`BannerEmitter`** (`@MainActor`) wraps a source, a `OneShotTimer`, the sink and a `render` closure. Modules call `emitter.receive(value)`.
+- Each module's reducer embeds its `BannerSource` and returns its wakes as `.wake(Date)` effects for the module's one `OneShotTimer`. A separate emitter class would add nothing.
 - **`BannerContent`** gives every banner one look, like iPhone's Silent and charging banners:
   - **Leading:** a symbol (hierarchical, tinted, bounces once) and a short label, e.g. "Charging".
   - **Trailing:** a value ("82 %", "On") or a tinted glyph, `.monospacedDigit()`.

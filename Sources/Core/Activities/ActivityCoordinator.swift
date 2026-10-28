@@ -20,7 +20,9 @@ import Observation
 ///   dismissal date.
 /// - **Alerts** expand the island for their activity, one at a time, and wait
 ///   while the user is on the island. **Banners** pre-empt the compact island
-///   briefly and wait while it's expanded.
+///   briefly. They queue (by priority, one per id) while an alert shows, the
+///   island is expanded, or another banner is up; an alert cuts a banner
+///   short (ADR-0012).
 ///
 /// Every time-based change has a deadline; the coordinator reports the next
 /// one through `scheduleWake` and the app calls `advance(to:)` then. No polling.
@@ -37,8 +39,6 @@ final class ActivityCoordinator {
         static let maxVisible = 3
         /// Ended activities never stay in Recent longer than this (as on iPhone).
         static let maxRetention: Duration = .seconds(4 * 60 * 60)
-        /// A banner that waited longer than this for the island is old news.
-        static let bannerMaxWait: Duration = .seconds(5)
     }
 
     /// The alert expansion on screen.
@@ -112,7 +112,7 @@ final class ActivityCoordinator {
     @ObservationIgnored private var alertQueue: [QueuedAlert] = []
     @ObservationIgnored private var alertSerial = 0
     @ObservationIgnored private var bannerEndsAt: Date?
-    @ObservationIgnored private var waitingBanner: (banner: TransientBanner, postedAt: Date)?
+    @ObservationIgnored private var waitingBanners = BannerQueue<TransientBanner>()
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let scheduleWake: @MainActor (Date?) -> Void
 
@@ -178,20 +178,23 @@ final class ActivityCoordinator {
             banner = nil
             bannerEndsAt = nil
         }
-        if waitingBanner?.banner.moduleID == module { waitingBanner = nil }
+        waitingBanners.removeAll { _, banner in banner.moduleID == module }
+        showWaitingAlertOrBanner(at: date)
         refresh(at: date)
     }
 
-    /// Shows a transient banner, or keeps it waiting while the island is expanded.
+    /// Shows a transient banner, or queues it while an alert shows, the
+    /// island is expanded, or an equally important banner is up.
     func show(_ newBanner: TransientBanner) {
         let date = now()
         if banner?.id == newBanner.id {
             // The same event again (another volume press): restart, no new bounce.
             banner = newBanner
             bannerEndsAt = date.addingTimeInterval(bannerDuration(newBanner))
-        } else if alert != nil || isInteracting {
-            waitingBanner = (newBanner, date)
+        } else if alert != nil || isInteracting || (banner.map { newBanner.priority <= $0.priority } ?? false) {
+            waitingBanners.enqueue(id: newBanner.id, priority: newBanner.priority, payload: newBanner, at: date)
         } else {
+            // Nothing showing, or this one matters more than the one up.
             present(newBanner, at: date)
         }
         refresh(at: date)
@@ -264,6 +267,7 @@ final class ActivityCoordinator {
             if case .ended(let dismissAt) = record.state { return dismissAt <= date }
             return false
         }
+        // The next alert, or a banner queued behind the one that just ended.
         showWaitingAlertOrBanner(at: date)
         refresh(at: date)
     }
@@ -289,8 +293,9 @@ final class ActivityCoordinator {
         showWaitingAlertOrBanner(at: date)
     }
 
-    /// Starts the next queued alert, or else the waiting banner, if the
-    /// island is free.
+    /// Starts the next queued alert, or else the next waiting banner, if the
+    /// island is free. An alert cuts a banner short: on iPhone an expanding
+    /// activity takes the whole island, and the banner is old news after it.
     private func showWaitingAlertOrBanner(at date: Date) {
         guard alert == nil, !isInteracting else { return }
         while !alertQueue.isEmpty {
@@ -299,14 +304,12 @@ final class ActivityCoordinator {
             alertSerial += 1
             alert = ActiveAlert(activityID: next.activityID, endsAt: date.addingTimeInterval(next.duration.timeInterval),
                                 sound: next.sound, serial: alertSerial)
+            banner = nil
+            bannerEndsAt = nil
             return
         }
-        if let waiting = waitingBanner {
-            waitingBanner = nil
-            if date.timeIntervalSince(waiting.postedAt) <= Configuration.bannerMaxWait.timeInterval {
-                present(waiting.banner, at: date)
-            }
-        }
+        guard banner == nil, let next = waitingBanners.next(at: date) else { return }
+        present(next.payload, at: date)
     }
 
     private func present(_ newBanner: TransientBanner, at date: Date) {

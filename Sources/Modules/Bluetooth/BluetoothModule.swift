@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import AppKit
 import Observation
 import SwiftUI
 
@@ -33,6 +34,9 @@ final class BluetoothModule: IslandModule {
     private var reducer = BluetoothReducer()
     private var isRunning = false
     private var watchesAccessories = false
+    /// Devices reconnect as the Mac wakes: not news (WakeQuiet).
+    private var quiet = WakeQuiet()
+    private let observers = NotificationTokens()
 
     init(context: ModuleContext) {
         self.context = context
@@ -47,12 +51,17 @@ final class BluetoothModule: IslandModule {
         accessories.onChange = { [weak self] devices in self?.send(.devices(.input, devices)) }
         outputs.acquire()
         holdsOutputs = true
+        let workspace = NSWorkspace.shared.notificationCenter
+        observers.observe(NSWorkspace.willSleepNotification, in: workspace) { [weak self] in self?.quiet.willSleep() }
+        observers.observe(NSWorkspace.didWakeNotification, in: workspace) { [weak self] in self?.quiet.didWake(at: Date()) }
         observeAudio()
         observeSettings()
     }
 
     func stop() {
         isRunning = false
+        observers.invalidate()
+        quiet = WakeQuiet()
         accessories.stop()
         accessories.onChange = { _ in }
         watchesAccessories = false
@@ -110,6 +119,7 @@ final class BluetoothModule: IslandModule {
                 wakeTimer.schedule(at: date)
             case .banner(let banner):
                 if case .disconnected = banner, !settings.announceDisconnects { continue }
+                guard !quiet.isQuiet(at: Date()) else { continue }
                 context.activities.show(Self.banner(banner))
             }
         }

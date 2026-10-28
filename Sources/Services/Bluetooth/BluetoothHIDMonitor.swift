@@ -57,6 +57,11 @@ final class BluetoothHIDMonitor {
         publish()
     }
 
+    /// The notification port holds an unretained pointer to this monitor.
+    isolated deinit {
+        stop()
+    }
+
     func stop() {
         for iterator in iterators { IOObjectRelease(iterator) }
         iterators.removeAll()

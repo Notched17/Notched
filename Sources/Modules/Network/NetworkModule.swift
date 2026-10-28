@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import AppKit
 import CoreWLAN
 import Network
 import Observation
@@ -34,6 +35,9 @@ final class NetworkModule: IslandModule {
     private var isRunning = false
     /// The latest path, before the Wi-Fi name is added.
     private var path: NetworkState?
+    /// Waking reconnects Wi-Fi: not news (WakeQuiet).
+    private var quiet = WakeQuiet()
+    private let observers = NotificationTokens()
 
     init(context: ModuleContext) {
         self.context = context
@@ -50,15 +54,21 @@ final class NetworkModule: IslandModule {
         let monitor = NWPathMonitor()
         monitor.pathUpdateHandler = { [weak self] path in
             let state = Self.state(of: path)
-            Task { @MainActor [weak self] in self?.pathChanged(state) }
+            // In order, so the latest path always wins.
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.pathChanged(state) } }
         }
         monitor.start(queue: queue)
         self.monitor = monitor
+        let workspace = NSWorkspace.shared.notificationCenter
+        observers.observe(NSWorkspace.willSleepNotification, in: workspace) { [weak self] in self?.quiet.willSleep() }
+        observers.observe(NSWorkspace.didWakeNotification, in: workspace) { [weak self] in self?.quiet.didWake(at: Date()) }
         observeSettings()
     }
 
     func stop() {
         isRunning = false
+        observers.invalidate()
+        quiet = WakeQuiet()
         monitor?.pathUpdateHandler = nil
         monitor?.cancel()
         monitor = nil
@@ -113,7 +123,8 @@ final class NetworkModule: IslandModule {
         for effect in reducer.reduce(event, now: Date()) {
             switch effect {
             case .wake(let date): wakeTimer.schedule(at: date)
-            case .banner(let state): context.activities.show(Self.banner(state))
+            case .banner(let state):
+                if !quiet.isQuiet(at: Date()) { context.activities.show(Self.banner(state)) }
             }
         }
     }

@@ -70,6 +70,8 @@ Goal: Apple-quality Now Playing in the island for any app, as a `.media` live ac
 
 ## M3: Status, alerts and live activities
 
+**Status (28 Oct 2026):** M3a (#25, #26, #27, #29, #37, #38) is in progress. Its foundations and every module's tested reducer are on `claude/notched-m3a-status-modules-5rqpq8`; the module shells, UI and verification follow on the Mac. Spec: `docs/superpowers/specs/2026-10-28-m3a-status-design.md`. Decisions: ADR-0011 (whatever is playing stays primary), ADR-0012 (banner pipeline). M3b (#8 priority, call, screen recording, downloads, #30 Focus, #31 camera/mic) is a separate session.
+
 | # | Feature | Spec | Approach |
 |---|---|---|---|
 | 8 | User-adjustable priority | Let the user reorder activity kinds or pin a module above others. The rest of #8 shipped in M1.5. | Feeds `ActivityCoordinator` relevance. |

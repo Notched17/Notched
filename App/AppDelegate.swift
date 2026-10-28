@@ -62,9 +62,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Stops every module, so nothing they started (the media adapter's
-    /// perl process) outlives the app.
+    /// perl process, a keep-awake assertion) outlives the app, and records
+    /// a clean quit for crash-loop protection.
     func applicationWillTerminate(_ notification: Notification) {
-        environment?.modules.stopAll()
+        environment?.modules.shutDown()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

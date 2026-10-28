@@ -41,7 +41,8 @@ final class AppEnvironment {
         accessibility = AccessibilityOptions()
         let expiryTimer = expiryTimer
         activities = ActivityCoordinator(scheduleWake: { date in expiryTimer.schedule(at: date) })
-        modules = ModuleRegistry(moduleTypes: Self.moduleTypes, coordinator: activities, settings: settings, scheduler: scheduler)
+        modules = ModuleRegistry(moduleTypes: Self.moduleTypes, coordinator: activities, settings: settings, scheduler: scheduler,
+                                 services: ModuleServices(audioOutputs: AudioOutputService(), permissions: permissions))
         fullscreen = FullscreenMonitor()
         islands = IslandManager(accessibility: accessibility, activities: activities, fullscreen: fullscreen)
         expiryTimer.action = { [weak activities] in activities?.advance(to: Date()) }
@@ -54,6 +55,9 @@ final class AppEnvironment {
         systemActivity.start()
         scheduler.context.power = power.state
         applySettings()
+        // Modules follow their own setting (ModuleHost), outside the
+        // observation below, so what they read while starting isn't tracked.
+        modules.start(debuggerAttached: ModuleHost.isDebuggerAttached())
         islands.start()
     }
 
@@ -69,7 +73,6 @@ final class AppEnvironment {
             islands.hideInFullscreen = settings.hideInFullscreen
             islands.keepShowingForMedia = settings.keepShowingForMedia
             islands.hideFromScreenCapture = settings.hideFromScreenCapture
-            modules.reconcile(enabled: settings.enabledModules)
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in self?.applySettings() }
         }

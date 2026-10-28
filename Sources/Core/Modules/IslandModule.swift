@@ -37,6 +37,11 @@ struct ModuleContext {
     let activities: ActivitySink
     let scheduler: RefreshScheduler
     let settings: SettingsStore
+    /// Services shared between modules, such as the audio output list.
+    let services: ModuleServices
+    /// The previous session crashed or was killed: don't restore anything
+    /// risky (keep-awake, later the lock screen).
+    let previousSessionCrashed: Bool
 }
 
 /// Lets one module post, end and announce its own activities, and only its own.

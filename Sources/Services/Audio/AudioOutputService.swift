@@ -6,8 +6,9 @@ import Observation
 /// The Mac's audio outputs and the current one, kept up to date by CoreAudio
 /// property listeners (no polling), and a way to switch (#16).
 ///
-/// Listeners exist only between `start()` and `stop()`, i.e. while Now
-/// Playing is on.
+/// One instance is shared by the modules that need it (`ModuleServices`).
+/// Listeners exist only while at least one of them holds it
+/// (`acquire()`/`release()`), e.g. while Now Playing or Bluetooth is on.
 @MainActor
 @Observable
 final class AudioOutputService {
@@ -23,8 +24,22 @@ final class AudioOutputService {
     @ObservationIgnored private var listeners: [Listener] = []
     @ObservationIgnored private var dataSourceListener: Listener?
     @ObservationIgnored private let log = Log.module("media")
+    @ObservationIgnored private var clients = 0
 
-    func start() {
+    /// Starts listening for the first holder.
+    func acquire() {
+        clients += 1
+        if clients == 1 { start() }
+    }
+
+    /// Stops listening once the last holder lets go.
+    func release() {
+        guard clients > 0 else { return }
+        clients -= 1
+        if clients == 0 { stop() }
+    }
+
+    private func start() {
         guard listeners.isEmpty else { return }
         for selector in [kAudioHardwarePropertyDevices, kAudioHardwarePropertyDefaultOutputDevice] {
             if let listener = listen(AudioObjectID(kAudioObjectSystemObject), selector: selector, scope: kAudioObjectPropertyScopeGlobal) {
@@ -34,7 +49,7 @@ final class AudioOutputService {
         reload()
     }
 
-    func stop() {
+    private func stop() {
         for listener in listeners { remove(listener) }
         listeners.removeAll()
         if let dataSourceListener { remove(dataSourceListener) }

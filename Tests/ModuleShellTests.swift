@@ -196,6 +196,37 @@ struct ModuleShellTests {
         #expect(services.sensors.listenerCount == 0)
     }
 
+    @Test("Calls leaves no listener, observer, claim or activity behind when it stops, however often it is switched")
+    func callsNeverLeak() {
+        let services = ModuleServices()
+        let (context, coordinator) = context(CallsModule.descriptor.id, services: services)
+        for _ in 0..<5 {
+            let module = CallsModule(context: context)
+            module.start()
+            services.sensors.flush()
+            #expect(module.isRunning)
+            #expect(services.sensors.listenerCount > 0)
+            module.stop()
+            services.sensors.flush()
+            #expect(!module.isRunning)
+            #expect(services.sensors.listenerCount == 0)
+            #expect(coordinator.live.isEmpty)
+        }
+    }
+
+    @Test("A stopped Calls module can never leave the microphone indicator suppressed, even while Camera & Microphone keeps the service alive")
+    func callsClaimsClearedOnStop() {
+        let services = ModuleServices()
+        let (context, _) = context(CallsModule.descriptor.id, services: services)
+        services.sensors.acquire()  // Camera & Microphone, say
+        let module = CallsModule(context: context)
+        module.start()
+        services.sensors.setCallClaims(CallClaims(identities: ["us.zoom.xos"], isCallActive: true))
+        module.stop()
+        #expect(services.sensors.callClaims == CallClaims())
+        services.sensors.release()
+    }
+
     @Test("Caps Lock's event monitors are removed when it stops")
     func capsLockStops() {
         let (context, _) = context(CapsLockModule.descriptor.id)

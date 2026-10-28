@@ -17,7 +17,7 @@ import AppKit
 /// media?on=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly&lyrics=0|1&ticker=0|1
 /// &visualizer=animated|still|off, page?id=media, settings?module=media, quit,
 /// module?id=<module>&on=0|1, crash-at-start?on=0|1 (Hello crashes while starting),
-/// sensors?camera=1&apps=Zoom,Voice%20Memos&unnamed=1&claims=Zoom|0 (a simulated camera and microphone reading),
+/// sensors?camera=1&apps=Zoom,Voice%20Memos&unnamed=1&callapps=us.zoom.xos&claims=Zoom|0 (a simulated camera and microphone reading),
 /// battery?power=battery|charging|notCharging|charged&level=N (a simulated reading)&show=0|80|100,
 /// keepawake?preset=30m|1h|2h|on|off, page?activity=<activity id> (e.g. keepawake, timers.stopwatch),
 /// page?panel=timers|keepawake (Home with that quick action open), network?name=0|1.
@@ -149,17 +149,26 @@ enum DebugCommands {
     }
 
     private static func sensors(_ url: URL, _ environment: AppEnvironment) {
-        guard let module = environment.modules.module(SensorsModule.descriptor.id) as? SensorsModule else { return }
-        // Names with a bundle id each, e.g. apps=Zoom,Voice%20Memos; unnamed=1 adds one we can't name.
+        let sensorsModule = environment.modules.module(SensorsModule.descriptor.id) as? SensorsModule
+        let callsModule = environment.modules.module(CallsModule.descriptor.id) as? CallsModule
+        guard sensorsModule != nil || callsModule != nil else { return }
+        // Names with a bundle id each, e.g. apps=Zoom,Voice%20Memos; unnamed=1 adds one we can't name;
+        // callapps=us.zoom.xos,com.apple.FaceTime adds real call apps.
         var users = (query(url, "apps") ?? "").split(separator: ",").enumerated().map { index, name in
             InputUser(pid: Int32(1000 + index), processBundleID: "debug.\(name)", appBundleID: "debug.\(name)", appName: String(name), attribution: .exact)
+        }
+        for (index, id) in (query(url, "callapps") ?? "").split(separator: ",").enumerated() {
+            users.append(InputUser(pid: Int32(3000 + index), processBundleID: String(id), appBundleID: String(id),
+                                   appName: CallApps.known[String(id)], attribution: .exact))
         }
         if query(url, "unnamed") == "1" {
             users.append(InputUser(pid: 2000, processBundleID: "debug.unnamed", appBundleID: nil, appName: nil, attribution: .unknown))
         }
-        module.simulate(SensorSnapshot(cameraRunning: query(url, "camera") == "1", micUsers: users))
+        let reading = SensorSnapshot(cameraRunning: query(url, "camera") == "1", micUsers: users)
+        // Both modules share one service, so one of them is enough to feed it.
+        if let sensorsModule { sensorsModule.simulate(reading) } else { callsModule?.simulate(reading) }
         if let claims = query(url, "claims") {
-            module.simulate(claims: claims == "0" ? CallClaims() : CallClaims(identities: Set(claims.split(separator: ",").map { "debug.\($0)" }), isCallActive: true))
+            sensorsModule?.simulate(claims: claims == "0" ? CallClaims() : CallClaims(identities: Set(claims.split(separator: ",").map { "debug.\($0)" }), isCallActive: true))
         }
     }
 

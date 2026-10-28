@@ -70,7 +70,9 @@ Goal: Apple-quality Now Playing in the island for any app, as a `.media` live ac
 
 ## M3: Status, alerts and live activities
 
-**Status (28 Oct 2026):** M3a (#25, #26, #27, #29, #37, #38) is in progress. Its foundations and every module's tested reducer are on `claude/notched-m3a-status-modules-5rqpq8`; the module shells, UI and verification follow on the Mac. Spec: `docs/superpowers/specs/2026-10-28-m3a-status-design.md`. Decisions: ADR-0011 (whatever is playing stays primary), ADR-0012 (banner pipeline). M3b (#8 priority, call, screen recording, downloads, #30 Focus, #31 camera/mic) is a separate session.
+> **Split:** M3a = #25, #26, #27, #29, #37, #38 (prompt `docs/prompts/M3a-*`). M3b = call, screen recording, downloads, #30, #31, #8, **plus the HUD (#20, #21, #23, formerly M5)**. Prompt: `docs/prompts/M3b-system-activities-and-hud.md`.
+
+**Status (28 Oct 2026):** M3a (#25, #26, #27, #29, #37, #38) is built and verified on the Mac (branch `m3a-status`): see the rows below and **M3a status** under the table. Spec: `docs/superpowers/specs/2026-10-28-m3a-status-design.md`. Decisions: ADR-0011 (whatever is playing stays primary), ADR-0012 (banner pipeline), ADR-0013 (what the assumptions turned out to be on macOS 27.2). M3b (#8 priority, call, screen recording, downloads, #30 Focus, #31 camera/mic) is a separate session.
 
 | # | Feature | Spec | Approach |
 |---|---|---|---|
@@ -78,15 +80,25 @@ Goal: Apple-quality Now Playing in the island for any app, as a `.media` live ac
 | — | "Call" system activity | "In a call" + duration for FaceTime, Zoom, Teams and Phone-via-iPhone, as a non-hideable `system` activity with mute/end where possible. Caller name and ringing aren't detectable. | Core Audio per-process microphone use + a list of known call apps (public, heuristic). `docs/ISLAND-BEHAVIOR.md` §7. |
 | — | Screen recording | A red recording indicator with elapsed time and a **Stop** button, as a non-hideable `system` activity. | Private CGS screen-watcher notifications + the `screencapture` process, via a `Services/Private/` wrapper. Stop sends the system shortcut or ends `screencapture`. §7. |
 | — | Downloads | Download progress (ring in minimal, bar in expanded) for browser downloads into `~/Downloads`. | FSEvents on `~/Downloads` + the `com.apple.progress.fractionCompleted` xattr browsers write (heuristic). §7. |
-| 25 | Caps Lock indicator | Small transient compact alert on toggle. | `NSEvent` global monitor for `.flagsChanged`. |
-| 26 | Mac battery | Alerts when charging starts or stops, at low battery (20/10%, configurable) and when full. Expanded view shows % and time remaining. Hidden on desktop Macs. | IOKit `IOPSNotificationCreateRunLoopSource` and `IOPSCopyPowerSourcesInfo`. |
-| 27 | Bluetooth connect toast | "AirPods Pro connected" with a device-type SF Symbol. | IOBluetooth connection notifications (`IOBluetoothDevice.register(forConnectNotifications:)`) or CoreAudio device added/removed for audio devices. Needs the Bluetooth permission. |
-| 29 | Wi-Fi / network | Toast when the connection drops or changes (Wi-Fi ↔ Ethernet ↔ offline). | `NWPathMonitor`. The SSID needs the Location permission on modern macOS, so make it optional. |
+| 25 | ✅ Caps Lock indicator | Banner on toggle: the Caps Lock glyph (green when on) and On / Off; rapid toggles restart one banner. Off by default. | `NSEvent` global + local monitors for `.flagsChanged` → `CapsLockReducer`. **Needs no permission** on 27.2: an untrusted app's global monitor gets modifier changes but never key presses (verified with a probe; ADR-0013). |
+| 26 | ✅ Mac battery | Banners: Charging, Plugged In (a charge limit holding it), Charged, On Battery, Low Battery (two levels, default 20/10%, red). Optional `.passive` charging activity (Never / Until 80% / Until Full): battery glyph and %, a ring in the bubble, ring + time to full + watts expanded. Hidden on desktop Macs. | IOKit power-source run-loop source (no polling) → `BatteryReducer`. **Verified with the real charger:** banners follow macOS's switch by the 1 s settle (ADR-0013). |
+| 27 | 🟨 Bluetooth connect toast | Connect and disconnect banners (disconnect dimmed) with the device's symbol and a short name ("AirPods Pro"). Settings can leave out accessories or disconnects. | Audio: the shared CoreAudio `AudioOutputService`. Keyboards, mice, trackpads, controllers: I/O Registry matching notifications for Bluetooth HID devices. **No permission and no prompt** (verified; ADR-0013). Real AirPods connects verified. 🟨 **Keyboards and mice not yet seen with a real device** (none connected during testing); the Bluetooth permission is never asked, so "deny it" doesn't apply. |
+| 29 | ✅ Wi-Fi / network | Banners for Wi-Fi (with the network's name, optional), Ethernet, Personal Hotspot and Offline, settled 2 s and at most 3 a minute. | `NWPathMonitor` on a utility queue → `NetworkReducer`. The name needs Location (asked only by its toggle; Hardened Runtime location entitlement). **Verified:** repeated Wi-Fi off/on gave two banners, no spam. |
 | 30 | Focus / Do Not Disturb | Show the current Focus with its symbol. | **No public API.** Research what works on macOS 27 first (assertions file under `~/Library/DoNotDisturb/DB/` needs Full Disk Access; or an App Intents / Focus Filter approach). Write the findings to an ADR and **ask Charlie** if it needs Full Disk Access. |
 | 31 | Camera / mic in use | Green/orange dot plus an icon when any app uses the camera or mic, debounced. | CoreMediaIO `kCMIODevicePropertyDeviceIsRunningSomewhere` and CoreAudio `kAudioDevicePropertyDeviceIsRunningSomewhere`, with property listeners. Debounce by 500 ms to stop false toggles. |
-| 38 | Keep-awake | A toggle in the expanded view and a compact coffee-cup indicator while active. Duration presets: 30 min, 1 h, 2 h, indefinitely. | `IOPMAssertionCreateWithName` (`PreventUserIdleDisplaySleep`). Always release it on quit. |
-| 37 | Timers | Own countdown timers and stopwatch as a `live` activity: compact shows a ring and time, minimal bubble shows the countdown, alert expansion when done (with sound). Presets, multiple timers, start from the expanded view or URL scheme. | Public APIs only (`Date`-based, no polling, survives sleep). Mirroring the Clock app's timers is experimental and parked (private routes, see `docs/ISLAND-BEHAVIOR.md` §7). |
+| 38 | ✅ Keep-awake | From Home, the status menu or its activity: 30 min, 1 hr, 2 hr, Indefinitely, Turn Off. Compact: a cup and the countdown; the bubble shrinks past an hour. Never restored after a relaunch. | One `PreventUserIdleDisplaySleep` assertion via `KeepAwakeReducer`. **Verified with `pmset -g assertions`:** held while on; released on Turn Off, quit, and switching the module off (10 cycles, none left). |
+| 37 | ✅ Timers | Up to 10 timers and a stopwatch as `.live` activities: ring + time compact, the countdown in the bubble, an alert expansion with a system sound when done (the sound plays even with alert expansion off), then Recent. Presets 1/5/10/25 min and a Custom stepper (hold or scroll), +1 min, pause, cancel. Start from Home, the status menu or `notched://timer?minutes=10&label=Tea` (Release too). | `Date`-based `TimersReducer`; one `OneShotTimer` on the continuous clock plus a wake re-check; saved as `timers.state`. The ring is a Core Animation `strokeEnd` animation in the render server (ADR-0010). **Verified:** URL, ring, done alert, quit/relaunch. A finished timer rings for a minute or until Stop, so an alert that has to wait still shows. Links are rate-limited (ADR-0013). |
 
+
+**M3a status (28 Oct 2026):** built and verified on macOS 27.2 (Mac16,13), branch `m3a-status`. Measured with `scripts/cpu.sh` over 60 s, Debug build, all M3a modules on:
+
+| State | CPU (Notched + adapter helper) | Footprint | Budget |
+|---|---|---|---|
+| Idle, nothing live | **0.017%** | 27 MB | < 0.5% |
+| Now Playing compact | **0.000%** | 31 MB | < 1.5% |
+| A timer running, compact | **0.417%** (the system-ticked digits; the ring runs in the render server) | 31 MB | < 1% |
+
+Robustness: sleep/wake wasn't tried physically (the timer and ring re-check on wake, and Network/Bluetooth stay quiet for 8 s after it; `WakeQuiet` and the timers' wake path are unit-tested); quit and relaunch with a running timer (restored; keep-awake not restored, its assertion released at quit); every module switched off and on 10 times (no assertion, thread or file-descriptor leak); real charger, AirPods and Wi-Fi off/on banners. Crash protection checked on the Mac (ADR-0013). Screenshots in `docs/screenshots/m3a/`.
 ---
 
 ## M4: Productivity and developer tools
@@ -106,7 +118,7 @@ Goal: Apple-quality Now Playing in the island for any app, as a `.media` live ac
 
 ---
 
-## M5: HUD replacement
+## M3b (Part B): HUD replacement (formerly M5, merged into M3b)
 
 | # | Feature | Spec | Approach and risk |
 |---|---|---|---|
@@ -132,5 +144,6 @@ Goal: Apple-quality Now Playing in the island for any app, as a `.media` live ac
 
 - ⏸ **54 Teleprompter.** Wanted later: scrolling script under the camera, optionally voice-following (Speech framework).
 - ⏸ **61 Face Unlock.** Parked: a third-party app cannot securely unlock macOS. It would need to store the password, and Mac cameras have no depth sensing, so a photo could spoof it. A possible safe alternative is "presence": the island greets you or wakes when you sit down, with no unlocking. Decide later.
+- ⏸ **Mirror the Clock app's timers** (from #37). Private routes only; experimental (`docs/ISLAND-BEHAVIOR.md` §7).
 - Ideas from the research worth considering after M6: 75 energy modes UI (the scheduler already exists), 40/41 file shelf + AirDrop, 53 webcam mirror.
 - ✖ **Maps turn-by-turn.** Not possible on the Mac: Mac Maps has no live navigation, and although macOS Tahoe shows an iPhone's Live Activities in the menu bar, no API lets another app read them (only an untested Accessibility scrape). At most a later experiment (`docs/ISLAND-BEHAVIOR.md` §7).

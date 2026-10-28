@@ -51,14 +51,15 @@ docs/                research, roadmap, prompts, ADRs
 
 **Module contract.** Every feature is an `IslandModule`:
 - `id`, a display name and an SF Symbol.
-- `isEnabled`. Settings toggle it (#70). Everything except the core shell is **off by default** or asks on first use.
-- The permissions it requires. They are only requested when the user enables the module.
-- `start()` and `stop()` lifecycle. A disabled module must cost zero CPU: no timers, observers or processes.
-- It publishes `LiveActivity` values (kind, relevance, regions for compact leading/trailing, minimal and expanded, optional stale date and alert) and `TransientBanner`s to the `ActivityCoordinator` through its scoped `ActivitySink`.
+- `isEnabled`. Settings toggle it (#70). A module is **off by default** unless it needs no permission and does nothing until used, or only shows short status banners (`ModuleDescriptor.isOnByDefault`; turned on once, then the user's choice sticks). Anything that needs a permission stays off and asks when turned on.
+- The permissions it requires. They are only requested when the user enables the module (or a sub-feature that needs them).
+- `start()` and `stop()` lifecycle, run by `ModuleHost` (which also suspends a module that crashes while starting). A disabled module must cost zero CPU: no timers, observers or processes.
+- **A pure, unit-tested reducer** for its lifecycle: `mutating func reduce(_ event: Event, now: Date) -> [Effect]`, Foundation only, no system or SwiftUI types. The module is a thin shell that turns system callbacks into events and carries out effects. Template: `docs/templates/module-reducer.md`; worked example: `MediaActivityReducer`.
+- It publishes `LiveActivity` values (kind, relevance, regions for compact leading/trailing, minimal and expanded, optional stale date and alert) and `TransientBanner`s to the `ActivityCoordinator` through its scoped `ActivitySink`. Banners go through a `BannerSource` (settle, cooldown, rate limit) so flapping events never spam (ADR-0012).
 - It may provide a full expanded "tab" view and a settings pane.
 
 **ActivityCoordinator (#8)** decides what the island shows, like the iPhone Dynamic Island (`docs/ISLAND-BEHAVIOR.md`, ADR-0006):
-- Ranking: kind (system > live > media > passive), then relevance, then start order.
+- Ranking: kind (system > media > live > passive: whatever is playing stays primary, ADR-0011), then relevance, then start order.
 - One primary activity owns both compact sides; up to two more show as minimal bubbles; the rest are listed in the expanded view.
 - Users can swap the primary, and hide activities (except non-hideable system ones).
 - Activities go stale and end; ended ones stay under Recent for a while.

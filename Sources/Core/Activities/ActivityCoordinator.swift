@@ -7,7 +7,7 @@ import Observation
 /// the way the iPhone Dynamic Island does (ADR-0006, ISLAND-BEHAVIOR.md §1–§2).
 /// Pure and clock-injected, so every rule is unit-tested:
 ///
-/// - **Ranking:** class (system > live > media > passive), then relevance,
+/// - **Ranking:** class (system > media > live > passive, ADR-0011), then relevance,
 ///   then start order, so a newcomer never steals the island from an equal.
 /// - **Primary and minimal:** the top visible activity owns both compact
 ///   sides; the next two show as minimal bubbles (trailing, then leading).

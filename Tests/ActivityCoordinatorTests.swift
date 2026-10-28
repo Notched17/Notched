@@ -56,14 +56,14 @@ struct ActivityCoordinatorTests {
 
     // MARK: Ranking
 
-    @Test("Activities rank by class: system, then live, then media, then passive")
+    @Test("Activities rank by class: system, then media, then live, then passive (ADR-0011)")
     func rankByClass() {
         let sut = makeCoordinator()
         sut.post(activity("p", kind: .passive))
         sut.post(activity("m", kind: .media))
         sut.post(activity("l", kind: .live))
         sut.post(activity("s", kind: .system))
-        #expect(ids(sut.live) == ["s", "l", "m", "p"])
+        #expect(ids(sut.live) == ["s", "m", "l", "p"])
     }
 
     @Test("Within a class, higher relevance wins")
@@ -113,13 +113,13 @@ struct ActivityCoordinatorTests {
         #expect(sut.minimal.isEmpty)
     }
 
-    @Test("Two activities: the higher class is primary, the other is a minimal bubble")
+    @Test("Two activities: what's playing stays primary, the timer is a minimal bubble")
     func twoActivities() {
         let sut = makeCoordinator()
         sut.post(activity("music", kind: .media))
         sut.post(activity("timer", kind: .live))
-        #expect(sut.primary?.id == "timer")
-        #expect(ids(sut.minimal) == ["music"])
+        #expect(sut.primary?.id == "music")
+        #expect(ids(sut.minimal) == ["timer"])
     }
 
     @Test("Three activities: primary, then the trailing bubble, then the leading bubble")
@@ -129,7 +129,7 @@ struct ActivityCoordinatorTests {
         sut.post(activity("timer", kind: .live))
         sut.post(activity("call", kind: .system))
         #expect(sut.primary?.id == "call")
-        #expect(ids(sut.minimal) == ["timer", "music"])
+        #expect(ids(sut.minimal) == ["music", "timer"])
     }
 
     // MARK: Cap of three

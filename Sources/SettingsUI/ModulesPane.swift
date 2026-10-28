@@ -54,6 +54,8 @@ struct ModulesPane: View {
                     ForEach(modules) { module in
                         ModuleRow(module: module, isOn: ModuleToggle.binding(for: module, settings: settings, permissions: permissions,
                                                                              registry: registry))
+                            // Nothing runs in safe mode; Resume Modules above is the way out.
+                            .disabled(registry.isSafeMode)
                         if registry.suspendedIDs.contains(module.id) {
                             LabeledContent {
                                 Button("Turn On") { registry.resume(module.id) }

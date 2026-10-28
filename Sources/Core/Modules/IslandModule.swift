@@ -66,6 +66,7 @@ struct ActivitySink {
             Log.modules.error("Module \(moduleID, privacy: .public) tried to post an activity for \(activity.moduleID, privacy: .public)")
             return
         }
+        if alert != nil { VoiceOver.announce(activity.accessibilityLabel) }
         coordinator.post(activity, alert: alert)
     }
 
@@ -86,6 +87,7 @@ struct ActivitySink {
         #else
         Log.activities.info("Banner from \(moduleID, privacy: .public)")
         #endif
+        VoiceOver.announce(banner.accessibilityLabel)
         coordinator.show(banner)
     }
 
@@ -97,5 +99,18 @@ struct ActivitySink {
     /// Replaces this module's quick actions on the island's Home page.
     func setHomeActions(_ actions: [HomeAction]) {
         coordinator.setHomeActions(actions, from: moduleID)
+    }
+}
+
+/// Speaks short system events (banners, alerts) to VoiceOver users, who
+/// can't see the island change. Does nothing while VoiceOver is off.
+@MainActor
+enum VoiceOver {
+    static func announce(_ text: String) {
+        guard NSWorkspace.shared.isVoiceOverEnabled, let app = NSApp else { return }
+        NSAccessibility.post(element: app, notification: .announcementRequested, userInfo: [
+            .announcement: text,
+            .priority: NSAccessibilityPriorityLevel.high.rawValue,
+        ])
     }
 }

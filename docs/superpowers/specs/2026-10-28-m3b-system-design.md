@@ -1,5 +1,7 @@
 # M3b System activities and HUD: design
 
+> **Update after the spikes (28 Oct):** Charlie set aside **Screen recording** (ADR-0014: detection works, Stop doesn't for ⌘⇧5) and dropped **Focus** (ADR-0015: only a per-Focus filter works). Sections S2, S3, A3 and A5, and the `alertsWhenStarted` flag, are kept below for when they return. They are not part of M3b.
+
 ## Context
 
 M1–M3a are done and merged (`main` = `abf005e`, PR #2). M3b adds system-level activities: camera/mic in use (#31), Call, Screen recording, Downloads, Focus (#30) and user-adjustable priority (#8). Then, after a **hard checkpoint**, it adds the HUD replacement (#20/#21/#23).

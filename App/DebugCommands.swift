@@ -88,6 +88,7 @@ enum DebugCommands {
             battery(url, environment)
         case "network":
             if let name = query(url, "name") { environment.settings.network.showWiFiName = name == "1" }
+        case "probe": Probes.handle(url)
         case "keepawake":
             guard let module = environment.modules.module(KeepAwakeModule.descriptor.id) as? KeepAwakeModule else { return }
             switch query(url, "preset") {

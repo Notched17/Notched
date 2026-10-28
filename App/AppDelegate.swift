@@ -8,6 +8,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windows: WindowCoordinator?
     private var statusItemController: StatusItemController?
     private var terminationSignal: (any DispatchSourceSignal)?
+    /// Links that arrive before the app has set itself up (one that launched it).
+    private var pendingURLs: [URL] = []
 
     /// True when the app is only hosting the unit-test bundle. Tests exercise
     /// pure logic, so the island, status item and windows are never created.
@@ -32,16 +34,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         statusItemController = StatusItemController(environment: environment, windows: windows)
         environment.start()
+        for url in pendingURLs { URLRouter.handle(url, environment: environment, windows: windows) }
+        pendingURLs.removeAll()
         if !environment.settings.hasCompletedOnboarding {
             windows.showOnboarding()
         }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        #if DEBUG
-        guard let environment, let windows else { return }
-        for url in urls { DebugCommands.handle(url, environment: environment, windows: windows) }
-        #endif
+        guard let environment, let windows else {
+            if !Self.isRunningTests { pendingURLs += urls }
+            return
+        }
+        for url in urls { URLRouter.handle(url, environment: environment, windows: windows) }
     }
 
     /// Opening the app again (e.g. from Finder or Spotlight) shows Settings,
@@ -62,9 +67,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Stops every module, so nothing they started (the media adapter's
-    /// perl process) outlives the app.
+    /// perl process, a keep-awake assertion) outlives the app, and records
+    /// a clean quit for crash-loop protection.
     func applicationWillTerminate(_ notification: Notification) {
-        environment?.modules.stopAll()
+        environment?.modules.shutDown()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

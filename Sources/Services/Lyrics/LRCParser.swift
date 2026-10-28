@@ -24,6 +24,23 @@ struct SyncedLyrics: Equatable, Sendable {
         }
         return low == 0 ? nil : low - 1
     }
+
+    /// How late `nextLineChange` reports a change, so the new line has
+    /// certainly started by then despite rounding.
+    static let lineChangeGuard: TimeInterval = 0.01
+
+    /// When the line being sung next changes after `date`, at the timeline's
+    /// rate. Nil while paused, after the last line, or when the next line
+    /// starts past the track's end. The lyric view redraws only then.
+    func nextLineChange(after date: Date, timeline: PlaybackTimeline) -> Date? {
+        guard timeline.rate > 0 else { return nil }
+        let position = timeline.elapsed(at: date)
+        let nextIndex = lineIndex(at: position).map { $0 + 1 } ?? 0
+        guard nextIndex < lines.count else { return nil }
+        let start = lines[nextIndex].time
+        if let duration = timeline.duration, start > duration { return nil }
+        return date.addingTimeInterval((start - position) / timeline.rate + Self.lineChangeGuard)
+    }
 }
 
 /// Parses LRC (`[mm:ss.xx]text`), the format LRCLIB's `syncedLyrics` uses.

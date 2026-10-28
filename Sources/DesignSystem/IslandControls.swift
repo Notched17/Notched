@@ -102,3 +102,16 @@ extension ButtonStyle where Self == IslandButtonStyle {
     static var island: IslandButtonStyle { IslandButtonStyle() }
     static func island(prominent tint: Color) -> IslandButtonStyle { IslandButtonStyle(kind: .prominent(tint)) }
 }
+
+/// A rounded tile behind an activity's glyph in the expanded island, its
+/// corners concentric with the island's.
+struct IslandTile<Content: View>: View {
+    var size: CGFloat = 40
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content
+            .frame(width: size, height: size)
+            .background(.white.opacity(0.08), in: ConcentricRectangle(corners: .concentric(minimum: 10), isUniform: true))
+    }
+}

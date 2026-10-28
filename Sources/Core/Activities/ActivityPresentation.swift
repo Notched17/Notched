@@ -87,15 +87,19 @@ struct TransientBanner: Identifiable {
     var trailing: IslandRegion?
     /// How long it shows; nil uses the user's setting.
     var duration: Duration?
+    /// Orders banners waiting for the island; a more important one
+    /// replaces a less important one on screen (ADR-0012).
+    var priority: BannerPriority
     var accessibilityLabel: String
 
     init(id: String, moduleID: ModuleID, leading: IslandRegion, trailing: IslandRegion? = nil,
-         duration: Duration? = nil, accessibilityLabel: String) {
+         duration: Duration? = nil, priority: BannerPriority = .normal, accessibilityLabel: String) {
         self.id = id
         self.moduleID = moduleID
         self.leading = leading
         self.trailing = trailing
         self.duration = duration
+        self.priority = priority
         self.accessibilityLabel = accessibilityLabel
     }
 }

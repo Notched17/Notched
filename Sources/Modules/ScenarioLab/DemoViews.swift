@@ -76,59 +76,6 @@ struct DemoMusicExpandedBottom: View {
     }
 }
 
-// MARK: Timer
-
-enum DemoTimerStyle {
-    static let tint = Color.orange
-}
-
-struct DemoCountdown: View {
-    let end: Date
-    var font: Font = IslandFont.compact
-
-    var body: some View {
-        Text(timerInterval: Date.now...max(end, .now), countsDown: true)
-            .font(font)
-            .monospacedDigit()
-            .foregroundStyle(DemoTimerStyle.tint)
-            .multilineTextAlignment(.trailing)
-    }
-}
-
-struct DemoTimerExpandedBottom: View {
-    let start: Date
-    let end: Date
-
-    var body: some View {
-        VStack(spacing: Spacing.m) {
-            IslandTimerProgressBar(interval: start...end, countsDown: true, tint: DemoTimerStyle.tint)
-            GlassEffectContainer(spacing: Spacing.m) {
-                HStack(spacing: Spacing.m) {
-                    Button("Pause", systemImage: "pause.fill") {}
-                        .buttonStyle(.island)
-                    Spacer()
-                    Button("Cancel", systemImage: "xmark") {}
-                        .buttonStyle(.island)
-                }
-                .labelStyle(.titleAndIcon)
-            }
-        }
-    }
-}
-
-struct DemoTimerDone: View {
-    var body: some View {
-        HStack(spacing: Spacing.m) {
-            Button("Stop", systemImage: "stop.fill") {}
-                .buttonStyle(.island(prominent: DemoTimerStyle.tint))
-            Spacer()
-            Button("Repeat", systemImage: "arrow.counterclockwise") {}
-                .buttonStyle(.island)
-        }
-        .labelStyle(.titleAndIcon)
-    }
-}
-
 // MARK: Call
 
 enum DemoCallStyle {

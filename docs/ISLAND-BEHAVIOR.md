@@ -29,7 +29,7 @@ Where Apple documents nothing (alert durations, cross-app ordering, spring value
 ```swift
 struct LiveActivity {
   id, moduleID
-  kind: .system | .live | .media | .passive   // ranking class
+  kind: .system | .media | .live | .passive   // ranking class, highest first
   relevance: Double                            // within class; higher wins, ties → started first
   isHideable: Bool                             // false for call, screen recording
   state: .active | .stale | .ended(dismissAt) | .hidden
@@ -45,7 +45,7 @@ The same activity id updates in place, and keeps its position and slot. An alert
 
 ### Ranking (attached vs minimal) [decision, Apple doesn't document cross-app order]
 
-1. **Class:** `system` (call, screen recording, navigation-like) > `live` (timer, Claude Code working, keep-awake, download) > `media` > `passive`.
+1. **Class:** `system` (call, screen recording, navigation-like) > `media` (whatever is playing) > `live` (timer, Claude Code working, keep-awake, download) > `passive` (charging). Whatever is playing keeps the attached island; the user's own timers and tools show as bubbles beside it (ADR-0011, M3a).
 2. Within a class, higher `relevance` wins. On a tie, the activity started first wins: it's stable, and newer ones don't steal the island.
 3. The user overrides: **swap** (clicking a minimal bubble makes it primary; a two-finger horizontal swipe on the compact island cycles), and **hide** (swipe up on an activity, or a context-menu "Hide"). Hiding an activity doesn't end it; it stays listed in the expanded view's activity list and can be restored. System activities that aren't hideable ignore hide.
 4. A user's swap is sticky until either activity ends or a new `system` activity arrives.

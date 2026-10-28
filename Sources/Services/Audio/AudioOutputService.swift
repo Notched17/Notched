@@ -6,8 +6,9 @@ import Observation
 /// The Mac's audio outputs and the current one, kept up to date by CoreAudio
 /// property listeners (no polling), and a way to switch (#16).
 ///
-/// Listeners exist only between `start()` and `stop()`, i.e. while Now
-/// Playing is on.
+/// One instance is shared by the modules that need it (`ModuleServices`).
+/// Listeners exist only while at least one of them holds it
+/// (`acquire()`/`release()`), e.g. while Now Playing or Bluetooth is on.
 @MainActor
 @Observable
 final class AudioOutputService {
@@ -23,8 +24,29 @@ final class AudioOutputService {
     @ObservationIgnored private var listeners: [Listener] = []
     @ObservationIgnored private var dataSourceListener: Listener?
     @ObservationIgnored private let log = Log.module("media")
+    @ObservationIgnored private var clients = 0
+    /// Switching can block for a moment (a Bluetooth device waking up), so
+    /// it never runs on the main thread.
+    @ObservationIgnored private let switchQueue = DispatchQueue(label: "me.rkck.Notched.audio-output-switch", qos: .userInitiated)
 
-    func start() {
+    /// CoreAudio property listeners installed now; zero once the last holder
+    /// has let go (tests check nothing leaks).
+    var listenerCount: Int { listeners.count + (dataSourceListener == nil ? 0 : 1) }
+
+    /// Starts listening for the first holder.
+    func acquire() {
+        clients += 1
+        if clients == 1 { start() }
+    }
+
+    /// Stops listening once the last holder lets go.
+    func release() {
+        guard clients > 0 else { return }
+        clients -= 1
+        if clients == 0 { stop() }
+    }
+
+    private func start() {
         guard listeners.isEmpty else { return }
         for selector in [kAudioHardwarePropertyDevices, kAudioHardwarePropertyDefaultOutputDevice] {
             if let listener = listen(AudioObjectID(kAudioObjectSystemObject), selector: selector, scope: kAudioObjectPropertyScopeGlobal) {
@@ -34,7 +56,7 @@ final class AudioOutputService {
         reload()
     }
 
-    func stop() {
+    private func stop() {
         for listener in listeners { remove(listener) }
         listeners.removeAll()
         if let dataSourceListener { remove(dataSourceListener) }
@@ -44,13 +66,20 @@ final class AudioOutputService {
     }
 
     /// Makes a device the default output, like choosing it in Control Center.
+    /// The change runs off the main thread; the default-output listener
+    /// updates `current` once CoreAudio has switched.
     func select(_ device: AudioOutputDevice) {
-        var id = device.id
-        var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultOutputDevice,
-                                                 mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
-        let status = AudioObjectSetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil,
-                                                UInt32(MemoryLayout<AudioObjectID>.size), &id)
-        if status != noErr { log.error("Couldn't switch output to \(device.name, privacy: .public): \(status)") }
+        let deviceID = device.id
+        let name = device.name
+        let log = log
+        switchQueue.async {
+            var id = deviceID
+            var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+                                                     mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+            let status = AudioObjectSetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil,
+                                                    UInt32(MemoryLayout<AudioObjectID>.size), &id)
+            if status != noErr { log.error("Couldn't switch output to \(name, privacy: .public): \(status)") }
+        }
     }
 
     // MARK: Reading

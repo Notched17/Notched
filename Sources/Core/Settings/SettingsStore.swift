@@ -35,6 +35,8 @@ final class SettingsStore {
         static let clickBehavior = "island.clickBehavior"
         static let keyline = "appearance.keyline"
         static let keepShowingForMedia = "general.keepShowingForMedia"
+        static let seenModules = "modules.seen"
+        static let launchRecord = "lifecycle.launchRecord"
     }
 
     static let hoverDelayRange: ClosedRange<Double> = 0...1
@@ -137,11 +139,24 @@ final class SettingsStore {
 
     /// The Now Playing module's settings.
     let media: MediaSettings
+    let battery: BatterySettings
+    let bluetooth: BluetoothSettings
+    let network: NetworkSettings
+    let timers: TimersSettings
 
     var enabledModules: Set<ModuleID> {
         didSet { defaults.set(enabledModules.map(\.rawValue).sorted(), forKey: Key.enabledModules) }
     }
     var hasCompletedOnboarding: Bool { didSet { defaults.set(hasCompletedOnboarding, forKey: Key.hasCompletedOnboarding) } }
+    /// Modules the app has offered before, so default-on ones turn on only once (`ModuleDefaults`).
+    @ObservationIgnored var seenModules: Set<ModuleID> {
+        didSet { defaults.set(seenModules.map(\.rawValue).sorted(), forKey: Key.seenModules) }
+    }
+    /// Crash-loop protection state (`LaunchGuard`). Not observed: it changes
+    /// around every module start.
+    @ObservationIgnored var launchRecord: LaunchRecord {
+        didSet { defaults.set(try? JSONEncoder().encode(launchRecord), forKey: Key.launchRecord) }
+    }
 
     #if DEBUG
     /// Show the pill on a notched display, to check the non-notch layout.
@@ -157,6 +172,10 @@ final class SettingsStore {
         isPaused = defaults.object(forKey: Key.isPaused) as? Bool ?? false
         keepShowingForMedia = defaults.object(forKey: Key.keepShowingForMedia) as? Bool ?? true
         media = MediaSettings(defaults: defaults)
+        battery = BatterySettings(defaults: defaults)
+        bluetooth = BluetoothSettings(defaults: defaults)
+        network = NetworkSettings(defaults: defaults)
+        timers = TimersSettings(defaults: defaults)
         expandOnHover = defaults.object(forKey: Key.expandOnHover) as? Bool ?? true
         hapticsEnabled = defaults.object(forKey: Key.hapticsEnabled) as? Bool ?? true
         notchTheme = defaults.string(forKey: Key.notchTheme).flatMap(IslandTheme.init(rawValue:)) ?? .notchBlack
@@ -167,6 +186,9 @@ final class SettingsStore {
         expandedScale = (defaults.object(forKey: Key.expandedScale) as? Double ?? 1).clamped(to: Self.expandedScaleRange)
         enabledModules = Set((defaults.array(forKey: Key.enabledModules) as? [String] ?? []).map { ModuleID($0) })
         hasCompletedOnboarding = defaults.object(forKey: Key.hasCompletedOnboarding) as? Bool ?? false
+        seenModules = Set((defaults.array(forKey: Key.seenModules) as? [String] ?? []).map { ModuleID($0) })
+        launchRecord = defaults.data(forKey: Key.launchRecord)
+            .flatMap { try? JSONDecoder().decode(LaunchRecord.self, from: $0) } ?? LaunchRecord()
         multipleActivities = defaults.string(forKey: Key.multipleActivities).flatMap(CompactLayout.Mode.init(rawValue:)) ?? .bubbles
         alertExpansion = defaults.object(forKey: Key.alertExpansion) as? Bool ?? true
         alertDuration = (defaults.object(forKey: Key.alertDuration) as? Double ?? 4).clamped(to: Self.alertDurationRange)

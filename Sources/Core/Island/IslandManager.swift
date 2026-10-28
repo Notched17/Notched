@@ -99,6 +99,15 @@ final class IslandManager {
 
     func expandAll() { for controller in controllers.values { controller.expand() } }
     func expandAll(to page: IslandViewModel.ExpandedPage) { for controller in controllers.values { controller.expand(to: page) } }
+    #if DEBUG
+    /// Expands to Home with a quick action's panel open (screenshots).
+    func openHomeAction(_ id: String) {
+        for controller in controllers.values {
+            controller.expand(to: .home)
+            controller.model.openHomeAction = id
+        }
+    }
+    #endif
     func collapseAll() { for controller in controllers.values { controller.collapse() } }
 
     /// Screen notifications arrive in bursts; settle for 200 ms before rebuilding.

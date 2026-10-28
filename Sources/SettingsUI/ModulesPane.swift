@@ -3,7 +3,7 @@
 import SwiftUI
 
 /// Every module with an on/off switch, its description and the permissions
-/// it needs (#70). Modules are off until turned on here or in onboarding.
+/// it needs (#70). Modules that need a permission are off until turned on.
 struct ModulesPane: View {
     @Bindable var settings: SettingsStore
     @Bindable var navigation: SettingsNavigation
@@ -35,13 +35,37 @@ struct ModulesPane: View {
                     ContentUnavailableView(
                         "More Modules Are Coming",
                         systemImage: "square.grid.2x2",
-                        description: Text("Now Playing, battery, calendar and more arrive in upcoming versions. Each one stays off until you turn it on.")
+                        description: Text("Now Playing, battery, calendar and more arrive in upcoming versions. Anything that needs a permission stays off until you turn it on.")
                     )
                 }
             } else {
+                if registry.isSafeMode {
+                    Section {
+                        LabeledContent {
+                            Button("Resume Modules") { registry.leaveSafeMode() }
+                                .accessibilityLabel("Resume Modules")
+                        } label: {
+                            Label("Modules are paused", systemImage: "exclamationmark.triangle.fill")
+                            Text("Notched quit unexpectedly several times just after opening, so it started without any modules.")
+                        }
+                    }
+                }
                 Section {
                     ForEach(modules) { module in
-                        ModuleRow(module: module, isOn: ModuleToggle.binding(for: module, settings: settings, permissions: permissions))
+                        ModuleRow(module: module, isOn: ModuleToggle.binding(for: module, settings: settings, permissions: permissions,
+                                                                             registry: registry))
+                            // Nothing runs in safe mode; Resume Modules above is the way out.
+                            .disabled(registry.isSafeMode)
+                        if registry.suspendedIDs.contains(module.id) {
+                            LabeledContent {
+                                Button("Turn On") { registry.resume(module.id) }
+                                    .accessibilityLabel("Turn \(module.name) Back On")
+                            } label: {
+                                Label("Turned off", systemImage: "exclamationmark.triangle.fill")
+                                Text("\(module.name) quit unexpectedly while starting, twice.")
+                            }
+                            .symbolRenderingMode(.multicolor)
+                        }
                         if registry.hasSettingsPane(module.id) {
                             NavigationLink(value: module.id) {
                                 Text("\(module.name) Options")
@@ -59,13 +83,16 @@ struct ModulesPane: View {
 }
 
 /// Turning a module on asks for the permissions it needs, and only then.
+/// A module suspended after crashing shows as off; turning it on resumes it.
 @MainActor
 enum ModuleToggle {
-    static func binding(for module: ModuleDescriptor, settings: SettingsStore, permissions: PermissionCenter) -> Binding<Bool> {
+    static func binding(for module: ModuleDescriptor, settings: SettingsStore, permissions: PermissionCenter,
+                        registry: ModuleRegistry? = nil) -> Binding<Bool> {
         Binding(
-            get: { settings.enabledModules.contains(module.id) },
+            get: { settings.enabledModules.contains(module.id) && registry?.suspendedIDs.contains(module.id) != true },
             set: { isOn in
                 guard isOn else { settings.enabledModules.remove(module.id); return }
+                if registry?.suspendedIDs.contains(module.id) == true { registry?.resume(module.id) }
                 settings.enabledModules.insert(module.id)
                 Task {
                     for permission in Permission.requestedUpFront(by: [module]) where permissions.status(permission) != .granted {

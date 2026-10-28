@@ -1,19 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import AppKit
 import SwiftUI
-
-/// What the app shows about a module before it is ever created.
-struct ModuleDescriptor: Identifiable, Sendable {
-    let id: ModuleID
-    let name: String
-    /// SF Symbol name.
-    let symbol: String
-    let summary: String
-    /// Requested only when the user turns the module on.
-    let permissions: [Permission]
-    /// Shown only in DEBUG builds.
-    let isDebugOnly: Bool
-}
 
 /// A feature of the island (CLAUDE.md "Module contract").
 ///
@@ -22,16 +10,24 @@ struct ModuleDescriptor: Identifiable, Sendable {
 @MainActor
 protocol IslandModule: AnyObject {
     static var descriptor: ModuleDescriptor { get }
+    /// False when this Mac can't use the module at all (Battery on a desktop):
+    /// it's hidden everywhere and never starts.
+    static var isAvailable: Bool { get }
     init(context: ModuleContext)
     func start()
     func stop()
     /// An optional settings pane, reached from Settings ▸ Modules. It exists
     /// whether or not the module runs, so it's built from the type.
     static func settingsPane(_ context: ModuleSettingsContext) -> AnyView?
+    /// Items for the status menu while the module runs, rebuilt each time
+    /// the menu opens (e.g. Keep Awake ▸).
+    func menuItems() -> [NSMenuItem]
 }
 
 extension IslandModule {
+    static var isAvailable: Bool { true }
     static func settingsPane(_ context: ModuleSettingsContext) -> AnyView? { nil }
+    func menuItems() -> [NSMenuItem] { [] }
 }
 
 /// What a module's settings pane may use.
@@ -50,6 +46,11 @@ struct ModuleContext {
     let activities: ActivitySink
     let scheduler: RefreshScheduler
     let settings: SettingsStore
+    /// Services shared between modules, such as the audio output list.
+    let services: ModuleServices
+    /// The previous session crashed or was killed: don't restore anything
+    /// risky (keep-awake, later the lock screen).
+    let previousSessionCrashed: Bool
 }
 
 /// Lets one module post, end and announce its own activities, and only its own.
@@ -65,6 +66,7 @@ struct ActivitySink {
             Log.modules.error("Module \(moduleID, privacy: .public) tried to post an activity for \(activity.moduleID, privacy: .public)")
             return
         }
+        if alert != nil { VoiceOver.announce(activity.accessibilityLabel) }
         coordinator.post(activity, alert: alert)
     }
 
@@ -80,11 +82,35 @@ struct ActivitySink {
             Log.modules.error("Module \(moduleID, privacy: .public) tried to show a banner for \(banner.moduleID, privacy: .public)")
             return
         }
+        #if DEBUG
+        Log.activities.info("Banner \(banner.id, privacy: .public): \(banner.accessibilityLabel, privacy: .public)")
+        #else
+        Log.activities.info("Banner from \(moduleID, privacy: .public)")
+        #endif
+        VoiceOver.announce(banner.accessibilityLabel)
         coordinator.show(banner)
     }
 
     /// Removes everything this module shows, without Recent entries.
     func endAll() {
         coordinator.endAll(from: moduleID)
+    }
+
+    /// Replaces this module's quick actions on the island's Home page.
+    func setHomeActions(_ actions: [HomeAction]) {
+        coordinator.setHomeActions(actions, from: moduleID)
+    }
+}
+
+/// Speaks short system events (banners, alerts) to VoiceOver users, who
+/// can't see the island change. Does nothing while VoiceOver is off.
+@MainActor
+enum VoiceOver {
+    static func announce(_ text: String) {
+        guard NSWorkspace.shared.isVoiceOverEnabled, let app = NSApp else { return }
+        NSAccessibility.post(element: app, notification: .announcementRequested, userInfo: [
+            .announcement: text,
+            .priority: NSAccessibilityPriorityLevel.high.rawValue,
+        ])
     }
 }

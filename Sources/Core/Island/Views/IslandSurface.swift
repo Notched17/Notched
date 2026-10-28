@@ -19,8 +19,14 @@ struct IslandSolidFill: View {
             shape
                 .fill(fill)
                 .opacity(model.surfaceIsGlass ? 0 : 1)
-            // Tinted Glass: an accent wash inside the glass. (Glass.tint isn't
-            // drawn in a borderless transparent panel on macOS 27.2.)
+            // A dark wash inside the glass, so white content and the
+            // activities' tints stay legible over light windows, like the
+            // black island. (Glass.tint isn't drawn in a borderless
+            // transparent panel on macOS 27.2, so it's a fill.)
+            shape
+                .fill(.black.opacity(IslandTheme.glassDarkening))
+                .opacity(model.surfaceIsGlass ? 1 : 0)
+            // Tinted Glass: an accent wash over it.
             shape
                 .fill(Color.resolvedAccent.opacity(0.32))
                 .opacity(model.surfaceIsGlass && model.theme == .tintedGlass ? 1 : 0)
@@ -37,6 +43,11 @@ extension IslandTheme {
     /// The Liquid Glass variant for a glass theme. Tinted Glass adds its
     /// accent wash in `IslandSolidFill`.
     var glass: Glass { .regular }
+
+    /// How dark the wash inside glass islands and bubbles is: enough that
+    /// white text reads over a white window, while the glass's edge and
+    /// refraction still show.
+    static let glassDarkening = 0.5
 }
 
 extension Color {

@@ -25,7 +25,14 @@ final class HelloModule: IslandModule {
         self.context = context
     }
 
-    func start() {}
+    /// DEBUG: crash while starting, to check ModuleHost's crash-loop protection.
+    static let crashAtStartKey = "debug.hello.crashAtStart"
+
+    func start() {
+        if UserDefaults.standard.bool(forKey: Self.crashAtStartKey) {
+            fatalError("Hello: simulated crash while starting (debug)")
+        }
+    }
 
     func stop() {
         sessionStart = nil

@@ -12,14 +12,13 @@ import SwiftUI
 @MainActor
 final class ScenarioLab {
     enum Demo: String, CaseIterable, Identifiable {
-        case music, timer, call, agent, download
+        case music, call, agent, download
 
         var id: Self { self }
 
         var title: String {
             switch self {
             case .music: "Music"
-            case .timer: "Timer"
             case .call: "Call"
             case .agent: "Claude Code"
             case .download: "Download"
@@ -46,14 +45,15 @@ final class ScenarioLab {
     }
 
     private let activities: ActivityCoordinator
-    private var timerEnd = Date()
-    private var timerStart = Date()
+    /// Starts a real timer (Timers, when it's on): the Lab has no fake one.
+    private let startTimer: @MainActor (TimeInterval) -> Void
     private var starts: [Demo: Date] = [:]
     private var downloadProgress = 0.42
     private var script: Task<Void, Never>?
 
-    init(activities: ActivityCoordinator) {
+    init(activities: ActivityCoordinator, startTimer: @escaping @MainActor (TimeInterval) -> Void = { _ in }) {
         self.activities = activities
+        self.startTimer = startTimer
     }
 
     private func sink(_ demo: Demo) -> ActivitySink {
@@ -75,9 +75,6 @@ final class ScenarioLab {
         let now = Date()
         starts[demo] = now
         switch demo {
-        case .timer:
-            timerStart = now
-            timerEnd = now.addingTimeInterval(5 * 60)
         case .download:
             downloadProgress = 0.42
         default:
@@ -91,34 +88,13 @@ final class ScenarioLab {
         for demo in Demo.allCases { sink(demo).endAll() }
     }
 
-    /// "Charging 80%": a short system banner.
+    /// "Charging 80%": a short system banner, in the standard banner look.
     func showChargingBanner() {
-        sink(.download).show(TransientBanner(
-            id: "lab.charging",
-            moduleID: Demo.download.moduleID,
-            leading: IslandRegion {
-                Label("Charging", systemImage: "bolt.fill")
-                    .labelStyle(DemoBannerLabelStyle(tint: .green))
-            },
-            trailing: IslandRegion {
-                HStack(spacing: 5) {
-                    Text("80%").font(IslandFont.compact).monospacedDigit()
-                    Image(systemName: "battery.75percent")
-                        .font(.system(size: 15, weight: .semibold))
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(.green, .white.opacity(0.4))
-                }
-            },
-            accessibilityLabel: "Charging, 80 percent"
-        ))
+        sink(.download).show(.standard(id: "lab.charging", moduleID: Demo.download.moduleID, content: BannerContent(
+            label: "Charging", value: "80%", accessory: .battery(level: 80, isCharging: true, tint: .green)
+        ), accessibilityLabel: "Charging, 80 percent"))
     }
 
-    /// "Timer done": an alerting update that expands the island.
-    func alertTimerDone() {
-        if activities.live.first(where: { $0.id == Demo.timer.activityID }) == nil { start(.timer) }
-        timerEnd = Date()
-        sink(.timer).post(timerActivity(done: true), alert: AlertRequest(sound: "Glass"))
-    }
 
     /// Sets the download's progress, ending it at 100%.
     func setDownloadProgress(_ progress: Double) {
@@ -132,7 +108,8 @@ final class ScenarioLab {
         script = Task { [weak self] in
             let steps: [(Double, @MainActor (ScenarioLab) -> Void)] = [
                 (0, { $0.start(.music) }),
-                (2.5, { $0.start(.timer) }),
+                // A real 20 s timer: it ends, alerts and rings at the end of the tour.
+                (2.5, { $0.startTimer(20) }),
                 (3, { $0.start(.download) }),
                 (3, { $0.showChargingBanner() }),
                 (3, { $0.setDownloadProgress(0.74) }),
@@ -140,8 +117,6 @@ final class ScenarioLab {
                 (6, { $0.perform(.end, on: .call) }),
                 (2.5, { $0.setDownloadProgress(1) }),
                 (1.5, { $0.perform(.end, on: .download) }),
-                (2, { $0.alertTimerDone() }),
-                (6, { $0.perform(.end, on: .timer) }),
             ]
             for (delay, step) in steps {
                 try? await Task.sleep(for: .seconds(delay))
@@ -156,7 +131,6 @@ final class ScenarioLab {
     private func post(_ demo: Demo, stale: Bool = false) {
         var activity = switch demo {
         case .music: musicActivity()
-        case .timer: timerActivity(done: false)
         case .call: callActivity()
         case .agent: agentActivity()
         case .download: downloadActivity()
@@ -181,65 +155,6 @@ final class ScenarioLab {
                     leading: ExpandedRegion { DemoArtwork(size: 44) },
                     trailing: ExpandedRegion { DemoBars(height: 18, barWidth: 3) },
                     bottom: ExpandedRegion { DemoMusicExpandedBottom(start: start) }
-                )
-            )
-        )
-    }
-
-    private func timerActivity(done: Bool) -> LiveActivity {
-        let end = timerEnd
-        let start = timerStart
-        let glyph = done ? "bell.fill" : "timer"
-        return LiveActivity(
-            id: Demo.timer.activityID, moduleID: Demo.timer.moduleID, kind: .live, title: done ? "Timer Done" : "Timer",
-            keylineTint: DemoTimerStyle.tint,
-            accessibilityLabel: done ? "Timer done" : "Timer, 5 minutes",
-            presentation: ActivityPresentation(
-                compactLeading: IslandRegion {
-                    Image(systemName: glyph)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(DemoTimerStyle.tint)
-                        .symbolEffect(.bounce, value: done)
-                },
-                compactTrailing: IslandRegion {
-                    if done {
-                        Text("Done").font(IslandFont.compact).foregroundStyle(DemoTimerStyle.tint)
-                    } else {
-                        DemoCountdown(end: end)
-                    }
-                },
-                minimal: IslandRegion {
-                    if done {
-                        Image(systemName: "bell.fill").font(.system(size: 12, weight: .bold)).foregroundStyle(DemoTimerStyle.tint)
-                    } else {
-                        DemoCountdown(end: end, font: IslandFont.minimal)
-                    }
-                },
-                expanded: ExpandedPresentation(
-                    leading: ExpandedRegion {
-                        DemoTile {
-                            Image(systemName: glyph)
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(DemoTimerStyle.tint)
-                        }
-                    },
-                    trailing: ExpandedRegion {
-                        if done {
-                            Text("Done").font(IslandFont.hero).foregroundStyle(DemoTimerStyle.tint)
-                        } else {
-                            DemoCountdown(end: end, font: IslandFont.hero)
-                        }
-                    },
-                    bottom: ExpandedRegion {
-                        if done {
-                            VStack(alignment: .leading, spacing: Spacing.m) {
-                                Text("Timer Done").font(IslandFont.title)
-                                DemoTimerDone()
-                            }
-                        } else {
-                            DemoTimerExpandedBottom(start: start, end: end)
-                        }
-                    }
                 )
             )
         )
@@ -327,18 +242,4 @@ final class ScenarioLab {
     }
 }
 
-/// A banner's leading label: tinted symbol, then white text.
-struct DemoBannerLabelStyle: LabelStyle {
-    let tint: Color
-
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 4) {
-            configuration.icon
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(tint)
-            configuration.title
-                .font(IslandFont.compact)
-        }
-    }
-}
 #endif

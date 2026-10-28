@@ -1,6 +1,6 @@
 # ADR-0006: Live activity model (iPhone parity)
 
-- Status: accepted (M1.5). Supersedes ADR-0004.
+- Status: accepted (M1.5). Supersedes ADR-0004. The kind order is amended by ADR-0011.
 - Date: 2026-10-27
 
 ## Context
@@ -11,7 +11,7 @@ ADR-0004 let the compact island take its leading item from one activity and its 
 
 Modules post **`LiveActivity`** values through their scoped `ActivitySink`. An activity has:
 
-- a **kind**: `system > live > media > passive`
+- a **kind**: `system > live > media > passive` (M3a reorders this to `system > media > live > passive`: see ADR-0011)
 - a **relevance** (higher wins within its kind)
 - **`isHideable`**
 - an optional **stale date**, **keyline tint** and **`openAction`**

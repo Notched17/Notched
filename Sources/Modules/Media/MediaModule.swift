@@ -20,7 +20,9 @@ final class MediaModule: IslandModule {
 
     let service: NowPlayingService
     let model = MediaModel()
-    private let outputs = AudioOutputService()
+    /// Shared with other modules; held only while this module runs.
+    private let outputs: AudioOutputService
+    private var holdsOutputs = false
     private let context: ModuleContext
     private let settings: MediaSettings
     private let log = Log.module("media")
@@ -44,6 +46,7 @@ final class MediaModule: IslandModule {
 
     init(context: ModuleContext) {
         self.context = context
+        outputs = context.services.audioOutputs
         settings = context.settings.media
         service = NowPlayingService(preference: settings.backend, ignoredApps: settings.ignoredApps)
     }
@@ -64,7 +67,8 @@ final class MediaModule: IslandModule {
         model.outputs = outputs
         // Artwork decodes off the main thread; repost so the keyline and blur-in follow it.
         model.onArtworkChange = { [weak self] in self?.refresh(force: true) }
-        outputs.start()
+        outputs.acquire()
+        holdsOutputs = true
         observeSettings()
         observeService()
         service.start()
@@ -77,8 +81,11 @@ final class MediaModule: IslandModule {
         likeTask?.cancel()
         applyLyricsSetting(false)
         service.stop()
-        outputs.stop()
         model.outputs = nil
+        if holdsOutputs {
+            holdsOutputs = false
+            outputs.release()
+        }
         model.clear()
         context.activities.endAll()
         reducer = MediaActivityReducer()

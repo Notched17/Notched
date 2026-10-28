@@ -10,12 +10,16 @@ import AppKit
 /// reduce-transparency?on=, increase-contrast?on= (on=default clears an override),
 /// fullscreen-fallback?on=, hello-alert, hello-session?on=, settings?pane=,
 /// theme?notch=&pill=, onboarding?step=, launch-at-login?on=, appearance?mode=dark|light|system,
-/// lab?demo=music|timer|call|agent|download&do=start|end|stale|hide|unhide|primary,
-/// lab?banner=charging, lab?alert=timer, lab?run=full, lab?do=end-all, lab?download=0.74,
-/// page?id=home|music|timer|call|agent|download (expand to that page),
+/// lab?demo=music|call|agent|download&do=start|end|stale|hide|unhide|primary,
+/// lab?banner=charging, lab?run=full, lab?do=end-all, lab?download=0.74,
+/// page?id=home|music|call|agent|download (expand to that page),
 /// setting?multiple=bubbles|sideBySide&click=open|expand&alerts=0|1&keyline=0|1, close-windows,
 /// media?on=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly&lyrics=0|1&ticker=0|1
-/// &visualizer=animated|still|off, page?id=media, settings?module=media, quit.
+/// &visualizer=animated|still|off, page?id=media, settings?module=media, quit,
+/// module?id=<module>&on=0|1, crash-at-start?on=0|1 (Hello crashes while starting),
+/// battery?power=battery|charging|notCharging|charged&level=N (a simulated reading)&show=0|80|100,
+/// keepawake?preset=30m|1h|2h|on|off, page?activity=<activity id> (e.g. keepawake, timers.stopwatch),
+/// page?panel=timers|keepawake (Home with that quick action open), network?name=0|1.
 @MainActor
 enum DebugCommands {
     static func handle(_ url: URL, environment: AppEnvironment, windows: WindowCoordinator) {
@@ -61,10 +65,38 @@ enum DebugCommands {
             // Closes Settings and onboarding without finishing onboarding (for clean measurements).
             for window in NSApp.windows where window.isVisible && window.styleMask.contains(.titled) { window.close() }
         case "page":
+            if let panel = query(url, "panel") {
+                environment.islands.openHomeAction(panel)
+                return
+            }
+            if let activity = query(url, "activity") {
+                environment.islands.expandAll(to: .activity(ActivityID(activity)))
+                return
+            }
             let id = query(url, "id") ?? "home"
             let page: IslandViewModel.ExpandedPage = id == "media" ? .activity(MediaModule.activityID)
                 : ScenarioLab.Demo(rawValue: id).map { .activity($0.activityID) } ?? .home
             environment.islands.expandAll(to: page)
+        case "module":
+            if let id = query(url, "id").map({ ModuleID($0) }) {
+                if on { environment.settings.enabledModules.insert(id) } else { environment.settings.enabledModules.remove(id) }
+            }
+        case "crash-at-start":
+            UserDefaults.standard.set(on, forKey: HelloModule.crashAtStartKey)
+            if on { environment.settings.enabledModules.insert(HelloModule.descriptor.id) }
+        case "battery":
+            battery(url, environment)
+        case "network":
+            if let name = query(url, "name") { environment.settings.network.showWiFiName = name == "1" }
+        case "keepawake":
+            guard let module = environment.modules.module(KeepAwakeModule.descriptor.id) as? KeepAwakeModule else { return }
+            switch query(url, "preset") {
+            case "30m": module.turnOn(.thirtyMinutes)
+            case "1h": module.turnOn(.oneHour)
+            case "2h": module.turnOn(.twoHours)
+            case "on": module.turnOn(.indefinitely)
+            default: module.turnOff()
+            }
         case "setting":
             if let mode = query(url, "multiple").flatMap(CompactLayout.Mode.init(rawValue:)) { environment.settings.multipleActivities = mode }
             if let click = query(url, "click").flatMap(ClickBehavior.init(rawValue:)) { environment.settings.clickBehavior = click }
@@ -77,7 +109,6 @@ enum DebugCommands {
     private static func lab(_ url: URL, _ lab: ScenarioLab) {
         if query(url, "run") == "full" { lab.runFullDemo() }
         if query(url, "banner") == "charging" { lab.showChargingBanner() }
-        if query(url, "alert") == "timer" { lab.alertTimerDone() }
         if let progress = query(url, "download").flatMap(Double.init) { lab.setDownloadProgress(progress) }
         let action = query(url, "do")
         if action == "end-all" { lab.endAll() }
@@ -108,6 +139,19 @@ enum DebugCommands {
         case "default": module.debugLifecycle = nil
         default: break
         }
+    }
+
+    private static func battery(_ url: URL, _ environment: AppEnvironment) {
+        if let until = query(url, "show").flatMap(Int.init) { environment.settings.battery.showWhileChargingUntil = until }
+        guard let module = environment.modules.module(BatteryModule.descriptor.id) as? BatteryModule else { return }
+        let power: PowerSnapshot.Power = switch query(url, "power") {
+        case "charging": .charging
+        case "notCharging": .notCharging
+        case "charged": .charged
+        default: .battery
+        }
+        let level = query(url, "level").flatMap(Int.init) ?? 50
+        module.simulate(PowerSnapshot(level: level, power: power, minutesToFull: power == .charging ? 84 : nil, adapterWatts: 70))
     }
 
     private static func query(_ url: URL, _ name: String) -> String? {
@@ -154,7 +198,6 @@ enum DebugMenu {
         }
         menu.addItem(.separator())
         menu.addItem(ClosureMenuItem(title: "Show “Charging 80%” Banner") { lab.showChargingBanner() })
-        menu.addItem(ClosureMenuItem(title: "Alert: Timer Done") { lab.alertTimerDone() })
         item.submenu = menu
         return item
     }

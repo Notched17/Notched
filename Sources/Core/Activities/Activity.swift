@@ -2,29 +2,16 @@
 
 import SwiftUI
 
-struct ActivityID: Hashable, Sendable, ExpressibleByStringLiteral, CustomStringConvertible {
-    let rawValue: String
-    init(_ rawValue: String) { self.rawValue = rawValue }
-    init(stringLiteral value: String) { self.rawValue = value }
-    var description: String { rawValue }
-}
-
-struct ModuleID: Hashable, Sendable, Codable, ExpressibleByStringLiteral, CustomStringConvertible {
-    let rawValue: String
-    init(_ rawValue: String) { self.rawValue = rawValue }
-    init(stringLiteral value: String) { self.rawValue = value }
-    var description: String { rawValue }
-}
-
 /// The ranking class of a live activity, lowest first (ISLAND-BEHAVIOR.md §2).
-/// A higher class wins the attached (primary) slot.
+/// A higher class wins the attached (primary) slot. Whatever is playing
+/// stays primary over the user's own timers and tools (ADR-0011).
 enum ActivityKind: Int, Comparable, CaseIterable, Sendable {
-    /// Nice to know, e.g. a weather alert.
+    /// Nice to know, e.g. charging, a weather alert.
     case passive
-    /// Now Playing.
-    case media
     /// Something the user started: a timer, keep-awake, a download, an agent working.
     case live
+    /// Now Playing.
+    case media
     /// Something the system is doing that the user must not miss: a call, screen recording.
     case system
 

@@ -84,7 +84,13 @@ final class BluetoothHIDMonitor {
             if added {
                 guard let entry = Self.entry(for: service) else { continue }
                 entries[id] = entry
+                #if DEBUG
+                log.debug("Accessory added: \(entry.name, privacy: .public) (\(String(describing: entry.kind), privacy: .public)), address \(entry.address == nil ? "unknown" : "known", privacy: .public)")
+                #endif
             } else {
+                #if DEBUG
+                log.debug("Accessory removed: \(self.entries[id]?.name ?? "unknown", privacy: .public)")
+                #endif
                 entries[id] = nil
             }
             changed = true

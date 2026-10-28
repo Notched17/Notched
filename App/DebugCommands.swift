@@ -19,7 +19,7 @@ import AppKit
 /// module?id=<module>&on=0|1, crash-at-start?on=0|1 (Hello crashes while starting),
 /// battery?power=battery|charging|notCharging|charged&level=N (a simulated reading),
 /// keepawake?preset=30m|1h|2h|on|off, page?activity=<activity id> (e.g. keepawake, timers.stopwatch),
-/// page?panel=timers|keepawake (Home with that quick action open).
+/// page?panel=timers|keepawake (Home with that quick action open), network?name=0|1.
 @MainActor
 enum DebugCommands {
     static func handle(_ url: URL, environment: AppEnvironment, windows: WindowCoordinator) {
@@ -86,6 +86,8 @@ enum DebugCommands {
             if on { environment.settings.enabledModules.insert(HelloModule.descriptor.id) }
         case "battery":
             battery(url, environment)
+        case "network":
+            if let name = query(url, "name") { environment.settings.network.showWiFiName = name == "1" }
         case "keepawake":
             guard let module = environment.modules.module(KeepAwakeModule.descriptor.id) as? KeepAwakeModule else { return }
             switch query(url, "preset") {

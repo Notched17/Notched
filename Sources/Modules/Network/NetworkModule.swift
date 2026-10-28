@@ -85,10 +85,12 @@ final class NetworkModule: IslandModule {
         send(.path(named(state)))
     }
 
-    /// Adds the Wi-Fi network's name when the user asked for it and macOS allows it.
+    /// Adds the Wi-Fi network's name when the user asked for it. macOS
+    /// returns no name without Location access, so the banner then says
+    /// Connected. (Not gated on PermissionCenter's cached status: it's read
+    /// once at launch, before Location answers, and was stale on 27.2.)
     private func named(_ state: NetworkState) -> NetworkState {
-        guard case .wifi = state, settings.showWiFiName,
-              context.services.permissions?.status(.location) == .granted else { return state }
+        guard case .wifi = state, settings.showWiFiName else { return state }
         return .wifi(name: CWWiFiClient.shared().interface()?.ssid())
     }
 

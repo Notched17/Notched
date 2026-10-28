@@ -50,7 +50,14 @@ final class ActivityCoordinator {
         let serial: Int
     }
 
-    var configuration: Configuration
+    /// Changing it re-ranks at once; setting an equal value does nothing, since
+    /// the app reassigns it on every settings change.
+    var configuration: Configuration {
+        didSet {
+            guard configuration != oldValue else { return }
+            refresh(at: now())
+        }
+    }
 
     /// Every activity that hasn't ended, best first, with the user's swap
     /// applied. Hidden activities are included.
@@ -75,7 +82,10 @@ final class ActivityCoordinator {
     var visible: [ActivityRecord] { live.filter { !$0.isHidden } }
     var hidden: [ActivityRecord] { live.filter(\.isHidden) }
     /// Visible activities that don't fit on the island; listed in the expanded view.
-    var listedOnly: [ActivityRecord] { Array(visible.dropFirst(Configuration.maxVisible)) }
+    var listedOnly: [ActivityRecord] {
+        let shown = Set(([primary].compactMap { $0 } + minimal).map(\.id))
+        return visible.filter { !shown.contains($0.id) }
+    }
 
     /// True while the pointer is on an island or the user has it expanded.
     /// Alerts and banners wait so they never interrupt the user.
@@ -142,6 +152,9 @@ final class ActivityCoordinator {
         if var record = entries[activity.id] {
             record.activity = activity
             record.revision += 1
+            // An activity that has become non-hideable (the camera turned on
+            // under a hidden mic indicator) comes back.
+            if !activity.isHideable { record.isHidden = false }
             entries[activity.id] = record
         } else {
             sequence += 1
@@ -369,6 +382,19 @@ final class ActivityCoordinator {
         return lhs.sequence < rhs.sequence
     }
 
+    /// The activities that get the island's visible slots, in rank order.
+    /// A non-hideable activity (a call, the camera indicator) always gets a
+    /// slot, ahead of better-ranked hideable ones, so the user never loses
+    /// sight of it; an explicit swap target also keeps its slot. Hideable
+    /// activities fill what's left in rank order.
+    private static func shownSlots(from visible: [ActivityRecord], promoted: ActivityID?) -> [ActivityRecord] {
+        let pinned = visible.filter { $0.id == promoted }
+            + visible.filter { !$0.activity.isHideable && $0.id != promoted }
+        var chosen = Set(pinned.prefix(Configuration.maxVisible).map(\.id))
+        for record in visible where chosen.count < Configuration.maxVisible { chosen.insert(record.id) }
+        return visible.filter { chosen.contains($0.id) }
+    }
+
     /// Recomputes stale states and the island's arrangement, then reports the
     /// next deadline.
     private func refresh(at date: Date) {
@@ -384,9 +410,9 @@ final class ActivityCoordinator {
             ranked.insert(ranked.remove(at: index), at: 0)
         }
         live = ranked
-        let visible = ranked.filter { !$0.isHidden }
-        primary = visible.first
-        minimal = Array(visible.dropFirst().prefix(Configuration.maxVisible - 1))
+        let shown = Self.shownSlots(from: ranked.filter { !$0.isHidden }, promoted: swap?.promoted)
+        primary = shown.first
+        minimal = Array(shown.dropFirst())
         scheduleWake(nextDeadline)
     }
 }

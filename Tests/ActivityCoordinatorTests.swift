@@ -267,6 +267,74 @@ struct ActivityCoordinatorTests {
         #expect(sut.hidden.isEmpty)
     }
 
+    @Test("An activity that stops being hideable comes back from hidden (a mic indicator hidden, then the camera turns on)")
+    func becomingNonHideableUnhides() {
+        let sut = makeCoordinator()
+        sut.post(activity("sensors", kind: .live, hideable: true))
+        sut.hide("sensors")
+        #expect(ids(sut.hidden) == ["sensors"])
+        sut.post(activity("sensors", kind: .live, hideable: false))
+        #expect(sut.hidden.isEmpty)
+        #expect(sut.primary?.id == "sensors")
+        sut.hide("sensors")
+        #expect(sut.hidden.isEmpty)
+    }
+
+    @Test("A non-hideable activity is never only listed: it takes a visible slot ahead of better-ranked hideable ones")
+    func nonHideableNeverListedOnly() {
+        let sut = makeCoordinator()
+        sut.post(activity("call1", kind: .system, hideable: false))
+        sut.post(activity("music", kind: .media))
+        sut.post(activity("timer", kind: .live, relevance: 50))
+        sut.post(activity("camera", kind: .live, relevance: 1, hideable: false))
+        #expect(Set(ids([sut.primary].compactMap { $0 } + sut.minimal)) == ["call1", "music", "camera"])
+        #expect(ids(sut.listedOnly) == ["timer"])
+        // The shown ones keep rank order.
+        #expect(ids([sut.primary].compactMap { $0 } + sut.minimal) == ["call1", "music", "camera"])
+        #expect(ids(sut.visible) == ["call1", "music", "timer", "camera"])
+    }
+
+    @Test("With four non-hideable activities the best three show and the last is listed")
+    func moreNonHideableThanSlots() {
+        let sut = makeCoordinator()
+        for id in ["a", "b", "c", "d"] { sut.post(activity(ActivityID(id), kind: .system, hideable: false)) }
+        #expect(ids([sut.primary].compactMap { $0 } + sut.minimal) == ["a", "b", "c"])
+        #expect(ids(sut.listedOnly) == ["d"])
+    }
+
+    @Test("Hideable activities fill only the slots non-hideable ones leave")
+    func hideableFillRemainingSlots() {
+        let sut = makeCoordinator()
+        sut.post(activity("cam", kind: .live, hideable: false))
+        sut.post(activity("a", kind: .media))
+        sut.post(activity("b", kind: .live, relevance: 5))
+        sut.post(activity("c", kind: .passive))
+        #expect(ids([sut.primary].compactMap { $0 } + sut.minimal) == ["a", "b", "cam"])
+        #expect(ids(sut.listedOnly) == ["c"])
+    }
+
+    @Test("A swap to a hideable activity still shows it, even beside non-hideable ones")
+    func swapBesideNonHideable() {
+        let sut = makeCoordinator()
+        for id in ["x", "y", "z"] { sut.post(activity(ActivityID(id), kind: .system, hideable: false)) }
+        sut.post(activity("music", kind: .media))
+        sut.makePrimary("music")
+        #expect(sut.primary?.id == "music")
+    }
+
+    @Test("Setting an unchanged configuration doesn't refresh; a changed one does")
+    func configurationRefreshesOnlyOnChange() {
+        let sut = makeCoordinator()
+        sut.post(activity("a"))
+        let before = wakes.dates.count
+        sut.configuration = sut.configuration
+        #expect(wakes.dates.count == before)
+        var changed = sut.configuration
+        changed.alertDuration = .seconds(6)
+        sut.configuration = changed
+        #expect(wakes.dates.count == before + 1)
+    }
+
     @Test("Hiding the primary promotes the next activity")
     func hidePrimaryPromotesNext() {
         let sut = makeCoordinator()

@@ -2,22 +2,6 @@
 
 import SwiftUI
 
-/// The ranking class of a live activity, lowest first (ISLAND-BEHAVIOR.md §2).
-/// A higher class wins the attached (primary) slot. Whatever is playing
-/// stays primary over the user's own timers and tools (ADR-0011).
-enum ActivityKind: Int, Comparable, CaseIterable, Sendable {
-    /// Nice to know, e.g. charging, a weather alert.
-    case passive
-    /// Something the user started: a timer, keep-awake, a download, an agent working.
-    case live
-    /// Now Playing.
-    case media
-    /// Something the system is doing that the user must not miss: a call, screen recording.
-    case system
-
-    static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
-}
-
 /// Where an activity is in its life. Hiding is a separate user choice, so a
 /// hidden activity can still go stale or end.
 enum ActivityState: Equatable, Sendable {

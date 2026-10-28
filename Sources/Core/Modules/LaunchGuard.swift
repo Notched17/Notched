@@ -11,6 +11,9 @@ struct LaunchRecord: Codable, Equatable, Sendable {
     var sessionOpen = false
     /// The session has run for `LaunchGuard.stableAfter`.
     var sessionStable = false
+    /// The session runs under a debugger: Xcode's Stop button kills it, so
+    /// its unclean end isn't a crash.
+    var sessionDebugged = false
     /// Set just before a module's `start()` and cleared right after.
     var startingModule: ModuleID?
     /// Crashes while each module was starting.
@@ -21,6 +24,20 @@ struct LaunchRecord: Codable, Equatable, Sendable {
     var suspended: Set<ModuleID> = []
 }
 
+extension LaunchRecord {
+    /// Reads records saved by older versions too: a missing key keeps its default.
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sessionOpen = try container.decodeIfPresent(Bool.self, forKey: .sessionOpen) ?? false
+        sessionStable = try container.decodeIfPresent(Bool.self, forKey: .sessionStable) ?? false
+        sessionDebugged = try container.decodeIfPresent(Bool.self, forKey: .sessionDebugged) ?? false
+        startingModule = try container.decodeIfPresent(ModuleID.self, forKey: .startingModule)
+        strikes = try container.decodeIfPresent([ModuleID: Int].self, forKey: .strikes) ?? [:]
+        quickCrashes = try container.decodeIfPresent([Date].self, forKey: .quickCrashes) ?? []
+        suspended = try container.decodeIfPresent(Set<ModuleID>.self, forKey: .suspended) ?? []
+    }
+}
+
 /// Crash-loop protection for modules (ModuleHost). Pure: the host feeds it
 /// lifecycle moments and persists `record` after each one.
 ///
@@ -28,7 +45,8 @@ struct LaunchRecord: Codable, Equatable, Sendable {
 ///   strikes suspend it.
 /// - Three sessions that crash within 30 s of launch, inside ten minutes,
 ///   start the next launch in safe mode: no modules at all. Never under a
-///   debugger, since Xcode's Stop button kills the app.
+///   debugger, since Xcode's Stop button kills the app; and a session that
+///   ran under one isn't counted as a crash at all.
 /// - A session that stays up 30 s clears the strikes of the modules it ran,
 ///   and the quick-crash streak.
 struct LaunchGuard: Sendable {
@@ -49,8 +67,8 @@ struct LaunchGuard: Sendable {
 
     /// Judges the previous session, then opens a new one.
     mutating func launch(at now: Date, debuggerAttached: Bool) {
-        previousSessionCrashed = record.sessionOpen
-        if record.sessionOpen {
+        previousSessionCrashed = record.sessionOpen && !record.sessionDebugged
+        if previousSessionCrashed {
             if let module = record.startingModule {
                 let strikes = record.strikes[module, default: 0] + 1
                 record.strikes[module] = strikes
@@ -62,6 +80,7 @@ struct LaunchGuard: Sendable {
         isSafeMode = !debuggerAttached && record.quickCrashes.count >= Self.quickCrashesForSafeMode
         record.sessionOpen = true
         record.sessionStable = false
+        record.sessionDebugged = debuggerAttached
         record.startingModule = nil
     }
 

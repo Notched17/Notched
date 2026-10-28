@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import AppKit
 import SwiftUI
 
 /// A feature of the island (CLAUDE.md "Module contract").
@@ -9,16 +10,24 @@ import SwiftUI
 @MainActor
 protocol IslandModule: AnyObject {
     static var descriptor: ModuleDescriptor { get }
+    /// False when this Mac can't use the module at all (Battery on a desktop):
+    /// it's hidden everywhere and never starts.
+    static var isAvailable: Bool { get }
     init(context: ModuleContext)
     func start()
     func stop()
     /// An optional settings pane, reached from Settings ▸ Modules. It exists
     /// whether or not the module runs, so it's built from the type.
     static func settingsPane(_ context: ModuleSettingsContext) -> AnyView?
+    /// Items for the status menu while the module runs, rebuilt each time
+    /// the menu opens (e.g. Keep Awake ▸).
+    func menuItems() -> [NSMenuItem]
 }
 
 extension IslandModule {
+    static var isAvailable: Bool { true }
     static func settingsPane(_ context: ModuleSettingsContext) -> AnyView? { nil }
+    func menuItems() -> [NSMenuItem] { [] }
 }
 
 /// What a module's settings pane may use.
@@ -72,11 +81,21 @@ struct ActivitySink {
             Log.modules.error("Module \(moduleID, privacy: .public) tried to show a banner for \(banner.moduleID, privacy: .public)")
             return
         }
+        #if DEBUG
+        Log.activities.info("Banner \(banner.id, privacy: .public): \(banner.accessibilityLabel, privacy: .public)")
+        #else
+        Log.activities.info("Banner from \(moduleID, privacy: .public)")
+        #endif
         coordinator.show(banner)
     }
 
     /// Removes everything this module shows, without Recent entries.
     func endAll() {
         coordinator.endAll(from: moduleID)
+    }
+
+    /// Replaces this module's quick actions on the island's Home page.
+    func setHomeActions(_ actions: [HomeAction]) {
+        coordinator.setHomeActions(actions, from: moduleID)
     }
 }

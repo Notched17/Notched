@@ -19,7 +19,7 @@ struct WelcomeStep: View {
             VStack(alignment: .leading, spacing: Spacing.m) {
                 WelcomeFeature(symbol: "capsule.fill", title: "Lives in the notch", detail: "Rest the pointer on the notch, or click it, to open the island.")
                 WelcomeFeature(symbol: "leaf.fill", title: "Light on battery", detail: "Nothing runs unless it needs to.")
-                WelcomeFeature(symbol: "hand.raised.fill", title: "Yours to choose", detail: "Every module stays off until you turn it on.")
+                WelcomeFeature(symbol: "hand.raised.fill", title: "Yours to choose", detail: "Modules that need a permission stay off until you turn them on.")
             }
             .frame(maxWidth: 400)
         }

@@ -15,7 +15,10 @@ import AppKit
 /// page?id=home|music|timer|call|agent|download (expand to that page),
 /// setting?multiple=bubbles|sideBySide&click=open|expand&alerts=0|1&keyline=0|1, close-windows,
 /// media?on=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly&lyrics=0|1&ticker=0|1
-/// &visualizer=animated|still|off, page?id=media, settings?module=media, quit.
+/// &visualizer=animated|still|off, page?id=media, settings?module=media, quit,
+/// module?id=<module>&on=0|1, crash-at-start?on=0|1 (Hello crashes while starting),
+/// page?activity=<activity id>,
+/// page?panel=timers|keepawake (Home with that quick action open).
 @MainActor
 enum DebugCommands {
     static func handle(_ url: URL, environment: AppEnvironment, windows: WindowCoordinator) {
@@ -61,10 +64,25 @@ enum DebugCommands {
             // Closes Settings and onboarding without finishing onboarding (for clean measurements).
             for window in NSApp.windows where window.isVisible && window.styleMask.contains(.titled) { window.close() }
         case "page":
+            if let panel = query(url, "panel") {
+                environment.islands.openHomeAction(panel)
+                return
+            }
+            if let activity = query(url, "activity") {
+                environment.islands.expandAll(to: .activity(ActivityID(activity)))
+                return
+            }
             let id = query(url, "id") ?? "home"
             let page: IslandViewModel.ExpandedPage = id == "media" ? .activity(MediaModule.activityID)
                 : ScenarioLab.Demo(rawValue: id).map { .activity($0.activityID) } ?? .home
             environment.islands.expandAll(to: page)
+        case "module":
+            if let id = query(url, "id").map({ ModuleID($0) }) {
+                if on { environment.settings.enabledModules.insert(id) } else { environment.settings.enabledModules.remove(id) }
+            }
+        case "crash-at-start":
+            UserDefaults.standard.set(on, forKey: HelloModule.crashAtStartKey)
+            if on { environment.settings.enabledModules.insert(HelloModule.descriptor.id) }
         case "setting":
             if let mode = query(url, "multiple").flatMap(CompactLayout.Mode.init(rawValue:)) { environment.settings.multipleActivities = mode }
             if let click = query(url, "click").flatMap(ClickBehavior.init(rawValue:)) { environment.settings.clickBehavior = click }

@@ -42,6 +42,39 @@ struct LaunchGuardTests {
         #expect(sut.record.sessionOpen)
     }
 
+    @Test("A session run under a debugger that ends uncleanly (Xcode's Stop) is no crash")
+    func debuggedSessionIsNoCrash() {
+        var sut = LaunchGuard(record: LaunchRecord())
+        sut.launch(at: t0, debuggerAttached: true)
+        sut.willStart("a")
+        // Stopped from Xcode while "a" was starting, three times in a row.
+        var record = sut.record
+        for offset in [10.0, 20, 30] {
+            var next = LaunchGuard(record: record)
+            next.launch(at: t0 + offset, debuggerAttached: true)
+            next.willStart("a")
+            record = next.record
+        }
+        var normal = LaunchGuard(record: record)
+        normal.launch(at: t0 + 40, debuggerAttached: false)
+        #expect(!normal.isSafeMode)
+        #expect(normal.record.quickCrashes.isEmpty)
+        #expect(normal.record.strikes.isEmpty)
+        #expect(normal.record.suspended.isEmpty)
+        #expect(!normal.record.sessionDebugged)
+    }
+
+    @Test("A record saved before `sessionDebugged` existed still reads")
+    func readsOlderRecords() throws {
+        let saved = #"{"quickCrashes":[],"suspended":[{"rawValue":"hello"}],"strikes":[{"rawValue":"hello"},2],"sessionOpen":true,"sessionStable":true}"#
+        let record = try JSONDecoder().decode(LaunchRecord.self, from: Data(saved.utf8))
+        #expect(record.sessionOpen)
+        #expect(record.sessionStable)
+        #expect(!record.sessionDebugged)
+        #expect(record.suspended == ["hello"])
+        #expect(record.strikes == ["hello": 2])
+    }
+
     @Test("Two strikes suspend the module")
     func twoStrikesSuspend() {
         var base = LaunchRecord()

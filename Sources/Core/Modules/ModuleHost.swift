@@ -50,7 +50,8 @@ final class ModuleHost {
         launchGuard = LaunchGuard(record: settings.launchRecord)
     }
 
-    var descriptors: [ModuleDescriptor] { moduleTypes.map { $0.descriptor } }
+    /// Every module this Mac can use, in catalogue order.
+    var descriptors: [ModuleDescriptor] { moduleTypes.filter { $0.isAvailable }.map { $0.descriptor } }
 
     func module(_ id: ModuleID) -> (any IslandModule)? {
         running.first { $0.id == id }?.module
@@ -100,7 +101,8 @@ final class ModuleHost {
 
     /// Starts newly enabled modules and stops (and releases) the others.
     func reconcile(enabled: Set<ModuleID>) {
-        let blocked = isSafeMode ? Set(moduleTypes.map { $0.descriptor.id }) : suspendedIDs
+        let unavailable = Set(moduleTypes.filter { !$0.isAvailable }.map { $0.descriptor.id })
+        let blocked = isSafeMode ? Set(moduleTypes.map { $0.descriptor.id }) : suspendedIDs.union(unavailable)
         let plan = ModuleLifecyclePlan.make(running: running.map(\.id), enabled: enabled,
                                             catalogOrder: moduleTypes.map { $0.descriptor.id }, blocked: blocked)
         for id in plan.stop { stopModule(id) }

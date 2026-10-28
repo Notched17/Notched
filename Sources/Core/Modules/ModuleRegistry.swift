@@ -21,7 +21,8 @@ final class ModuleRegistry {
                           scheduler: scheduler, services: services)
     }
 
-    var descriptors: [ModuleDescriptor] { moduleTypes.map { $0.descriptor } }
+    /// Every module this Mac can use, in display order.
+    var descriptors: [ModuleDescriptor] { host.descriptors }
 
     /// Which modules run, for Settings to observe.
     var runningIDs: Set<ModuleID> { host.runningIDs }
@@ -52,4 +53,7 @@ final class ModuleRegistry {
     func shutDown() { host.shutDown() }
 
     func resume(_ id: ModuleID) { host.resume(id) }
+
+    /// Starts the enabled modules after safe mode.
+    func leaveSafeMode() { host.leaveSafeMode() }
 }

@@ -86,20 +86,27 @@ struct ActivityExpandedView: View {
 /// The expanded island's Home page: time and controls beside the camera
 /// housing, and below them every activity (or a quiet note when there are none).
 struct HomeView: View {
-    let model: IslandViewModel
+    @Bindable var model: IslandViewModel
 
     var body: some View {
         let activities = model.activities
         VStack(spacing: Spacing.s) {
             ExpandedHeaderView(model: model)
                 .frame(height: model.headerHeight)
-            if activities.live.isEmpty && activities.recent.isEmpty {
+            if !activities.homeActions.isEmpty {
+                HomeActionsView(actions: activities.homeActions, openID: $model.openHomeAction)
+            }
+            if model.openHomeAction != nil {
+                // The open panel has the room; the list is a click away on its pages.
+                EmptyView()
+            } else if activities.live.isEmpty && activities.recent.isEmpty {
                 IslandEmptyState()
                     .padding(.top, Spacing.xxs)
             } else {
                 ActivityListView(model: model)
             }
         }
+        .onDisappear { model.openHomeAction = nil }
     }
 }
 

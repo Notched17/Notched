@@ -63,6 +63,9 @@ final class ActivityCoordinator {
     private(set) var recent: [ActivityRecord] = []
     private(set) var alert: ActiveAlert?
     private(set) var banner: TransientBanner?
+    /// Quick actions modules offer on Home, grouped by module in the order
+    /// they first published.
+    private(set) var homeActions: [HomeAction] = []
     /// Increments for each banner shown, and for alerts while alert expansion
     /// is off, so the island bounces once each.
     private(set) var bounceSerial = 0
@@ -179,8 +182,17 @@ final class ActivityCoordinator {
             bannerEndsAt = nil
         }
         waitingBanners.removeAll { _, banner in banner.moduleID == module }
+        if homeActions.contains(where: { $0.moduleID == module }) { setHomeActions([], from: module) }
         showWaitingAlertOrBanner(at: date)
         refresh(at: date)
+    }
+
+    /// Replaces a module's Home quick actions, keeping its place in the row.
+    func setHomeActions(_ actions: [HomeAction], from module: ModuleID) {
+        let index = homeActions.firstIndex { $0.moduleID == module } ?? homeActions.endIndex
+        var next = homeActions.filter { $0.moduleID != module }
+        next.insert(contentsOf: actions.filter { $0.moduleID == module }, at: min(index, next.endIndex))
+        homeActions = next
     }
 
     /// Shows a transient banner, or queues it while an alert shows, the

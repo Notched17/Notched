@@ -218,6 +218,9 @@ final class IslandViewModel {
     /// The page the user asked for (by hovering an activity, or paging).
     var selectedPage: ExpandedPage = .home
 
+    /// The Home quick action whose panel is open; closed whenever Home goes away.
+    var openHomeAction: String?
+
     /// Every visible activity in rank order, then Home (ISLAND-BEHAVIOR.md §6).
     var pages: [ExpandedPage] { activities.visible.map { .activity($0.id) } + [.home] }
 

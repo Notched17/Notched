@@ -29,6 +29,10 @@ final class AudioOutputService {
     /// it never runs on the main thread.
     @ObservationIgnored private let switchQueue = DispatchQueue(label: "me.rkck.Notched.audio-output-switch", qos: .userInitiated)
 
+    /// CoreAudio property listeners installed now; zero once the last holder
+    /// has let go (tests check nothing leaks).
+    var listenerCount: Int { listeners.count + (dataSourceListener == nil ? 0 : 1) }
+
     /// Starts listening for the first holder.
     func acquire() {
         clients += 1

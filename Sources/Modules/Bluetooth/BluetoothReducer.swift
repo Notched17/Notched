@@ -67,6 +67,18 @@ struct BluetoothDevice: Equatable, Sendable {
         }
     }
 
+    /// The name for a banner: "Charlie's AirPods Pro" becomes "AirPods Pro",
+    /// since the owner is always the person at this Mac.
+    static func displayName(_ name: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        for apostrophe in ["'s ", "\u{2019}s "] {
+            guard let range = trimmed.range(of: apostrophe) else { continue }
+            let rest = trimmed[range.upperBound...].trimmingCharacters(in: .whitespaces)
+            if let first = rest.first, first.isUppercase || first.isNumber { return rest }
+        }
+        return trimmed
+    }
+
     static func key(address: String?, name: String) -> String {
         if let address = address.flatMap(normalizedAddress(in:)) { return "bt:\(address)" }
         let words = name.lowercased().split(whereSeparator: \.isWhitespace)

@@ -40,11 +40,11 @@ final class TimersSettings {
         }
     }
 
-    /// The system's alert sounds (Basso, Glass, Ping…), by name.
-    static var availableSounds: [String] {
+    /// The system's alert sounds (Basso, Glass, Ping…), by name. Read once.
+    static let availableSounds: [String] = {
         let files = (try? FileManager.default.contentsOfDirectory(at: soundsFolder, includingPropertiesForKeys: nil)) ?? []
         return files.filter { ["aiff", "aif", "caf", "wav"].contains($0.pathExtension.lowercased()) }
             .map { $0.deletingPathExtension().lastPathComponent }
             .sorted()
-    }
+    }()
 }

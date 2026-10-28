@@ -46,8 +46,14 @@ final class TimerRingView: NSView {
     private let ring = CAShapeLayer()
     private var configuration: Configuration?
     private var occlusionObserver: (any NSObjectProtocol)?
-    /// The render server needn't redraw a slowly shrinking arc 120 times a second.
-    private static let frameRate = CAFrameRateRange(minimum: 8, maximum: 30, preferred: 20)
+    private var wakeObserver: (any NSObjectProtocol)?
+    private var laidOutSize: CGSize = .zero
+
+    /// The render server needn't redraw a slowly shrinking arc 120 times a
+    /// second: a long timer's ring moves a pixel every few seconds.
+    static func frameRate(timeLeft: TimeInterval) -> CAFrameRateRange {
+        timeLeft > 120 ? CAFrameRateRange(minimum: 1, maximum: 4, preferred: 2) : CAFrameRateRange(minimum: 8, maximum: 30, preferred: 20)
+    }
 
     init() {
         super.init(frame: .zero)
@@ -64,6 +70,7 @@ final class TimerRingView: NSView {
 
     isolated deinit {
         if let occlusionObserver { NotificationCenter.default.removeObserver(occlusionObserver) }
+        if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
     }
 
     /// True while a ring animation is installed (tests check it stops when hidden).
@@ -79,13 +86,16 @@ final class TimerRingView: NSView {
         track.lineWidth = next.lineWidth
         ring.lineWidth = next.lineWidth
         CATransaction.commit()
+        laidOutSize = .zero
         needsLayout = true
         apply()
     }
 
     override func layout() {
         super.layout()
-        guard let configuration else { return }
+        // Only a new size needs a new path; the island's morph lays out every frame.
+        guard let configuration, bounds.size != laidOutSize else { return }
+        laidOutSize = bounds.size
         let inset = configuration.lineWidth / 2
         let radius = max(min(bounds.width, bounds.height) / 2 - inset, 0)
         let path = CGMutablePath()
@@ -112,6 +122,17 @@ final class TimerRingView: NSView {
             ) { [weak self] _ in
                 MainActor.assumeIsolated { self?.apply() }
             }
+        }
+        // Core Animation's clock stands still while the Mac sleeps: rebuild from the dates on wake.
+        if window != nil, wakeObserver == nil {
+            wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.apply() }
+            }
+        } else if window == nil, let wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+            self.wakeObserver = nil
         }
         apply()
     }
@@ -152,7 +173,7 @@ final class TimerRingView: NSView {
                 animation.duration = left
                 animation.fillMode = .forwards
                 animation.isRemovedOnCompletion = false
-                animation.preferredFrameRateRange = Self.frameRate
+                animation.preferredFrameRateRange = Self.frameRate(timeLeft: left)
                 ring.add(animation, forKey: "progress")
             }
         }

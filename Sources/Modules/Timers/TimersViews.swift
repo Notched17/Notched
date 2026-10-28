@@ -273,6 +273,7 @@ struct TimerComposer: View {
     let offersStopwatch: Bool
     @State private var isCustom = false
     @Environment(\.closeHomePanel) private var closePanel
+    @Environment(\.islandReduceMotion) private var reduceMotion
 
     static let customRange = 1...180
 
@@ -301,7 +302,7 @@ struct TimerComposer: View {
                     .buttonRepeatBehavior(.enabled)
                 Button("Start") { start(minutes: model.customMinutes) }
                     .buttonStyle(.island(prominent: TimersPresentation.tint))
-                Button("Back", systemImage: "chevron.left") { withAnimation(Motion.content) { isCustom = false } }
+                Button("Back", systemImage: "chevron.left") { withAnimation(reduceMotion ? Motion.reduced : Motion.content) { isCustom = false } }
                     .labelStyle(.iconOnly)
                     .buttonStyle(.island)
             } else {
@@ -310,7 +311,7 @@ struct TimerComposer: View {
                         .buttonStyle(.island)
                         .accessibilityLabel("Start a \(minutes)-minute timer")
                 }
-                Button("Custom") { withAnimation(Motion.content) { isCustom = true } }
+                Button("Custom") { withAnimation(reduceMotion ? Motion.reduced : Motion.content) { isCustom = true } }
                     .buttonStyle(.island)
                     .accessibilityLabel("Custom length")
                 if offersStopwatch {

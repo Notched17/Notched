@@ -221,6 +221,34 @@ struct TimersReducerTests {
 
     // MARK: URL scheme
 
+    @Test("A label piled with combining marks stays short in every sense")
+    func labelScalarsAreCapped() {
+        let zalgo = String(repeating: "a" + String(repeating: "\u{0301}", count: 200), count: 40)
+        let cleaned = TimersReducer.cleanLabel(zalgo)
+        #expect((cleaned?.unicodeScalars.count ?? 0) <= TimersReducer.labelScalarLimit)
+    }
+
+    @Test("Odd timer URLs are refused")
+    func oddTimerURLs() {
+        func parse(_ string: String) -> TimerRequest? { URL(string: string).flatMap(TimerURL.parse) }
+        #expect(parse("notched://timer?hours=1e308") == nil)
+        #expect(parse("notched://timer?minutes=nan") == nil)
+        #expect(parse("notched://timer?minutes=") == nil)
+        #expect(parse("notched://timer?minutes=-1") == nil)
+        #expect(parse("notched://timer?label=Tea") == nil)
+    }
+
+    @Test("A finished timer keeps ringing long enough for an alert that has to wait")
+    func ringingOutlastsAWaitingAlert() {
+        var sut = TimersReducer(doneHold: TimersReducer.ringing)
+        let id = UUID()
+        _ = sut.reduce(.start(duration: 60, label: nil, id: id), now: t0)
+        _ = sut.reduce(.deadline, now: t0 + 60)
+        // Still on the island 30 s later, e.g. while the user had it open.
+        #expect(sut.reduce(.deadline, now: t0 + 90).allSatisfy { if case .end = $0 { false } else { true } })
+        #expect(sut.reduce(.deadline, now: t0 + 60 + TimersReducer.ringing).contains(.end(id, toRecent: true)))
+    }
+
     @Test("notched://timer URLs start timers")
     func urlParsing() {
         func parse(_ string: String) -> TimerRequest? { TimerURL.parse(URL(string: string)!) }

@@ -46,7 +46,9 @@ final class TimersModule: IslandModule {
     func start() {
         guard !isRunning else { return }
         isRunning = true
-        reducer = TimersReducer(doneHold: context.settings.alertDuration)
+        // A finished timer rings until stopped or for a minute, not just for
+        // the alert: the alert may have to wait while the user is on the island.
+        reducer = TimersReducer(doneHold: TimersReducer.ringing)
         model.actions = TimersActions(
             start: { [weak self] seconds, label in self?.startTimer(seconds: seconds, label: label) },
             pause: { [weak self] id in self?.send(.pause(id)) },
@@ -94,7 +96,7 @@ final class TimersModule: IslandModule {
             case .alert(let item, let sound):
                 // The module plays the sound, so it rings even with alert expansion off.
                 if sound { playSound() }
-                post(item, alert: AlertRequest(duration: .milliseconds(Int(reducer.doneHold * 1000))))
+                post(item, alert: AlertRequest())
             case .end(let id, let toRecent):
                 postedRelevance[id] = nil
                 context.activities.end(Self.activityID(id), dismissal: toRecent ? .default : .immediate)

@@ -8,8 +8,8 @@ struct TimerItem: Codable, Equatable, Sendable, Identifiable {
     enum Phase: Codable, Equatable, Sendable {
         case running(endsAt: Date)
         case paused(remaining: TimeInterval)
-        /// Finished at `endedAt`; shown as done until `until` (the alert),
-        /// then it ends into Recent.
+        /// Finished at `endedAt`; rings (shown as done) until `until`, then
+        /// it ends into Recent.
         case done(endedAt: Date, until: Date)
     }
 
@@ -84,8 +84,9 @@ struct TimersState: Codable, Equatable, Sendable {
 /// Timers and the stopwatch (#37). Pure.
 ///
 /// - One deadline is scheduled at a time: the earliest end.
-/// - A timer that ends alerts with its sound, stays as done for the alert,
-///   then ends into Recent. Woken from sleep, it alerts quietly if it ended
+/// - A timer that ends alerts with its sound and rings (shows as done) for
+///   `doneHold` (the module uses `ringing`, a minute) unless stopped, then
+///   ends into Recent. Woken from sleep, it alerts quietly if it ended
 ///   over a minute ago, and goes straight to Recent if over ten minutes.
 /// - After a relaunch, running and paused timers carry on. One that ended
 ///   while Notched wasn't running alerts silently if that was in the last
@@ -98,6 +99,13 @@ struct TimersReducer: Sendable {
     static let soundWindow: TimeInterval = 60
     static let defaultLabel = "Timer"
     static let labelLimit = 40
+    /// Combining marks can pile hundreds of scalars onto one character; a
+    /// label from a link stays this short however it's counted.
+    static let labelScalarLimit = 120
+    /// How long a finished timer rings (shows as done) before it goes to
+    /// Recent, unless the user stops it: long enough for an alert that has
+    /// to wait while the user is on the island, like iPhone's ringing timer.
+    static let ringing: TimeInterval = 60
 
     enum Event: Equatable, Sendable {
         case start(duration: TimeInterval, label: String?, id: UUID)
@@ -130,7 +138,7 @@ struct TimersReducer: Sendable {
     }
 
     private(set) var state = TimersState()
-    /// How long a finished timer stays as done: the alert's duration.
+    /// How long a finished timer rings (shows as done) before Recent.
     let doneHold: TimeInterval
 
     init(doneHold: TimeInterval = 4) {
@@ -142,7 +150,10 @@ struct TimersReducer: Sendable {
         guard let label else { return nil }
         let kept = label.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) }
         let cleaned = String(String.UnicodeScalarView(kept)).trimmingCharacters(in: .whitespacesAndNewlines)
-        return cleaned.isEmpty ? nil : String(cleaned.prefix(labelLimit))
+        guard !cleaned.isEmpty else { return nil }
+        var capped = String(cleaned.prefix(labelLimit))
+        while capped.unicodeScalars.count > labelScalarLimit { capped.removeLast() }
+        return capped.isEmpty ? nil : capped
     }
 
     mutating func reduce(_ event: Event, now: Date) -> [Effect] {

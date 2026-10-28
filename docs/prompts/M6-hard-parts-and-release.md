@@ -1,7 +1,11 @@
 We're continuing Notched. M1–M4b are done ✅, and the HUD (formerly M5) shipped inside M3b (confirm in `docs/ROADMAP.md`; if M4b isn't merged into `main`, stop and tell me). This is **M6**: the hard and fragile features, then release readiness. Every hard item starts with a **spike and a go/no-go**; I'd rather drop a feature than ship something fragile that breaks the Mac.
 
 ## Model guide (for me, not for you)
-Spikes and design (6.1, 6.2, 6.3 safety): **Opus xhigh**, because these are where mistakes are costly. Implementation after approval: Sonnet. Release checklist, README, docs, ROADMAP: Sonnet/Haiku. Final review: Opus high.
+- Plan mode (Step 0): Opus, high effort.
+- Spikes and go/no-go decisions (6.1, 6.2) and the lock-screen safety design (6.3): Opus, xhigh effort.
+- Implementation after approval: Sonnet, high effort for 6.1 to 6.3 (fragile system code) and medium effort for the rest.
+- Polish, accessibility fixes, README, docs and ROADMAP: Sonnet, medium effort. Repo mechanics: Haiku via `build-runner`.
+- Final fresh-reviewer pass: Opus, high effort.
 
 ## Read first
 1. `CLAUDE.md` (binding): lock-screen window safety rules, private-API rules, event-tap rules.

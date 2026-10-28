@@ -18,7 +18,7 @@ import AppKit
 /// &visualizer=animated|still|off, page?id=media, settings?module=media, quit,
 /// module?id=<module>&on=0|1, crash-at-start?on=0|1 (Hello crashes while starting),
 /// battery?power=battery|charging|notCharging|charged&level=N (a simulated reading),
-/// page?activity=<activity id>,
+/// keepawake?preset=30m|1h|2h|on|off, page?activity=<activity id> (e.g. keepawake, timers.stopwatch),
 /// page?panel=timers|keepawake (Home with that quick action open).
 @MainActor
 enum DebugCommands {
@@ -86,6 +86,15 @@ enum DebugCommands {
             if on { environment.settings.enabledModules.insert(HelloModule.descriptor.id) }
         case "battery":
             battery(url, environment)
+        case "keepawake":
+            guard let module = environment.modules.module(KeepAwakeModule.descriptor.id) as? KeepAwakeModule else { return }
+            switch query(url, "preset") {
+            case "30m": module.turnOn(.thirtyMinutes)
+            case "1h": module.turnOn(.oneHour)
+            case "2h": module.turnOn(.twoHours)
+            case "on": module.turnOn(.indefinitely)
+            default: module.turnOff()
+            }
         case "setting":
             if let mode = query(url, "multiple").flatMap(CompactLayout.Mode.init(rawValue:)) { environment.settings.multipleActivities = mode }
             if let click = query(url, "click").flatMap(ClickBehavior.init(rawValue:)) { environment.settings.clickBehavior = click }

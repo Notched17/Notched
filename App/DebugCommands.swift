@@ -8,7 +8,7 @@ import AppKit
 ///
 /// Commands: expand, collapse, pill?on=, outline?on=, reduce-motion?on=,
 /// reduce-transparency?on=, increase-contrast?on= (on=default clears an override),
-/// fullscreen-fallback?on=, hello-alert, hello-session?on=, settings?pane=,
+/// settings?pane=modules&priority=1 (the Priority page), fullscreen-fallback?on=, hello-alert, hello-session?on=, settings?pane=,
 /// theme?notch=&pill=, onboarding?step=, launch-at-login?on=, appearance?mode=dark|light|system,
 /// lab?demo=music|call|agent|download&do=start|end|stale|hide|unhide|primary,
 /// lab?banner=charging, lab?run=full, lab?do=end-all, lab?download=0.74,
@@ -45,7 +45,11 @@ enum DebugCommands {
             Log.app.info("Launch at login status: \(String(describing: environment.launchAtLogin.status), privacy: .public)")
         case "onboarding": windows.showOnboarding(startAt: query(url, "step").flatMap(OnboardingView.Step.init(name:)) ?? .welcome)
         case "settings":
-            windows.showSettings(query(url, "pane").flatMap(SettingsPane.init(rawValue:)), module: query(url, "module").map { ModuleID($0) })
+            if query(url, "priority") == "1" {
+                windows.showPriority()
+            } else {
+                windows.showSettings(query(url, "pane").flatMap(SettingsPane.init(rawValue:)), module: query(url, "module").map { ModuleID($0) })
+            }
         case "theme":
             if let theme = query(url, "notch").flatMap(IslandTheme.init(rawValue:)) { environment.settings.notchTheme = theme }
             if let theme = query(url, "pill").flatMap(IslandTheme.init(rawValue:)) { environment.settings.pillTheme = theme }

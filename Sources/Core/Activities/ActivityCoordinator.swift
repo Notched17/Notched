@@ -7,7 +7,8 @@ import Observation
 /// the way the iPhone Dynamic Island does (ADR-0006, ISLAND-BEHAVIOR.md §1–§2).
 /// Pure and clock-injected, so every rule is unit-tested:
 ///
-/// - **Ranking:** class (system > media > live > passive, ADR-0011), then relevance,
+/// - **Ranking:** system first, then the user's pinned modules, then the user's
+///   class order (default media > live > passive, ADR-0011/0016), then relevance,
 ///   then start order, so a newcomer never steals the island from an equal.
 /// - **Primary and minimal:** the top visible activity owns both compact
 ///   sides; the next two show as minimal bubbles (trailing, then leading).
@@ -34,6 +35,8 @@ final class ActivityCoordinator {
         var alertDuration: Duration = .seconds(4)
         var bannerDuration: Duration = .seconds(2)
         var recentRetention: Duration = .seconds(15 * 60)
+        /// The user's priority: class order and pinned modules (#8).
+        var ranking = RankingPolicy.default
 
         /// At most this many activities show on the island at once.
         static let maxVisible = 3
@@ -384,11 +387,13 @@ final class ActivityCoordinator {
 
     /// Visible activities by class, relevance and start order, ignoring the swap.
     private func naturalVisibleOrder() -> [ActivityRecord] {
-        entries.values.filter { !$0.isHidden }.sorted(by: Self.ranksHigher)
+        entries.values.filter { !$0.isHidden }.sorted { ranksHigher($0, $1) }
     }
 
-    private static func ranksHigher(_ lhs: ActivityRecord, _ rhs: ActivityRecord) -> Bool {
-        if lhs.activity.kind != rhs.activity.kind { return lhs.activity.kind > rhs.activity.kind }
+    private func ranksHigher(_ lhs: ActivityRecord, _ rhs: ActivityRecord) -> Bool {
+        let left = configuration.ranking.key(kind: lhs.activity.kind, module: lhs.activity.moduleID)
+        let right = configuration.ranking.key(kind: rhs.activity.kind, module: rhs.activity.moduleID)
+        if left != right { return left < right }
         if lhs.activity.relevance != rhs.activity.relevance { return lhs.activity.relevance > rhs.activity.relevance }
         return lhs.sequence < rhs.sequence
     }
@@ -416,7 +421,7 @@ final class ActivityCoordinator {
                 entries[id] = record
             }
         }
-        var ranked = entries.values.sorted(by: Self.ranksHigher)
+        var ranked = entries.values.sorted { ranksHigher($0, $1) }
         if let swap, let index = ranked.firstIndex(where: { $0.id == swap.promoted && !$0.isHidden }) {
             ranked.insert(ranked.remove(at: index), at: 0)
         }

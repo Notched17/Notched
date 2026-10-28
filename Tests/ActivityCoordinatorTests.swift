@@ -727,3 +727,58 @@ extension ActivityPresentation {
         )
     }
 }
+
+// MARK: User priority (#8)
+
+extension ActivityCoordinatorTests {
+    private func coordinator(ranking: RankingPolicy) -> ActivityCoordinator {
+        let clock = clock
+        var configuration = ActivityCoordinator.Configuration()
+        configuration.ranking = ranking
+        return ActivityCoordinator(configuration: configuration, now: { clock.now })
+    }
+
+    private func post(_ sut: ActivityCoordinator, _ id: String, kind: ActivityKind, module: ModuleID = "test", relevance: Double = 0) {
+        sut.post(LiveActivity(id: ActivityID(id), moduleID: module, kind: kind, title: id, relevance: relevance,
+                              accessibilityLabel: id, presentation: .text(id)))
+    }
+
+    @Test("With live ranked above media, a timer beats the music")
+    func userRanksLiveAboveMedia() {
+        let sut = coordinator(ranking: RankingPolicy(order: [.live, .media, .passive], pinned: []))
+        post(sut, "music", kind: .media)
+        post(sut, "timer", kind: .live)
+        #expect(sut.primary?.id == "timer")
+    }
+
+    @Test("A pinned timer beats the music but not a call")
+    func pinnedBeatsMusicNotCall() {
+        let sut = coordinator(ranking: RankingPolicy(order: RankingPolicy.default.order, pinned: ["timers"]))
+        post(sut, "music", kind: .media, module: "media")
+        post(sut, "timer", kind: .live, module: "timers")
+        #expect(sut.primary?.id == "timer")
+        post(sut, "call", kind: .system, module: "calls")
+        #expect(sut.primary?.id == "call")
+        #expect(sut.minimal.map(\.id) == ["timer", "music"])
+    }
+
+    @Test("Changing the ranking re-ranks what is already on the island")
+    func changingRankingReranks() {
+        let sut = coordinator(ranking: .default)
+        post(sut, "music", kind: .media, module: "media")
+        post(sut, "timer", kind: .live, module: "timers")
+        #expect(sut.primary?.id == "music")
+        sut.configuration.ranking = RankingPolicy(order: RankingPolicy.default.order, pinned: ["timers"])
+        #expect(sut.primary?.id == "timer")
+    }
+
+    @Test("A swap still works under a custom order")
+    func swapUnderCustomOrder() {
+        let sut = coordinator(ranking: RankingPolicy(order: [.passive, .live, .media], pinned: []))
+        post(sut, "music", kind: .media)
+        post(sut, "status", kind: .passive)
+        #expect(sut.primary?.id == "status")
+        sut.makePrimary("music")
+        #expect(sut.primary?.id == "music")
+    }
+}

@@ -6,5 +6,10 @@
 	     macOS still asks the user, per app, the first time. -->
 	<key>com.apple.security.automation.apple-events</key>
 	<true/>
+	<!-- Hardened Runtime: lets Network read the Wi-Fi name (#29), which macOS
+	     shares only with apps allowed to use Location. Asked for only when the
+	     user turns on "Show the Wi-Fi network's name". -->
+	<key>com.apple.security.personal-information.location</key>
+	<true/>
 </dict>
 </plist>

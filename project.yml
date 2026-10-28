@@ -79,8 +79,8 @@ targets:
         NSCalendarsFullAccessUsageDescription: "Notched shows your upcoming events in the island when you turn on Calendar."
         NSRemindersFullAccessUsageDescription: "Notched shows and completes today's reminders when you turn on Reminders."
         NSBluetoothAlwaysUsageDescription: "Notched shows when your headphones and other Bluetooth devices connect."
-        NSLocationWhenInUseUsageDescription: "Notched uses your approximate location to show local weather."
-        NSLocationUsageDescription: "Notched uses your approximate location to show local weather."
+        NSLocationWhenInUseUsageDescription: "Notched reads your Wi-Fi network's name when you turn that on for Network, and later your approximate location for local weather. macOS shares Wi-Fi names only with apps allowed to use Location."
+        NSLocationUsageDescription: "Notched reads your Wi-Fi network's name when you turn that on for Network, and later your approximate location for local weather. macOS shares Wi-Fi names only with apps allowed to use Location."
         NSAudioCaptureUsageDescription: "Notched listens to the audio that's playing so the visualiser can move with the music."
 
   # ungive/mediaremote-adapter (BSD-3-Clause), vendored unmodified in

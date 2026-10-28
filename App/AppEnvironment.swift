@@ -26,7 +26,7 @@ final class AppEnvironment {
 
     /// Every module the app knows, in display order.
     static var moduleTypes: [any IslandModule.Type] {
-        var types: [any IslandModule.Type] = [MediaModule.self, BatteryModule.self, BluetoothModule.self]
+        var types: [any IslandModule.Type] = [MediaModule.self, BatteryModule.self, BluetoothModule.self, NetworkModule.self]
         #if DEBUG
         types.append(HelloModule.self)
         #endif

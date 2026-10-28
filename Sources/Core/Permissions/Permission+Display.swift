@@ -11,6 +11,7 @@ extension Permission {
         case .reminders: "Reminders"
         case .bluetooth: "Bluetooth"
         case .location: "Location"
+        case .downloadsFolder: "Downloads Folder"
         }
     }
 
@@ -24,6 +25,7 @@ extension Permission {
         case .reminders: "checklist"
         case .bluetooth: "dot.radiowaves.left.and.right"
         case .location: "location"
+        case .downloadsFolder: "arrow.down.circle"
         }
     }
 
@@ -38,6 +40,7 @@ extension Permission {
         case .reminders: "Show and complete today's reminders."
         case .bluetooth: "Show when headphones connect."
         case .location: "Show local weather."
+        case .downloadsFolder: "Show download progress."
         }
     }
 }

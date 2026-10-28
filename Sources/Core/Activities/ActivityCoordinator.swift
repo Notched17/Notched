@@ -229,6 +229,17 @@ final class ActivityCoordinator {
         refresh(at: date)
     }
 
+    /// Takes the banner off the island at once (the user clicked it) and lets
+    /// a waiting one follow.
+    func dismissBanner(_ id: String) {
+        guard banner?.id == id else { return }
+        banner = nil
+        bannerEndsAt = nil
+        let date = now()
+        showWaitingAlertOrBanner(at: date)
+        refresh(at: date)
+    }
+
     // MARK: User
 
     /// Makes an activity the primary one until either it or the activity it

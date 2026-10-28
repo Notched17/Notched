@@ -335,6 +335,32 @@ struct ActivityCoordinatorTests {
         #expect(wakes.dates.count == before + 1)
     }
 
+    @Test("Dismissing a banner takes it off at once and lets a waiting one follow")
+    func dismissBannerShowsNext() {
+        let sut = makeCoordinator()
+        sut.show(banner("one"))
+        sut.show(banner("two"))
+        #expect(sut.banner?.id == "one")
+        sut.dismissBanner("two")
+        #expect(sut.banner?.id == "one")
+        sut.dismissBanner("one")
+        #expect(sut.banner?.id == "two")
+        sut.dismissBanner("two")
+        #expect(sut.banner == nil)
+    }
+
+    @Test("A banner can carry a click action, and the action runs when called")
+    func bannerOpenAction() {
+        var opened = 0
+        var withAction = banner("download")
+        withAction.openAction = { opened += 1 }
+        let sut = makeCoordinator()
+        sut.show(withAction)
+        sut.banner?.openAction?()
+        #expect(opened == 1)
+        #expect(banner("plain").openAction == nil)
+    }
+
     @Test("Hiding the primary promotes the next activity")
     func hidePrimaryPromotesNext() {
         let sut = makeCoordinator()

@@ -10,6 +10,8 @@ enum Permission: String, CaseIterable, Codable, Sendable, Identifiable {
     case reminders
     case bluetooth
     case location
+    /// Files & Folders access to ~/Downloads (the Downloads module).
+    case downloadsFolder
 
     var id: Self { self }
 }

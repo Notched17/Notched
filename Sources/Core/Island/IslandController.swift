@@ -274,7 +274,15 @@ final class IslandController {
     private func activate(_ target: IslandViewModel.IslandTarget) {
         switch target {
         case .island:
-            guard activities.banner == nil, let primary = activities.primary else { return }
+            if let banner = activities.banner {
+                // A click on a banner does what the banner says, if it says anything.
+                guard let open = banner.openAction else { return }
+                feedback(.generic)
+                open()
+                activities.dismissBanner(banner.id)
+                return
+            }
+            guard let primary = activities.primary else { return }
             if let open = primary.activity.openAction {
                 feedback(.generic)
                 open()

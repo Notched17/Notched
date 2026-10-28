@@ -91,9 +91,14 @@ struct TransientBanner: Identifiable {
     /// replaces a less important one on screen (ADR-0012).
     var priority: BannerPriority
     var accessibilityLabel: String
+    /// What a click on the banner does (a finished download: show it in
+    /// Finder). Nil means a click does nothing while the banner is up.
+    var openAction: (@MainActor () -> Void)?
 
     init(id: String, moduleID: ModuleID, leading: IslandRegion, trailing: IslandRegion? = nil,
-         duration: Duration? = nil, priority: BannerPriority = .normal, accessibilityLabel: String) {
+         duration: Duration? = nil, priority: BannerPriority = .normal, accessibilityLabel: String,
+         openAction: (@MainActor () -> Void)? = nil) {
+        self.openAction = openAction
         self.id = id
         self.moduleID = moduleID
         self.leading = leading

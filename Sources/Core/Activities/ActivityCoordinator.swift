@@ -63,9 +63,11 @@ final class ActivityCoordinator {
     private(set) var recent: [ActivityRecord] = []
     private(set) var alert: ActiveAlert?
     private(set) var banner: TransientBanner?
-    /// Quick actions modules offer on Home, grouped by module in the order
-    /// they first published.
+    /// Quick actions modules offer on Home, grouped by module in catalogue order.
     private(set) var homeActions: [HomeAction] = []
+    /// The module catalogue's order (set by `ModuleHost`), so Home's row
+    /// doesn't depend on which module happened to start first.
+    @ObservationIgnored var moduleOrder: [ModuleID] = []
     /// Increments for each banner shown, and for alerts while alert expansion
     /// is off, so the island bounces once each.
     private(set) var bounceSerial = 0
@@ -187,12 +189,14 @@ final class ActivityCoordinator {
         refresh(at: date)
     }
 
-    /// Replaces a module's Home quick actions, keeping its place in the row.
+    /// Replaces a module's Home quick actions; the row is in catalogue order.
     func setHomeActions(_ actions: [HomeAction], from module: ModuleID) {
-        let index = homeActions.firstIndex { $0.moduleID == module } ?? homeActions.endIndex
-        var next = homeActions.filter { $0.moduleID != module }
-        next.insert(contentsOf: actions.filter { $0.moduleID == module }, at: min(index, next.endIndex))
-        homeActions = next
+        let rank = { (id: ModuleID) in self.moduleOrder.firstIndex(of: id) ?? Int.max }
+        let next = homeActions.filter { $0.moduleID != module } + actions.filter { $0.moduleID == module }
+        // A stable sort keeps each module's own actions in the order it gave them.
+        homeActions = next.enumerated()
+            .sorted { (rank($0.element.moduleID), $0.offset) < (rank($1.element.moduleID), $1.offset) }
+            .map(\.element)
     }
 
     /// Shows a transient banner, or queues it while an alert shows, the

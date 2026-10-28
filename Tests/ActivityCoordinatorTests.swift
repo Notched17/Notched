@@ -56,6 +56,22 @@ struct ActivityCoordinatorTests {
 
     // MARK: Ranking
 
+    @Test("Home quick actions follow the module catalogue, whoever publishes first, and go with their module")
+    func homeActionsFollowCatalogue() {
+        let sut = makeCoordinator()
+        sut.moduleOrder = ["timers", "keepawake"]
+        func action(_ id: String) -> HomeAction {
+            HomeAction(id: id, moduleID: ModuleID(id), title: id, symbol: "timer", panel: IslandRegion { EmptyView() })
+        }
+        sut.setHomeActions([action("keepawake")], from: "keepawake")
+        sut.setHomeActions([action("timers")], from: "timers")
+        #expect(sut.homeActions.map(\.id) == ["timers", "keepawake"])
+        sut.setHomeActions([action("timers")], from: "timers")
+        #expect(sut.homeActions.map(\.id) == ["timers", "keepawake"])
+        sut.endAll(from: "timers")
+        #expect(sut.homeActions.map(\.id) == ["keepawake"])
+    }
+
     @Test("Activities rank by class: system, then media, then live, then passive (ADR-0011)")
     func rankByClass() {
         let sut = makeCoordinator()

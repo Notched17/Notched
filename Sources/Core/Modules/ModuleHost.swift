@@ -48,6 +48,7 @@ final class ModuleHost {
         self.services = services
         self.now = now
         launchGuard = LaunchGuard(record: settings.launchRecord)
+        coordinator.moduleOrder = moduleTypes.map { $0.descriptor.id }
     }
 
     /// Every module this Mac can use, in catalogue order.

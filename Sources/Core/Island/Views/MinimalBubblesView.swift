@@ -62,7 +62,8 @@ struct MinimalBubble: View {
         .foregroundStyle(.white)
         .frame(width: size.width, height: size.height)
         .background {
-            if style == .black { shape.fill(.black) }
+            // Glass bubbles get the same dark wash as the glass pill they sit beside.
+            shape.fill(.black.opacity(style == .black ? 1 : IslandTheme.glassDarkening))
         }
         .clipShape(shape)
         .glassEffect(style == .glass ? .regular : .identity, in: shape)

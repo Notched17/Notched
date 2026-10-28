@@ -10,9 +10,9 @@ import AppKit
 /// reduce-transparency?on=, increase-contrast?on= (on=default clears an override),
 /// fullscreen-fallback?on=, hello-alert, hello-session?on=, settings?pane=,
 /// theme?notch=&pill=, onboarding?step=, launch-at-login?on=, appearance?mode=dark|light|system,
-/// lab?demo=music|timer|call|agent|download&do=start|end|stale|hide|unhide|primary,
-/// lab?banner=charging, lab?alert=timer, lab?run=full, lab?do=end-all, lab?download=0.74,
-/// page?id=home|music|timer|call|agent|download (expand to that page),
+/// lab?demo=music|call|agent|download&do=start|end|stale|hide|unhide|primary,
+/// lab?banner=charging, lab?run=full, lab?do=end-all, lab?download=0.74,
+/// page?id=home|music|call|agent|download (expand to that page),
 /// setting?multiple=bubbles|sideBySide&click=open|expand&alerts=0|1&keyline=0|1, close-windows,
 /// media?on=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly&lyrics=0|1&ticker=0|1
 /// &visualizer=animated|still|off, page?id=media, settings?module=media, quit,
@@ -107,7 +107,6 @@ enum DebugCommands {
     private static func lab(_ url: URL, _ lab: ScenarioLab) {
         if query(url, "run") == "full" { lab.runFullDemo() }
         if query(url, "banner") == "charging" { lab.showChargingBanner() }
-        if query(url, "alert") == "timer" { lab.alertTimerDone() }
         if let progress = query(url, "download").flatMap(Double.init) { lab.setDownloadProgress(progress) }
         let action = query(url, "do")
         if action == "end-all" { lab.endAll() }
@@ -196,7 +195,6 @@ enum DebugMenu {
         }
         menu.addItem(.separator())
         menu.addItem(ClosureMenuItem(title: "Show “Charging 80%” Banner") { lab.showChargingBanner() })
-        menu.addItem(ClosureMenuItem(title: "Alert: Timer Done") { lab.alertTimerDone() })
         item.submenu = menu
         return item
     }

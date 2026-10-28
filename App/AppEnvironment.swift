@@ -18,7 +18,9 @@ final class AppEnvironment {
     let islands: IslandManager
     #if DEBUG
     /// Demo activities for trying the island (Debug ▸ Scenario Lab).
-    private(set) lazy var scenarioLab = ScenarioLab(activities: activities)
+    private(set) lazy var scenarioLab = ScenarioLab(activities: activities) { [weak modules] seconds in
+        (modules?.module(TimersModule.descriptor.id) as? TimersModule)?.startTimer(seconds: seconds, label: "Demo")
+    }
     #endif
     private let expiryTimer = OneShotTimer()
     private let power = PowerStateMonitor()
@@ -26,7 +28,10 @@ final class AppEnvironment {
 
     /// Every module the app knows, in display order.
     static var moduleTypes: [any IslandModule.Type] {
-        var types: [any IslandModule.Type] = [MediaModule.self, KeepAwakeModule.self, BatteryModule.self, BluetoothModule.self, NetworkModule.self, CapsLockModule.self]
+        var types: [any IslandModule.Type] = [
+            MediaModule.self, TimersModule.self, KeepAwakeModule.self,
+            BatteryModule.self, BluetoothModule.self, NetworkModule.self, CapsLockModule.self,
+        ]
         #if DEBUG
         types.append(HelloModule.self)
         #endif

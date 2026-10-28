@@ -38,10 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        #if DEBUG
         guard let environment, let windows else { return }
-        for url in urls { DebugCommands.handle(url, environment: environment, windows: windows) }
-        #endif
+        for url in urls { URLRouter.handle(url, environment: environment, windows: windows) }
     }
 
     /// Opening the app again (e.g. from Finder or Spotlight) shows Settings,

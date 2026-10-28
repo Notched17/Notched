@@ -5,7 +5,9 @@ import SwiftUI
 
 /// Caps Lock (#25): a banner when Caps Lock turns on or off. It watches
 /// modifier-key changes with an `NSEvent` monitor; `CapsLockReducer`
-/// ignores every other modifier. It never uses Input Monitoring.
+/// ignores every other modifier. On macOS 27.2 this needs no permission:
+/// an untrusted app's global monitor gets `flagsChanged` but never key
+/// presses (ADR-0013). It never uses Input Monitoring.
 @MainActor
 final class CapsLockModule: IslandModule {
     static let descriptor = ModuleDescriptor(
@@ -18,7 +20,7 @@ final class CapsLockModule: IslandModule {
     )
 
     static func settingsPane(_ context: ModuleSettingsContext) -> AnyView? {
-        AnyView(CapsLockSettingsPane(permissions: context.registry.host.services.permissions))
+        AnyView(CapsLockSettingsPane())
     }
 
     private let context: ModuleContext
@@ -78,14 +80,13 @@ final class CapsLockModule: IslandModule {
 
 /// Settings ▸ Modules ▸ Caps Lock.
 struct CapsLockSettingsPane: View {
-    let permissions: PermissionCenter?
-
     var body: some View {
         Form {
             Section {
                 LabeledContent("Shows", value: "Caps Lock On and Off")
+                LabeledContent("Permission", value: "None needed")
             } footer: {
-                Text("Notched watches only the Caps Lock key. It never sees what you type.")
+                Text("Notched is told only when a modifier key such as Caps Lock changes. macOS keeps what you type from it, so it needs neither Accessibility nor Input Monitoring.")
             }
         }
         .formStyle(.grouped)

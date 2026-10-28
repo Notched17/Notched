@@ -31,7 +31,7 @@ extension Permission {
     var purpose: String {
         switch self {
         case .accessibility: "Replace the volume and brightness HUDs."
-        case .inputMonitoring: "Notice Caps Lock and media keys."
+        case .inputMonitoring: "Notice media keys. (Caps Lock doesn't need it.)"
         case .screenRecording: "Not used by any current module."
         case .automation: "Control Music and Spotify."
         case .calendars: "Show your upcoming events."

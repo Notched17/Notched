@@ -77,6 +77,15 @@ final class SensorMonitor: @unchecked Sendable {
         queue.async { self.end() }
     }
 
+    /// Looks again and publishes the result even if it hasn't changed, e.g.
+    /// after the Mac wakes, when what we knew may be stale.
+    func refresh() {
+        queue.async {
+            self.published = nil
+            self.scheduleRescan()
+        }
+    }
+
     /// The running apps changed: owners may now be provable.
     func updateApps(_ apps: [RunningAppInfo]) {
         queue.async {

@@ -15,6 +15,10 @@ final class SensorUsageService {
     static let ignoredBundleIDs: Set<String> = []
 
     private(set) var snapshot = SensorSnapshot.idle
+    /// Counts the readings the monitor has delivered (0 until the first), so a
+    /// module can tell "nothing in use" from "not read yet", and notice a fresh
+    /// reading that equals the last.
+    private(set) var readingSerial = 0
     private(set) var callClaims = CallClaims()
 
     @ObservationIgnored private var clients = 0
@@ -38,12 +42,18 @@ final class SensorUsageService {
     }
 
     #if DEBUG
+    /// Pretends the system reported this (screenshots and robustness checks).
+    func simulate(_ reading: SensorSnapshot) { apply(reading) }
+
     /// Spike S1: gets the system's raw report after every look.
     func setDebugSink(_ sink: (@Sendable (String) -> Void)?) { monitor?.setDebugSink(sink) }
     #endif
 
     /// Waits for the monitor to finish what it was asked to do (tests).
     func flush() { monitor?.flush() }
+
+    /// Reads again and delivers the result even if unchanged (after wake).
+    func refresh() { monitor?.refresh() }
 
     /// The Calls module sets this; clear it when the module stops.
     func setCallClaims(_ claims: CallClaims) {
@@ -68,13 +78,15 @@ final class SensorUsageService {
         observers.invalidate()
         monitor?.stop()
         snapshot = .idle
+        readingSerial = 0
         callClaims = CallClaims()
     }
 
     private func apply(_ next: SensorSnapshot) {
         // A snapshot queued before `stop()` must not bring the indicator back.
-        guard clients > 0, next != snapshot else { return }
-        snapshot = next
+        guard clients > 0 else { return }
+        readingSerial += 1
+        if next != snapshot { snapshot = next }
     }
 
     private static func runningApps() -> [RunningAppInfo] {

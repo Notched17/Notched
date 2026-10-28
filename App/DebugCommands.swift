@@ -17,6 +17,7 @@ import AppKit
 /// media?on=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly&lyrics=0|1&ticker=0|1
 /// &visualizer=animated|still|off, page?id=media, settings?module=media, quit,
 /// module?id=<module>&on=0|1, crash-at-start?on=0|1 (Hello crashes while starting),
+/// sensors?camera=1&apps=Zoom,Voice%20Memos&unnamed=1&claims=Zoom|0 (a simulated camera and microphone reading),
 /// battery?power=battery|charging|notCharging|charged&level=N (a simulated reading)&show=0|80|100,
 /// keepawake?preset=30m|1h|2h|on|off, page?activity=<activity id> (e.g. keepawake, timers.stopwatch),
 /// page?panel=timers|keepawake (Home with that quick action open), network?name=0|1.
@@ -93,6 +94,7 @@ enum DebugCommands {
         case "network":
             if let name = query(url, "name") { environment.settings.network.showWiFiName = name == "1" }
         case "probe": Probes.handle(url)
+        case "sensors": sensors(url, environment)
         case "keepawake":
             guard let module = environment.modules.module(KeepAwakeModule.descriptor.id) as? KeepAwakeModule else { return }
             switch query(url, "preset") {
@@ -143,6 +145,21 @@ enum DebugCommands {
         case "fast": module.debugLifecycle = MediaLifecycle(staleAfter: 10, endAfter: 30)
         case "default": module.debugLifecycle = nil
         default: break
+        }
+    }
+
+    private static func sensors(_ url: URL, _ environment: AppEnvironment) {
+        guard let module = environment.modules.module(SensorsModule.descriptor.id) as? SensorsModule else { return }
+        // Names with a bundle id each, e.g. apps=Zoom,Voice%20Memos; unnamed=1 adds one we can't name.
+        var users = (query(url, "apps") ?? "").split(separator: ",").enumerated().map { index, name in
+            InputUser(pid: Int32(1000 + index), processBundleID: "debug.\(name)", appBundleID: "debug.\(name)", appName: String(name), attribution: .exact)
+        }
+        if query(url, "unnamed") == "1" {
+            users.append(InputUser(pid: 2000, processBundleID: "debug.unnamed", appBundleID: nil, appName: nil, attribution: .unknown))
+        }
+        module.simulate(SensorSnapshot(cameraRunning: query(url, "camera") == "1", micUsers: users))
+        if let claims = query(url, "claims") {
+            module.simulate(claims: claims == "0" ? CallClaims() : CallClaims(identities: Set(claims.split(separator: ",").map { "debug.\($0)" }), isCallActive: true))
         }
     }
 

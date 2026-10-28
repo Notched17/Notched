@@ -160,6 +160,42 @@ struct ModuleShellTests {
         }
     }
 
+    @Test("Camera & Microphone leaves no listener, observer or activity behind when it stops, however often it is switched")
+    func sensorsNeverLeak() {
+        let services = ModuleServices()
+        let (context, coordinator) = context(SensorsModule.descriptor.id, services: services)
+        for _ in 0..<5 {
+            let module = SensorsModule(context: context)
+            module.start()
+            services.sensors.flush()
+            #expect(module.isRunning)
+            #expect(services.sensors.listenerCount > 0)
+            module.stop()
+            services.sensors.flush()
+            #expect(!module.isRunning)
+            #expect(services.sensors.listenerCount == 0)
+            #expect(coordinator.live.isEmpty)
+        }
+    }
+
+    @Test("Camera & Microphone and Calls share one set of listeners; the last holder out removes them")
+    func sensorsAreShared() {
+        let services = ModuleServices()
+        let (context, _) = context(SensorsModule.descriptor.id, services: services)
+        let module = SensorsModule(context: context)
+        module.start()
+        services.sensors.acquire()  // Calls, say
+        services.sensors.flush()
+        let installed = services.sensors.listenerCount
+        #expect(installed > 0)
+        module.stop()
+        services.sensors.flush()
+        #expect(services.sensors.listenerCount == installed)
+        services.sensors.release()
+        services.sensors.flush()
+        #expect(services.sensors.listenerCount == 0)
+    }
+
     @Test("Caps Lock's event monitors are removed when it stops")
     func capsLockStops() {
         let (context, _) = context(CapsLockModule.descriptor.id)

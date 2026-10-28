@@ -1,0 +1,152 @@
+#!/usr/bin/env xcrun swift
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// A tiny Now Playing source for testing Notched without a real player.
+// Plays a quiet tone, publishes the track through MPNowPlayingInfoCenter,
+// and obeys play/pause/next/previous/±15 s/seek from Control Center, the
+// media keys and Notched. Ctrl-C quits (and the activity should end).
+//
+// Usage: scripts/test-player [options]
+//   --title T      track title (default "Test Tone"); next/previous add " 2", " 3"…
+//   --artist A     artist (default "Notched")
+//   --album B      album (default "Test Player")
+//   --duration S   seconds (default 180)
+//   --live         a live stream: no duration, no seek bar
+//   --paused       start paused
+//   --mute         silent output (some macOS versions then drop the session)
+//   --volume V     tone volume 0…1 (default 0.03)
+
+import AppKit
+import AVFoundation
+import MediaPlayer
+
+// MARK: Options
+
+var options: [String: String] = [:]
+var flags = Set<String>()
+var arguments = CommandLine.arguments.dropFirst().makeIterator()
+while let argument = arguments.next() {
+    switch argument {
+    case "--live", "--paused", "--mute": flags.insert(argument)
+    case "--title", "--artist", "--album", "--duration", "--volume": options[argument] = arguments.next() ?? ""
+    case "-h", "--help":
+        print("Usage: scripts/test-player [--title T] [--artist A] [--album B] [--duration S] [--live] [--paused] [--mute] [--volume V]")
+        exit(0)
+    default:
+        FileHandle.standardError.write("Unknown option \(argument)\n".data(using: .utf8)!)
+        exit(2)
+    }
+}
+
+let baseTitle = options["--title"] ?? "Test Tone"
+let artist = options["--artist"] ?? "Notched"
+let album = options["--album"] ?? "Test Player"
+let isLive = flags.contains("--live")
+let duration = isLive ? nil : max(Double(options["--duration"] ?? "180") ?? 180, 5)
+let volume = flags.contains("--mute") ? 0 : Float(options["--volume"] ?? "0.03") ?? 0.03
+
+// MARK: Audio: a one-second 440 Hz tone, looped (a whole number of cycles, so it's seamless)
+
+let engine = AVAudioEngine()
+let player = AVAudioPlayerNode()
+let format = engine.mainMixerNode.outputFormat(forBus: 0)
+let frames = AVAudioFrameCount(format.sampleRate)
+let tone = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames)!
+tone.frameLength = frames
+for channel in 0..<Int(format.channelCount) {
+    let samples = tone.floatChannelData![channel]
+    for frame in 0..<Int(frames) {
+        samples[frame] = Float(sin(2 * Double.pi * 440 * Double(frame) / format.sampleRate)) * 0.5
+    }
+}
+engine.attach(player)
+engine.connect(player, to: engine.mainMixerNode, format: format)
+player.volume = volume
+do { try engine.start() } catch {
+    print("Couldn't start audio: \(error)")
+    exit(1)
+}
+player.scheduleBuffer(tone, at: nil, options: .loops)
+
+// MARK: Playback state
+
+var track = 1
+var elapsed: TimeInterval = 0
+var timestamp = Date()
+var isPlaying = false
+
+var title: String { track == 1 ? baseTitle : "\(baseTitle) \(track)" }
+
+func currentElapsed() -> TimeInterval {
+    let moved = elapsed + (isPlaying ? Date().timeIntervalSince(timestamp) : 0)
+    return duration.map { min(moved, $0) } ?? moved
+}
+
+func publish(_ event: String) {
+    var info: [String: Any] = [
+        MPMediaItemPropertyTitle: title,
+        MPMediaItemPropertyArtist: artist,
+        MPMediaItemPropertyAlbumTitle: album,
+        MPNowPlayingInfoPropertyElapsedPlaybackTime: currentElapsed(),
+        MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
+        MPNowPlayingInfoPropertyIsLiveStream: isLive,
+    ]
+    if let duration { info[MPMediaItemPropertyPlaybackDuration] = duration }
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    MPNowPlayingInfoCenter.default().playbackState = isPlaying ? .playing : .paused
+    print("\(event): \(title) — \(isPlaying ? "playing" : "paused") at \(Int(currentElapsed())) s")
+}
+
+func setPlaying(_ playing: Bool) {
+    elapsed = currentElapsed()
+    timestamp = Date()
+    isPlaying = playing
+    if playing { player.play() } else { player.pause() }
+}
+
+func seek(to time: TimeInterval) {
+    elapsed = max(0, duration.map { min(time, $0) } ?? time)
+    timestamp = Date()
+}
+
+func changeTrack(by step: Int) {
+    track = max(1, track + step)
+    seek(to: 0)
+}
+
+// MARK: Remote commands
+
+let commands = MPRemoteCommandCenter.shared()
+commands.playCommand.addTarget { _ in setPlaying(true); publish("play"); return .success }
+commands.pauseCommand.addTarget { _ in setPlaying(false); publish("pause"); return .success }
+commands.togglePlayPauseCommand.addTarget { _ in setPlaying(!isPlaying); publish("toggle"); return .success }
+commands.nextTrackCommand.addTarget { _ in changeTrack(by: 1); publish("next"); return .success }
+commands.previousTrackCommand.addTarget { _ in changeTrack(by: -1); publish("previous"); return .success }
+commands.skipForwardCommand.preferredIntervals = [15]
+commands.skipForwardCommand.addTarget { _ in seek(to: currentElapsed() + 15); publish("+15 s"); return .success }
+commands.skipBackwardCommand.preferredIntervals = [15]
+commands.skipBackwardCommand.addTarget { _ in seek(to: currentElapsed() - 15); publish("−15 s"); return .success }
+commands.changePlaybackPositionCommand.isEnabled = !isLive
+commands.changePlaybackPositionCommand.addTarget { event in
+    guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
+    seek(to: event.positionTime)
+    publish("seek")
+    return .success
+}
+
+// MARK: Run
+
+// The end of the track: stop, like a player at the end of an album.
+Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+    if let duration, isPlaying, currentElapsed() >= duration {
+        setPlaying(false)
+        publish("ended")
+    }
+}
+
+setPlaying(!flags.contains("--paused"))
+publish("start")
+print("Test player running (PID \(ProcessInfo.processInfo.processIdentifier)). Ctrl-C quits.")
+let app = NSApplication.shared
+app.setActivationPolicy(.prohibited)
+app.run()

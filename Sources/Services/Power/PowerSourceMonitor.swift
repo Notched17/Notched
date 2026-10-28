@@ -32,6 +32,11 @@ final class PowerSourceMonitor {
         changed()
     }
 
+    /// The run-loop source holds an unretained pointer to this monitor.
+    isolated deinit {
+        stop()
+    }
+
     func stop() {
         guard let source else { return }
         CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)

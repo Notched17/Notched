@@ -73,6 +73,8 @@ final class KeepAwakeModule: IslandModule {
         guard isRunning else { return }
         var failed = false
         for effect in reducer.reduce(event, now: Date()) {
+            // Refused: nothing after it (no activity flashing on) happens.
+            if failed { break }
             switch effect {
             case .acquire:
                 failed = !assertion.acquire(reason: Self.assertionReason)

@@ -41,7 +41,8 @@ struct BatteryPreferences: Equatable, Sendable {
 /// - Plugging in or out is announced after 1 s (macOS often reports "not
 ///   charging" for a moment after plugging in, and a connector that touches
 ///   briefly says nothing), and not again for the same state within 10 s.
-/// - Full is announced once, on reaching it while plugged in.
+/// - Full is announced once per plug-in, on reaching it: macOS topping the
+///   battery up while it stays plugged in says nothing.
 /// - Each low threshold fires once on the way down, and re-arms only 3 %
 ///   above it, so a level jittering at 20/21 % doesn't repeat it. A drop past
 ///   two thresholds at once fires one banner.
@@ -78,6 +79,9 @@ struct BatteryReducer: Sendable {
         /// Low thresholds already announced (or already passed at start).
         var lowFired: Set<Int> = []
         var activityPosted = false
+        /// Full has been announced since the charger was plugged in, so
+        /// macOS topping the battery up doesn't repeat it.
+        var chargedAnnounced = false
         var preferences: BatteryPreferences
     }
 
@@ -112,12 +116,15 @@ struct BatteryReducer: Sendable {
             // The first reading: what's true now isn't news.
             state.last = snapshot
             plug.seed(snapshot.power.isPluggedIn)
+            state.chargedAnnounced = snapshot.power == .charged
             state.lowFired = Set(state.preferences.lowThresholds.filter { snapshot.level <= $0 })
             return activityEffects(snapshot)
         }
         state.last = snapshot
         var effects = plugEffects(plug.receive(snapshot.power.isPluggedIn, at: now))
-        if snapshot.power == .charged, last.power != .charged, last.power.isPluggedIn {
+        if snapshot.power == .battery { state.chargedAnnounced = false }
+        if snapshot.power == .charged, last.power != .charged, last.power.isPluggedIn, !state.chargedAnnounced {
+            state.chargedAnnounced = true
             effects.append(.banner(.charged))
         }
         effects += lowBatteryEffects(snapshot)

@@ -20,6 +20,50 @@ struct BatteryReducerTests {
         return sut
     }
 
+    // MARK: Full
+
+    @Test("Full is announced once per plug-in, not on every top-off while left plugged in")
+    func chargedOncePerPlugIn() {
+        var sut = seeded(.charging, 99)
+        #expect(sut.reduce(.snapshot(snapshot(.charged, 100)), now: t0) == [.banner(.charged)])
+        // macOS tops the battery up a few times a day.
+        #expect(sut.reduce(.snapshot(snapshot(.charging, 99)), now: t0 + 3600).isEmpty)
+        #expect(sut.reduce(.snapshot(snapshot(.charged, 100)), now: t0 + 3700).isEmpty)
+        // Unplugged and plugged in again: news again.
+        _ = sut.reduce(.snapshot(snapshot(.battery, 100)), now: t0 + 7200)
+        _ = sut.reduce(.tick, now: t0 + 7201)
+        _ = sut.reduce(.snapshot(snapshot(.charging, 97)), now: t0 + 9000)
+        _ = sut.reduce(.tick, now: t0 + 9001)
+        #expect(sut.reduce(.snapshot(snapshot(.charged, 100)), now: t0 + 9500) == [.banner(.charged)])
+    }
+
+    @Test("Already full at the first reading: later top-offs are silent")
+    func alreadyFullAtStart() {
+        var sut = seeded(.charged, 100)
+        #expect(sut.reduce(.snapshot(snapshot(.charging, 99)), now: t0).isEmpty)
+        #expect(sut.reduce(.snapshot(snapshot(.charged, 100)), now: t0 + 100).isEmpty)
+    }
+
+    // MARK: IOKit's description
+
+    @Test("IOKit's battery description maps to a snapshot, including a charge limit holding it")
+    func powerSourceDescription() {
+        func read(_ values: [String: Any]) -> PowerSnapshot {
+            PowerSourceMonitor.snapshot(from: values, adapterWatts: 70)
+        }
+        let held = read(["Current Capacity": 91, "Max Capacity": 100, "Power Source State": "AC Power",
+                         "Is Charging": false, "Is Charged": false, "Time to Empty": 0, "Time to Full Charge": 0])
+        #expect(held == PowerSnapshot(level: 91, power: .notCharging, adapterWatts: 70))
+        let charging = read(["Current Capacity": 60, "Max Capacity": 100, "Power Source State": "AC Power",
+                             "Is Charging": true, "Time to Full Charge": 84])
+        #expect(charging == PowerSnapshot(level: 60, power: .charging, minutesToFull: 84, adapterWatts: 70))
+        let onBattery = read(["Current Capacity": 4200, "Max Capacity": 5000, "Power Source State": "Battery Power",
+                              "Is Charging": false, "Time to Empty": -1])
+        #expect(onBattery == PowerSnapshot(level: 84, power: .battery))
+        let full = read(["Current Capacity": 100, "Max Capacity": 100, "Power Source State": "AC Power", "Is Charged": true])
+        #expect(full.power == .charged)
+    }
+
     // MARK: Plugging in and out
 
     @Test("The first reading is silent: the charger was already there")

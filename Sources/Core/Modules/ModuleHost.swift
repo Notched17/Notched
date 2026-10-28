@@ -33,6 +33,9 @@ final class ModuleHost {
     /// In start order.
     @ObservationIgnored private var running: [(id: ModuleID, module: any IslandModule)] = []
     @ObservationIgnored private var isObserving = false
+    /// How many times the host has read the enabled set (tests check that
+    /// nothing else re-triggers it).
+    @ObservationIgnored private(set) var observationPasses = 0
     @ObservationIgnored private let stableTimer = OneShotTimer()
     @ObservationIgnored private let log = Log.modules
 
@@ -129,6 +132,7 @@ final class ModuleHost {
     // MARK: Internals
 
     private func observeEnabledModules() {
+        observationPasses += 1
         let enabled = withObservationTracking {
             settings.enabledModules
         } onChange: { [weak self] in

@@ -122,8 +122,10 @@ struct ModuleHostTests {
     func readingSettingsInStartDoesNotReconcileAgain() async {
         let (host, settings) = makeHost([ReaderHostModule.self]) { $0.enabledModules = ["reader"] }
         host.start(debuggerAttached: false)
+        let passes = host.observationPasses
         settings.hapticsEnabled.toggle()
         await settle()
+        #expect(host.observationPasses == passes)
         #expect(events == ["reader.init", "reader.start"])
     }
 
@@ -131,8 +133,10 @@ struct ModuleHostTests {
     func enabledChangeIsObserved() async {
         let (host, settings) = makeHost { $0.enabledModules = ["first"] }
         host.start(debuggerAttached: false)
+        let passes = host.observationPasses
         settings.enabledModules = ["second"]
         await settle()
+        #expect(host.observationPasses == passes + 1)
         #expect(Array(events.suffix(3)) == ["first.stop", "second.init", "second.start"])
         #expect(host.runningIDs == ["second"])
     }

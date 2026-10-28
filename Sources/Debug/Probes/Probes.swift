@@ -17,6 +17,7 @@ enum Probes {
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
         let query = { (name: String) in items.first { $0.name == name }?.value }
         switch query("name") {
+        case "sensors": SensorsProbe.setRunning(query("on") != "0")
         default: probeLog.error("Unknown probe \(query("name") ?? "-", privacy: .public)")
         }
     }

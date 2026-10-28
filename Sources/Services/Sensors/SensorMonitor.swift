@@ -57,6 +57,9 @@ final class SensorMonitor: @unchecked Sendable {
     private var cache = AttributionCache()
     private var published: SensorSnapshot?
     private var loggedFailures: Set<String> = []
+    #if DEBUG
+    private var debugSink: (@Sendable (String) -> Void)?
+    #endif
 
     /// - Parameter onChange: called on the main queue, in order, only when the snapshot changes.
     init(onChange: @escaping @Sendable (SensorSnapshot) -> Void) {
@@ -82,6 +85,40 @@ final class SensorMonitor: @unchecked Sendable {
             if self.isRunning, self.published?.micInUse == true { self.scheduleRescan() }
         }
     }
+
+    #if DEBUG
+    /// Spike S1: gets a full report of what the system says after every look.
+    func setDebugSink(_ sink: (@Sendable (String) -> Void)?) {
+        queue.async {
+            self.debugSink = sink
+            if sink != nil { self.scheduleRescan() }
+        }
+    }
+
+    /// Everything the system reports, before any filtering or attribution.
+    private func debugReport() -> String {
+        var lines: [String] = []
+        for device in Self.audioInputDeviceIDs() ?? [] {
+            let name = Self.audioString(device, kAudioObjectPropertyName) ?? "?"
+            lines.append("input device \"\(name)\" id=\(device) running=\(Self.audioDeviceIsRunning(device))")
+        }
+        for device in Self.videoDeviceIDs() ?? [] {
+            lines.append("camera id=\(device) running=\(Self.videoDeviceIsRunning(device))")
+        }
+        for object in Self.audioIDs(AudioObjectID(kAudioObjectSystemObject), kAudioHardwarePropertyProcessObjectList) ?? [] {
+            let input = Self.audioValue(object, kAudioProcessPropertyIsRunningInput, as: UInt32.self) ?? 9
+            let output = Self.audioValue(object, kAudioProcessPropertyIsRunningOutput, as: UInt32.self) ?? 9
+            guard input != 0 || output != 0 else { continue }
+            let pid = Self.audioValue(object, kAudioProcessPropertyPID, as: Int32.self) ?? -1
+            let bundle = Self.audioString(object, kAudioProcessPropertyBundleID) ?? "-"
+            let path = Self.executablePath(of: pid) ?? "-"
+            let responsible = ResponsibleProcess.pid(responsibleFor: pid)
+            let responsiblePath = responsible.flatMap { Self.executablePath(of: $0) } ?? "-"
+            lines.append("process pid=\(pid) input=\(input) output=\(output) bundle=\(bundle) path=\(path) responsible=\(responsible.map(String.init) ?? "-") \(responsiblePath)")
+        }
+        return lines.isEmpty ? "(nothing running)" : lines.joined(separator: "\n")
+    }
+    #endif
 
     /// Waits for everything queued so far (tests, and a clean quit).
     func flush() {
@@ -158,6 +195,9 @@ final class SensorMonitor: @unchecked Sendable {
             removeProcessListeners()
         }
         publish(snapshot)
+        #if DEBUG
+        debugSink?(debugReport())
+        #endif
     }
 
     private func publish(_ snapshot: SensorSnapshot) {

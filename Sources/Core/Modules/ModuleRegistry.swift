@@ -12,11 +12,13 @@ final class ModuleRegistry {
     @ObservationIgnored let host: ModuleHost
     @ObservationIgnored private let moduleTypes: [any IslandModule.Type]
     @ObservationIgnored private let settings: SettingsStore
+    @ObservationIgnored private let permissions: PermissionCenter?
 
     init(moduleTypes: [any IslandModule.Type], coordinator: ActivityCoordinator, settings: SettingsStore,
          scheduler: RefreshScheduler = RefreshScheduler(), services: ModuleServices = ModuleServices()) {
         self.moduleTypes = moduleTypes
         self.settings = settings
+        permissions = services.permissions
         host = ModuleHost(moduleTypes: moduleTypes, coordinator: coordinator, settings: settings,
                           scheduler: scheduler, services: services)
     }
@@ -33,7 +35,7 @@ final class ModuleRegistry {
 
     /// The module's settings pane (Settings ▸ Modules), if it has one.
     func settingsPane(for id: ModuleID) -> AnyView? {
-        moduleTypes.first { $0.descriptor.id == id }?.settingsPane(ModuleSettingsContext(settings: settings, registry: self))
+        moduleTypes.first { $0.descriptor.id == id }?.settingsPane(ModuleSettingsContext(settings: settings, registry: self, permissions: permissions))
     }
 
     func hasSettingsPane(_ id: ModuleID) -> Bool { settingsPane(for: id) != nil }

@@ -18,6 +18,7 @@ import AppKit
 /// &visualizer=animated|still|off, page?id=media, settings?module=media, quit,
 /// module?id=<module>&on=0|1, crash-at-start?on=0|1 (Hello crashes while starting),
 /// sensors?camera=1&apps=Zoom,Voice%20Memos&unnamed=1&callapps=us.zoom.xos&claims=Zoom|0 (a simulated camera and microphone reading),
+/// downloads?scan=a.zip:400000:0.4,b.dmg:1200000&finish=a.zip (a simulated look at Downloads),
 /// battery?power=battery|charging|notCharging|charged&level=N (a simulated reading)&show=0|80|100,
 /// keepawake?preset=30m|1h|2h|on|off, page?activity=<activity id> (e.g. keepawake, timers.stopwatch),
 /// page?panel=timers|keepawake (Home with that quick action open), network?name=0|1.
@@ -94,6 +95,7 @@ enum DebugCommands {
         case "network":
             if let name = query(url, "name") { environment.settings.network.showWiFiName = name == "1" }
         case "probe": Probes.handle(url)
+        case "downloads": downloads(url, environment)
         case "sensors": sensors(url, environment)
         case "keepawake":
             guard let module = environment.modules.module(KeepAwakeModule.descriptor.id) as? KeepAwakeModule else { return }
@@ -146,6 +148,21 @@ enum DebugCommands {
         case "default": module.debugLifecycle = nil
         default: break
         }
+    }
+
+    private static func downloads(_ url: URL, _ environment: AppEnvironment) {
+        guard let module = environment.modules.module(DownloadsModule.descriptor.id) as? DownloadsModule else { return }
+        // scan=a.zip:400000:0.4,b.dmg:1200000 are in-progress downloads (name:bytes[:fraction]);
+        // finish=a.zip adds a finished file by that name; an empty scan=  ends them all.
+        let entries = (query(url, "scan") ?? "").split(separator: ",").compactMap { item -> DownloadsScan.Entry? in
+            let parts = item.split(separator: ":").map(String.init)
+            guard parts.count >= 2, let bytes = Int64(parts[1]), let partial = DownloadNaming.partial(parts[0] + ".crdownload") else { return nil }
+            return DownloadsScan.Entry(key: partial.finalName, name: partial.displayName, partialName: parts[0] + ".crdownload", bytes: bytes,
+                                       fraction: parts.count > 2 ? Double(parts[2]) : nil, isUnconfirmed: false)
+        }
+        var finals: [String: DownloadsScan.Final] = [:]
+        if let name = query(url, "finish") { finals[name] = DownloadsScan.Final(size: 1_000, modified: Date()) }
+        module.simulate(DownloadsScan(entries: entries, finals: finals))
     }
 
     private static func sensors(_ url: URL, _ environment: AppEnvironment) {

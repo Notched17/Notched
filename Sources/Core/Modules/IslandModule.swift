@@ -36,6 +36,8 @@ struct ModuleSettingsContext {
     let settings: SettingsStore
     /// To reach the running module, e.g. to show its live status.
     let registry: ModuleRegistry
+    /// To show a permission's status. Nil only in tests.
+    var permissions: PermissionCenter?
 }
 
 /// What a module may use. Its activity sink is scoped to its own id; any

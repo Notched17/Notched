@@ -227,6 +227,34 @@ struct ModuleShellTests {
         services.sensors.release()
     }
 
+    @Test("Downloads removes its stream and activity when it stops, however often it is switched, and does nothing without the permission")
+    func downloadsNeverLeak() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("NotchedShellDownloads-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let (context, coordinator) = context(DownloadsModule.descriptor.id)
+        for _ in 0..<5 {
+            let module = DownloadsModule(context: context, directory: dir.path, requiresPermission: false)
+            module.start()
+            module.watcher?.flush()
+            #expect(module.isRunning)
+            #expect(module.watcher?.streamCount == 1)
+            module.stop()
+            module.watcher?.flush()
+            #expect(!module.isRunning)
+            #expect(module.watcher?.streamCount == 0)
+            #expect(coordinator.live.isEmpty)
+        }
+        // Without the permission (the real default) nothing is watched.
+        let center = PermissionCenter(scheduler: RefreshScheduler(), defaults: UserDefaults(suiteName: "DownloadsShell.\(UUID().uuidString)")!)
+        let guarded = ModuleServices(permissions: center)
+        let (guardedContext, _) = self.context(DownloadsModule.descriptor.id, services: guarded)
+        let module = DownloadsModule(context: guardedContext, directory: dir.path, requiresPermission: true)
+        module.start()
+        #expect(module.watcher == nil, "watched the folder without the permission")
+        module.stop()
+    }
+
     @Test("Caps Lock's event monitors are removed when it stops")
     func capsLockStops() {
         let (context, _) = context(CapsLockModule.descriptor.id)

@@ -139,6 +139,7 @@ final class SettingsStore {
 
     /// The Now Playing module's settings.
     let media: MediaSettings
+    let battery: BatterySettings
 
     var enabledModules: Set<ModuleID> {
         didSet { defaults.set(enabledModules.map(\.rawValue).sorted(), forKey: Key.enabledModules) }
@@ -168,6 +169,7 @@ final class SettingsStore {
         isPaused = defaults.object(forKey: Key.isPaused) as? Bool ?? false
         keepShowingForMedia = defaults.object(forKey: Key.keepShowingForMedia) as? Bool ?? true
         media = MediaSettings(defaults: defaults)
+        battery = BatterySettings(defaults: defaults)
         expandOnHover = defaults.object(forKey: Key.expandOnHover) as? Bool ?? true
         hapticsEnabled = defaults.object(forKey: Key.hapticsEnabled) as? Bool ?? true
         notchTheme = defaults.string(forKey: Key.notchTheme).flatMap(IslandTheme.init(rawValue:)) ?? .notchBlack

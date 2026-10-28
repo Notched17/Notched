@@ -17,6 +17,7 @@ import AppKit
 /// media?on=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly&lyrics=0|1&ticker=0|1
 /// &visualizer=animated|still|off, page?id=media, settings?module=media, quit,
 /// module?id=<module>&on=0|1, crash-at-start?on=0|1 (Hello crashes while starting),
+/// battery?power=battery|charging|notCharging|charged&level=N (a simulated reading),
 /// page?activity=<activity id>,
 /// page?panel=timers|keepawake (Home with that quick action open).
 @MainActor
@@ -83,6 +84,8 @@ enum DebugCommands {
         case "crash-at-start":
             UserDefaults.standard.set(on, forKey: HelloModule.crashAtStartKey)
             if on { environment.settings.enabledModules.insert(HelloModule.descriptor.id) }
+        case "battery":
+            battery(url, environment)
         case "setting":
             if let mode = query(url, "multiple").flatMap(CompactLayout.Mode.init(rawValue:)) { environment.settings.multipleActivities = mode }
             if let click = query(url, "click").flatMap(ClickBehavior.init(rawValue:)) { environment.settings.clickBehavior = click }
@@ -126,6 +129,18 @@ enum DebugCommands {
         case "default": module.debugLifecycle = nil
         default: break
         }
+    }
+
+    private static func battery(_ url: URL, _ environment: AppEnvironment) {
+        guard let module = environment.modules.module(BatteryModule.descriptor.id) as? BatteryModule else { return }
+        let power: PowerSnapshot.Power = switch query(url, "power") {
+        case "charging": .charging
+        case "notCharging": .notCharging
+        case "charged": .charged
+        default: .battery
+        }
+        let level = query(url, "level").flatMap(Int.init) ?? 50
+        module.simulate(PowerSnapshot(level: level, power: power, minutesToFull: power == .charging ? 84 : nil, adapterWatts: 70))
     }
 
     private static func query(_ url: URL, _ name: String) -> String? {

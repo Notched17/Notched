@@ -24,6 +24,8 @@ final class ScriptingNowPlayingProvider: NowPlayingProvider {
     private var refreshes: [ScriptablePlayer: Task<Void, Never>] = [:]
     private var artworkTrack: [ScriptablePlayer: TrackKey] = [:]
     private var isRunning = false
+    /// One ephemeral session for Spotify artwork: no cookies, no disk cache.
+    private static let artworkSession = URLSession(configuration: .ephemeral)
 
     init(runner: AppleScriptRunner) {
         self.runner = runner
@@ -147,8 +149,7 @@ final class ScriptingNowPlayingProvider: NowPlayingProvider {
         case .spotify:
             // Spotify only gives a URL on its own image CDN.
             guard let url = url.flatMap(URL.init(string:)), url.scheme == "https" else { return }
-            let session = URLSession(configuration: .ephemeral)
-            data = try? await session.data(from: url).0
+            data = try? await Self.artworkSession.data(from: url).0
         }
         guard isRunning, let data, var snapshot = states[player], snapshot.trackKey == track else { return }
         snapshot.artwork = data

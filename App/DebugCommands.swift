@@ -15,7 +15,7 @@ import AppKit
 /// page?id=home|music|timer|call|agent|download (expand to that page),
 /// setting?multiple=bubbles|sideBySide&click=open|expand&alerts=0|1&keyline=0|1, close-windows,
 /// media?on=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly&lyrics=0|1&ticker=0|1
-/// &visualizer=animated|still|off, page?id=media, settings?module=media.
+/// &visualizer=animated|still|off, page?id=media, settings?module=media, quit.
 @MainActor
 enum DebugCommands {
     static func handle(_ url: URL, environment: AppEnvironment, windows: WindowCoordinator) {
@@ -56,6 +56,7 @@ enum DebugCommands {
             if let hello = DebugMenu.hello(environment), hello.isLiveSessionRunning != on { hello.toggleLiveSession() }
         case "lab": lab(url, environment.scenarioLab)
         case "media": media(url, environment)
+        case "quit": NSApp.terminate(nil)  // like the status menu's Quit (runs applicationWillTerminate)
         case "close-windows":
             // Closes Settings and onboarding without finishing onboarding (for clean measurements).
             for window in NSApp.windows where window.isVisible && window.styleMask.contains(.titled) { window.close() }

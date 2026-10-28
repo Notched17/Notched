@@ -44,6 +44,7 @@ final class NowPlayingService {
     @ObservationIgnored private var crossCheck: Task<Void, Never>?
     @ObservationIgnored private var lastCrossCheck: Date?
     @ObservationIgnored private var isRunning = false
+    @ObservationIgnored private let observers = NotificationTokens()
 
     init(preference: BackendPreference, ignoredApps: Set<String>) {
         self.preference = preference
@@ -58,11 +59,16 @@ final class NowPlayingService {
         }.map(\.bundleID))
         watcher.onEvent = { [weak self] player, info in self?.playerChanged(player, info) }
         watcher.start()
+        // Coming back from System Settings: the user may have allowed a player.
+        observers.observe(NSApplication.didBecomeActiveNotification) { [weak self] in
+            Task { await self?.recheckAutomation() }
+        }
         reselect()
     }
 
     func stop() {
         isRunning = false
+        observers.invalidate()
         watcher.stop()
         crossCheck?.cancel()
         adapter?.stop()
@@ -194,6 +200,20 @@ final class NowPlayingService {
         provider.onAutomationDenied = { [weak self] player in self?.automationDenied(player) }
         scriptingProvider = provider
         provider.start()
+    }
+
+    /// Asks macOS again, without prompting, about players marked as denied,
+    /// so allowing one in System Settings takes effect without a restart.
+    func recheckAutomation() async {
+        var allowed: [String] = []
+        for bundleID in scripting.deniedApps {
+            guard let player = ScriptablePlayer(rawValue: bundleID), ScriptingNowPlayingProvider.isRunning(player) else { continue }
+            let status = await runner.automationStatus(bundleID: bundleID, askIfNeeded: false)
+            if status == .granted || status == .notDetermined { allowed.append(bundleID) }
+        }
+        guard isRunning, !allowed.isEmpty else { return }
+        scripting.deniedApps.subtract(allowed)
+        reselect()
     }
 
     private func automationDenied(_ player: ScriptablePlayer) {

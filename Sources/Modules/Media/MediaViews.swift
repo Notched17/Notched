@@ -147,15 +147,19 @@ struct MediaControlsRow: View {
             .frame(width: Self.accessoryWidth, height: 30)
             Spacer(minLength: 0)
             HStack(spacing: Spacing.m) {
-                if skips {
-                    MediaControlButton(symbol: "gobackward.15", label: "Back 15 Seconds", size: 17) { model.actions.send(.skipBackward15) }
+                if skips, let snapshot = model.snapshot {
+                    MediaControlButton(symbol: "gobackward.15", label: "Back 15 Seconds", size: 17) {
+                        model.actions.send(Self.skipCommand(forward: false, snapshot: snapshot, at: .now))
+                    }
                 }
                 MediaControlButton(symbol: "backward.fill", label: "Previous", size: 18) { model.actions.send(.previous) }
                 MediaControlButton(symbol: model.isPlaying ? "pause.fill" : "play.fill", label: model.isPlaying ? "Pause" : "Play",
                                    size: 24) { model.actions.send(.togglePlayPause) }
                 MediaControlButton(symbol: "forward.fill", label: "Next", size: 18) { model.actions.send(.next) }
-                if skips {
-                    MediaControlButton(symbol: "goforward.15", label: "Forward 15 Seconds", size: 17) { model.actions.send(.skipForward15) }
+                if skips, let snapshot = model.snapshot {
+                    MediaControlButton(symbol: "goforward.15", label: "Forward 15 Seconds", size: 17) {
+                        model.actions.send(Self.skipCommand(forward: true, snapshot: snapshot, at: .now))
+                    }
                 }
             }
             Spacer(minLength: 0)
@@ -174,8 +178,16 @@ struct MediaControlsRow: View {
 
     /// ±15 s when the source says it supports it, or for long content
     /// (podcast episodes, audiobooks, long videos).
-    static func showsSkip(_ snapshot: NowPlayingSnapshot) -> Bool {
+    nonisolated static func showsSkip(_ snapshot: NowPlayingSnapshot) -> Bool {
         snapshot.supportsSkip15 || (snapshot.timeline.duration ?? 0) >= 20 * 60
+    }
+
+    /// The source's own ±15 s when it has one; otherwise a seek, which works
+    /// wherever the scrubber does (YouTube ignores the skip commands).
+    nonisolated static func skipCommand(forward: Bool, snapshot: NowPlayingSnapshot, at date: Date) -> MediaCommand {
+        if snapshot.supportsSkip15 { return forward ? .skipForward15 : .skipBackward15 }
+        let target = snapshot.timeline.elapsed(at: date) + (forward ? 15 : -15)
+        return .seek(min(max(target, 0), snapshot.timeline.duration ?? .infinity))
     }
 }
 

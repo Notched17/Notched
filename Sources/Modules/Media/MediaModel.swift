@@ -28,7 +28,10 @@ final class MediaModel {
     @ObservationIgnored var actions = MediaActions()
     /// The Mac's audio outputs, for the output button (#16). Set while the module runs.
     @ObservationIgnored var outputs: AudioOutputService?
+    /// Called when decoded artwork (and its tint) arrives, after the snapshot it belongs to.
+    @ObservationIgnored var onArtworkChange: () -> Void = {}
     @ObservationIgnored private var artworkData: Data?
+    @ObservationIgnored private var artworkTask: Task<Void, Never>?
 
     var isPlaying: Bool { snapshot?.isPlaying ?? false }
     var trackKey: TrackKey? { snapshot?.trackKey }
@@ -37,12 +40,13 @@ final class MediaModel {
         if snapshot.sourceBundleID != self.snapshot?.sourceBundleID { loadSource(snapshot.sourceBundleID) }
         if snapshot.artwork != artworkData {
             artworkData = snapshot.artwork
-            applyArtwork(snapshot.artwork)
+            decodeArtwork(snapshot.artwork)
         }
         if snapshot != self.snapshot { self.snapshot = snapshot }
     }
 
     func clear() {
+        artworkTask?.cancel()
         snapshot = nil
         artworkData = nil
         artwork = nil
@@ -53,17 +57,34 @@ final class MediaModel {
         lyrics = nil
     }
 
-    private func applyArtwork(_ data: Data?) {
-        guard let data, let image = Self.thumbnail(data) else {
-            artwork = nil
-            tintRGB = .white
-            tint = .white
+    /// Music sends 1 MB+ originals, so they're cut down and measured off the
+    /// main thread (CLAUDE.md: no main-thread work over 16 ms during animations).
+    private func decodeArtwork(_ data: Data?) {
+        artworkTask?.cancel()
+        guard let data else {
+            // Synchronous, inside the module's own update: no callback needed.
+            apply(nil, notify: false)
             return
         }
-        artwork = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
-        let rgb = ArtworkColor.accent(of: image)
+        artworkTask = Task { [weak self] in
+            let decoded = await Self.decode(data)
+            guard !Task.isCancelled, let self else { return }
+            self.apply(decoded, notify: true)
+        }
+    }
+
+    private func apply(_ decoded: DecodedArtwork?, notify: Bool) {
+        let rgb = decoded?.tint ?? .white
+        artwork = decoded.map { NSImage(cgImage: $0.image, size: NSSize(width: $0.image.width, height: $0.image.height)) }
         tintRGB = rgb
-        tint = Color(.sRGB, red: rgb.r, green: rgb.g, blue: rgb.b)
+        tint = decoded == nil ? .white : Color(.sRGB, red: rgb.r, green: rgb.g, blue: rgb.b)
+        if notify { onArtworkChange() }
+    }
+
+    @concurrent
+    private nonisolated static func decode(_ data: Data) async -> DecodedArtwork? {
+        guard let image = thumbnail(data) else { return nil }
+        return DecodedArtwork(image: image, tint: ArtworkColor.accent(of: image))
     }
 
     private func loadSource(_ bundleID: String) {
@@ -78,7 +99,7 @@ final class MediaModel {
 
     /// Big artwork (Music sends originals of 1 MB+) is cut down to what the
     /// island draws, to keep memory low.
-    private static func thumbnail(_ data: Data) -> CGImage? {
+    private nonisolated static func thumbnail(_ data: Data) -> CGImage? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
@@ -87,6 +108,12 @@ final class MediaModel {
         ]
         return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
+}
+
+/// Artwork cut down for the island, with its accent. A `CGImage` is immutable.
+private struct DecodedArtwork: @unchecked Sendable {
+    let image: CGImage
+    let tint: ArtworkColor.RGB
 }
 
 /// What the media controls do; set by the module.

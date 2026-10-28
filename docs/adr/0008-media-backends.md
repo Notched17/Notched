@@ -34,4 +34,5 @@ Checked on macOS 27.2 (26B118) on 28 Oct 2026:
 - The Apple Events prompt appears only when the fallback actually runs, or when the user first taps the heart for a Music track.
 - Two players at once: the island follows the elected one, like Control Center.
 - If Apple blocks the Perl route, Automatic mode degrades to Music and Spotify with a clear status, instead of silently showing nothing.
+- **Network use in the fallback:** Spotify's AppleScript gives only an `artwork url` on its own image CDN (`i.scdn.co`), so the scripting backend downloads the cover from there, with an ephemeral session and nothing else sent. It happens only while the fallback runs and Spotify is the player. Apart from lyrics (ADR-0009), this is the only network request Now Playing makes; the adapter path makes none.
 - The perl helper is part of the performance budget (measured in M2's verification).

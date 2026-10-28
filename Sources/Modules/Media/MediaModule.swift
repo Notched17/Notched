@@ -27,9 +27,7 @@ final class MediaModule: IslandModule {
     private let endTimer = OneShotTimer()
     private let observers = NotificationTokens()
     private var isRunning = false
-    private var isPosted = false
-    private var pausedSince: Date?
-    private var lastTrack: TrackKey?
+    private var reducer = MediaActivityReducer()
     private var frontmostBundleID: String?
     private var likeTask: Task<Void, Never>?
     /// Exists only while lyrics are on, so nothing can look lyrics up otherwise (ADR-0009).
@@ -64,6 +62,8 @@ final class MediaModule: IslandModule {
             self?.frontmostChanged()
         }
         model.outputs = outputs
+        // Artwork decodes off the main thread; repost so the keyline and blur-in follow it.
+        model.onArtworkChange = { [weak self] in self?.refresh(force: true) }
         outputs.start()
         observeSettings()
         observeService()
@@ -81,9 +81,7 @@ final class MediaModule: IslandModule {
         model.outputs = nil
         model.clear()
         context.activities.endAll()
-        isPosted = false
-        pausedSince = nil
-        lastTrack = nil
+        reducer = MediaActivityReducer()
     }
 
     // MARK: Observation
@@ -126,7 +124,7 @@ final class MediaModule: IslandModule {
         let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         guard frontmost != frontmostBundleID else { return }
         frontmostBundleID = frontmost
-        if isPosted { refresh(force: true) }
+        if reducer.state.isPosted { refresh(force: true) }
     }
 
     // MARK: Activity
@@ -138,40 +136,29 @@ final class MediaModule: IslandModule {
         return settings.lifecycle
     }
 
-    /// Brings the activity in line with what's playing.
+    /// Brings the activity in line with what's playing (rules in `MediaActivityReducer`).
     private func refresh(force: Bool = false) {
         guard isRunning else { return }
-        let now = Date()
-        guard let snapshot = service.snapshot else {
-            end(keepingTrack: false)
-            return
+        let snapshot = service.snapshot
+        switch reducer.reduce(snapshot, now: Date(), lifecycle: lifecycle) {
+        case .none:
+            clearActivity()
+        case .end:
+            clearActivity()
+            context.activities.end(Self.activityID)
+        case .post(let trackChanged, let isNewSession):
+            guard let snapshot else { return }
+            if isNewSession {
+                trackDidChange(snapshot)
+                loadLyrics(for: snapshot)
+            }
+            let changed = snapshot != model.snapshot
+            model.update(snapshot)
+            endTimer.schedule(at: lifecycle.endDate(pausedSince: reducer.state.pausedSince))
+            guard changed || force || isNewSession else { return }
+            let alert = trackChanged && snapshot.isPlaying && settings.expandOnTrackChange ? AlertRequest() : nil
+            post(snapshot, alert: alert)
         }
-        let isNewTrack = snapshot.trackKey != lastTrack
-        if snapshot.isPlaying {
-            pausedSince = nil
-        } else if pausedSince == nil || isNewTrack {
-            pausedSince = now
-        }
-        let phase = lifecycle.phase(hasTrack: true, isPlaying: snapshot.isPlaying, pausedSince: pausedSince, now: now)
-        guard phase != .ended else {
-            // Paused too long: off the island until it plays again or the
-            // track changes. The pause time is kept, so it doesn't come back.
-            lastTrack = snapshot.trackKey
-            end(keepingTrack: true)
-            return
-        }
-        let trackChanged = lastTrack != nil && isNewTrack
-        if isNewTrack || !isPosted {
-            trackDidChange(snapshot)
-            loadLyrics(for: snapshot)
-        }
-        lastTrack = snapshot.trackKey
-        let changed = snapshot != model.snapshot
-        model.update(snapshot)
-        endTimer.schedule(at: lifecycle.endDate(pausedSince: pausedSince))
-        guard changed || force || !isPosted else { return }
-        let alert = trackChanged && snapshot.isPlaying && settings.expandOnTrackChange ? AlertRequest() : nil
-        post(snapshot, alert: alert)
     }
 
     private func post(_ snapshot: NowPlayingSnapshot, alert: AlertRequest?) {
@@ -182,7 +169,7 @@ final class MediaModule: IslandModule {
             moduleID: Self.descriptor.id,
             kind: .media,
             title: snapshot.title,
-            staleDate: lifecycle.staleDate(pausedSince: pausedSince),
+            staleDate: lifecycle.staleDate(pausedSince: reducer.state.pausedSince),
             keylineTint: model.artwork == nil ? nil : model.tint,
             accessibilityLabel: "\(snapshot.title)\(artist), \(state)",
             openAction: { [weak self] in self?.openSource() },
@@ -191,19 +178,14 @@ final class MediaModule: IslandModule {
             presentation: MediaPresentation.make(model: model)
         )
         context.activities.post(activity, alert: alert)
-        isPosted = true
     }
 
-    private func end(keepingTrack: Bool) {
+    /// Nothing on the island: no end timer, no per-track data.
+    private func clearActivity() {
         endTimer.schedule(at: nil)
-        if !keepingTrack {
-            pausedSince = nil
-            lastTrack = nil
-        }
-        model.clear()
-        guard isPosted else { return }
-        context.activities.end(Self.activityID)
-        isPosted = false
+        likeTask?.cancel()
+        lyricsTask?.cancel()
+        if model.snapshot != nil { model.clear() }
     }
 
     /// Liking works for Apple Music only (#15): Spotify's scripting can't
@@ -261,7 +243,9 @@ final class MediaModule: IslandModule {
             guard !Task.isCancelled, let self, self.model.trackKey == track else { return }
             self.model.lyrics = lyrics.flatMap { $0.lines.isEmpty ? nil : $0 }
             // The compact side may switch between the bars and the ticker.
-            if self.settings.lyricsTicker, let current = self.service.snapshot { self.post(current, alert: nil) }
+            if self.settings.lyricsTicker, self.reducer.state.isPosted, let current = self.service.snapshot {
+                self.post(current, alert: nil)
+            }
         }
     }
 

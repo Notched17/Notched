@@ -64,7 +64,7 @@ Goal: Apple-quality Now Playing in the island for any app, as a `.media` live ac
 | 16 | ✅ Output device switcher | Current output's symbol (AirPods, Beats, headphones, laptop, display, AirPlay…) at the end of the controls row, like AirPlay on iPhone; a native menu lists every output with a check. | CoreAudio device list, default output and data source, kept current by property listeners while the module runs. Symbol mapping tested. |
 | 5 | ✅ Keep showing during fullscreen media | General ▸ "Keep showing while media plays" (on): over a fullscreen app the island stays while media plays from another app. A fullscreen video of the playing app still hides it. | `LiveActivity.keepsIslandInFullscreen` + `FullscreenVisibility` (tested). |
 
-**Status:** ✅ M2 complete except Spotify likes (28 Oct 2026). Idle 0.000% CPU, playing 0.017% compact / 0.317% expanded (perl helper included, 0.000%), 21–22 MB. Screenshots in `docs/screenshots/m2/`. Still to try with Charlie at the Mac: Music, Spotify, Safari and Podcasts as real sources, the Music heart's permission prompt, AirPods unplug, sleep/wake.
+**Status:** ✅ M2 complete except Spotify likes (28 Oct 2026). Idle 0.000% CPU, playing 0.017% compact / 0.317% expanded (perl helper included, 0.000%), 21–22 MB. Screenshots in `docs/screenshots/m2/`. Still to try with Charlie at the Mac: Music, Spotify, Safari and Podcasts as real sources; the Music/Spotify **fallback's AppleScript** (state, artwork, favourite), which has only been exercised with no scriptable player running; the heart's permission prompt and a deny → re-allow; ±15 s on a long YouTube video; AirPods unplug; sleep/wake.
 
 ---
 

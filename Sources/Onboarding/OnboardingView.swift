@@ -93,7 +93,7 @@ struct OnboardingView: View {
     }
 
     private var neededPermissions: [Permission] {
-        Permission.allCases.filter { permission in chosenModules.contains { $0.permissions.contains(permission) } }
+        Permission.requestedUpFront(by: chosenModules)
     }
 
     private func move(_ delta: Int) {

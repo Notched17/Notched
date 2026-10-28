@@ -137,6 +137,8 @@ final class LyricsStore {
 /// The LRCLIB API (https://lrclib.net/docs): free, no account, no key.
 struct LRCLIBClient: LyricsFetching {
     private static let endpoint = URL(string: "https://lrclib.net/api/get")!
+    /// One ephemeral session for the app's life: no cookies, no disk cache.
+    private static let session = URLSession(configuration: .ephemeral)
 
     func fetch(_ query: LyricsQuery) async throws -> LyricsFetchResult {
         var components = URLComponents(url: Self.endpoint, resolvingAgainstBaseURL: false)!
@@ -150,8 +152,7 @@ struct LRCLIBClient: LyricsFetching {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
         // LRCLIB asks clients to identify themselves.
         request.setValue("Notched \(version) (https://github.com/charlieauchter/notched)", forHTTPHeaderField: "User-Agent")
-        let session = URLSession(configuration: .ephemeral)
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await Self.session.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         if status == 404 { return .notFound }
         guard status == 200 else { throw URLError(.badServerResponse) }

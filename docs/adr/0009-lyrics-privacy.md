@@ -20,3 +20,4 @@ Synced lyrics (#13) come from LRCLIB (`lrclib.net/api/get`), a free community da
 - The Settings footer says exactly what is sent and when.
 - `nettop` or Little Snitch shows no connection to lrclib.net unless lyrics are on and something with an artist and a duration is playing.
 - The cache can be deleted at any time; it rebuilds as songs play.
+- The only other network request in Now Playing is the Spotify cover download in the scripting fallback (ADR-0008), which goes to Spotify's own CDN.

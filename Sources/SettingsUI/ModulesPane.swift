@@ -68,9 +68,7 @@ enum ModuleToggle {
                 guard isOn else { settings.enabledModules.remove(module.id); return }
                 settings.enabledModules.insert(module.id)
                 Task {
-                    // Automation is granted per app, and macOS asks the first time
-                    // the module actually controls one, so it isn't requested here.
-                    for permission in module.permissions where permission != .automation && permissions.status(permission) != .granted {
+                    for permission in Permission.requestedUpFront(by: [module]) where permissions.status(permission) != .granted {
                         await permissions.request(permission)
                     }
                 }

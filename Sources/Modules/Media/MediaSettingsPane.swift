@@ -78,6 +78,7 @@ struct MediaSettingsPane: View {
         }
         .formStyle(.grouped)
         .navigationTitle("Now Playing")
+        .task { await module?.service.recheckAutomation() }
     }
 
     private static func minutes(_ value: Int) -> String {
@@ -121,7 +122,7 @@ private struct MediaSourceStatus: View {
             }
         }
         if let service {
-            if case .unavailable(let reason) = service.selection, reason == .automationDenied || reason == .noScriptablePlayers {
+            if case .unavailable(.automationDenied) = service.selection {
                 Button("Open Automation Settings…") {
                     if let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Automation") {
                         NSWorkspace.shared.open(url)

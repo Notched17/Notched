@@ -31,15 +31,17 @@ struct ExpandedContentView: View {
                         if pages.count > 1, model.selectedModuleTab == nil {
                             PageIndicator(count: pages.count, current: pages.firstIndex(of: model.currentPage) ?? 0)
                         }
-                        IslandTabBar(model: model, onSelect: model.onTabChanged)
+                        IslandTabBar(model: model, tabs: model.tabs, selected: model.currentTabID, onSelect: model.onTabChanged)
                     }
                 } else if pages.count > 1, model.activities.alert == nil {
                     PageIndicator(count: pages.count, current: pages.firstIndex(of: model.currentPage) ?? 0)
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
-                model.reportExpandedHeight(height, for: pageKey)
+            // The page is part of the measured value, so a page that happens
+            // to be as tall as the one before it is still measured.
+            .onGeometryChange(for: PageMeasure.self) { PageMeasure(page: pageKey, height: $0.size.height) } action: { measure in
+                model.reportExpandedHeight(measure.height, for: measure.page)
             }
         }
         .padding(.horizontal, model.contentHorizontalInset)
@@ -50,6 +52,12 @@ struct ExpandedContentView: View {
         // Inner rounded shapes nest concentrically inside the island's bottom corners.
         .containerShape(.rect(cornerRadius: model.shapeMetrics.bottom, style: .continuous))
     }
+}
+
+/// The height of one expanded page, as measured.
+private struct PageMeasure: Equatable {
+    let page: String
+    let height: CGFloat
 }
 
 /// One activity's expanded presentation.

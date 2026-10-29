@@ -12,7 +12,7 @@ import AppKit
 /// theme?notch=&pill=, onboarding?step=, launch-at-login?on=, appearance?mode=dark|light|system,
 /// lab?demo=music|call|agent|download&do=start|end|stale|hide|unhide|primary,
 /// lab?banner=charging, lab?run=full, lab?do=end-all, lab?download=0.74,
-/// page?id=home|music|call|agent|download (expand to that page),
+/// page?id=home|music|call|agent|download (expand to that page), tab?id=hello.demo|island (expand and pick a tab),
 /// setting?multiple=bubbles|sideBySide&click=open|expand&alerts=0|1&keyline=0|1, close-windows,
 /// media?on=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly&lyrics=0|1&ticker=0|1
 /// &visualizer=animated|still|off, page?id=media, settings?module=media, quit,
@@ -87,6 +87,11 @@ enum DebugCommands {
             let page: IslandViewModel.ExpandedPage = id == "media" ? .activity(MediaModule.activityID)
                 : ScenarioLab.Demo(rawValue: id).map { .activity($0.activityID) } ?? .home
             environment.islands.expandAll(to: page)
+        case "tab":
+            // tab?id=<tab id> (island shows the Island tab): expands, then picks that tab.
+            let tab = query(url, "id") ?? ExpandedTabs.islandID
+            environment.islands.expandAll(to: .home)
+            for controller in environment.islands.controllers.values { controller.model.selectTab(tab) }
         case "module":
             if let id = query(url, "id").map({ ModuleID($0) }) {
                 if on { environment.settings.enabledModules.insert(id) } else { environment.settings.enabledModules.remove(id) }

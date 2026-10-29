@@ -7,7 +7,11 @@ import SwiftUI
 /// page dots, and stays well inside the island's width: at most five
 /// segments, each 30 pt wide, plus one label.
 struct IslandTabBar: View {
-    @Bindable var model: IslandViewModel
+    let model: IslandViewModel
+    /// The module tabs and the selection, read by the parent and passed in as
+    /// values, so the bar redraws whenever the content does.
+    let tabs: [IslandTab]
+    let selected: String
     /// Called after the user picks a tab, for haptics.
     var onSelect: () -> Void = {}
     @Environment(\.islandSurfaceIsGlass) private var islandIsGlass
@@ -22,8 +26,7 @@ struct IslandTabBar: View {
     var body: some View {
         let segments = [Segment(id: ExpandedTabs.islandID, title: "Island", symbol: "circle.grid.2x2.fill",
                                 label: "Island")]
-            + model.tabs.map { Segment(id: $0.id, title: $0.title, symbol: $0.symbol, label: $0.accessibilityLabel) }
-        let selected = model.currentTabID
+            + tabs.map { Segment(id: $0.id, title: $0.title, symbol: $0.symbol, label: $0.accessibilityLabel) }
         HStack(spacing: Spacing.xxs) {
             ForEach(Array(segments.enumerated()), id: \.element.id) { index, segment in
                 SegmentButton(

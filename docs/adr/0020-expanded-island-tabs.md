@@ -21,6 +21,11 @@ The expanded island paged between activities and Home. M4a adds an "AI" view (Cl
 - **VoiceOver.** The bar is a container labelled "Tabs"; each segment is a button, with the selected trait, labelled "AI, tab 2 of 3".
 - **Reduce Motion.** Tab changes use `Motion.reduced` instead of the content spring.
 
+## Found while verifying on the Mac
+
+- **A page is measured once per page key, not once per height change.** `onGeometryChange(for: CGFloat)` only fires when the height changes, so a tab as tall as the page before it was never measured and the island stayed too short, with the bar spilling out of its bottom edge. The measured value now includes the page key (`PageMeasure`).
+- **The bar takes the tab list and selection as values from `ExpandedContentView`.** When it read them from the view model itself, it kept showing "Island" as selected after a tab was picked while the island was expanding, though the model state was right (`currentTabID` logged correctly). I didn't find why the bar's own observation missed the change; passing values from the parent, which does redraw, fixes it and is pinned only by the screenshots, not by a test.
+
 ## Consequences
 
 - `ExpandedTabsTests` and `IslandTabHostTests` pin ordering, the cap, selection fallback, key mapping, and the alert override.

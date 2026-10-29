@@ -154,14 +154,18 @@ final class MediaKeyTap: @unchecked Sendable {
         let parsed = MediaKeyEvent.parse(subtype: 8, data1: nsEvent.data1, flags: flags)
         #if DEBUG
         // For finding out which keys this Mac sends as media keys (are the brightness keys among them?).
+        // Notice level, since debug-level lines aren't kept for `log show`.
         let code = (nsEvent.data1 & 0xFFFF_0000) >> 16
-        MediaKeyTap.log.debug("System-defined key \(code, privacy: .public), ours: \(parsed != nil, privacy: .public)")
+        MediaKeyTap.log.notice("System-defined key \(code, privacy: .public), ours: \(parsed != nil, privacy: .public)")
         #endif
         guard let key = parsed else { return pass }
 
         let verdict = context.engine.handle(key)
         let took = started.duration(to: .now)
         let seconds = Double(took.components.seconds) + Double(took.components.attoseconds) / 1e18
+        #if DEBUG
+        MediaKeyTap.log.notice("Key handled in \(seconds * 1000, format: .fixed(precision: 2), privacy: .public) ms, \(verdict == .swallow ? "swallowed" : "passed", privacy: .public)")
+        #endif
         context.tap?.perform(context.engine.callbackTook(seconds))
         return verdict == .swallow ? nil : pass
     }

@@ -23,6 +23,7 @@ import AppKit
 /// keepawake?preset=30m|1h|2h|on|off, page?activity=<activity id> (e.g. keepawake, timers.stopwatch),
 /// page?panel=timers|keepawake (Home with that quick action open), network?name=0|1,
 /// hud-key?key=up|down|mute|bup|bdown&shift=1&option=1&repeats=N (posts a volume or brightness key),
+/// hud-pause?on=0|1 (Pause HUD Replacement),
 /// hud-style?name=inline|vertical|circular|minimal,
 /// hang?ms=N&key=down (blocks the main thread and posts a key meanwhile, to show the tap doesn't wait for it).
 @MainActor
@@ -101,6 +102,8 @@ enum DebugCommands {
         case "hud-key":
             DebugHUD.postKey(query(url, "key") ?? "up", shift: query(url, "shift") == "1",
                              option: query(url, "option") == "1", repeats: query(url, "repeats").flatMap(Int.init) ?? 0)
+        case "hud-pause":
+            (environment.modules.module(HUDModule.descriptor.id) as? HUDModule)?.setPaused(on)
         case "hud-style":
             if let style = query(url, "name").flatMap(HUDStyle.init(rawValue:)) { environment.settings.hud.style = style }
         case "hang": DebugHUD.hang(milliseconds: query(url, "ms").flatMap(Double.init) ?? 1000, key: query(url, "key"))

@@ -48,7 +48,18 @@ Not yet verified: revoking only Input Monitoring for Notched and checking the ta
 | Arm and disarm ×10 | file descriptors 39 → 39, threads 5 → 5 |
 | Each step of a press | set and read back within about 8 ms (log timestamps) |
 
-Screenshots: `docs/screenshots/m3b-hud/b1-notch-*.png` and `b1-pill-volume.png`.
+More checks, from the verification pass (Debug build):
+
+| Check | Result |
+|---|---|
+| A 32-event hold (down plus 30 repeats and the up) | every event swallowed; callback median 1.5 ms, p95 8.3 ms, max 9.2 ms |
+| Pause HUD Replacement partway through a hold | the tap handled 13 events, then was removed; macOS took the rest; the volume ended consistent |
+| The real module switched on and off ×10 | file descriptors 47 → 47, threads 7 → 6, 12 installs matched by 12 removals |
+| kill -9 twice while armed | the first relaunch counted (streak 1) and armed again; the second started latched with no tap, and the pane shows the reason (`b4-settings-latched.png`) |
+| Idle CPU, tap armed | 0.044% (0.02 s over 45 s), 19 MB footprint |
+| 25 s of key bursts (11 keys/s) | 13.5% CPU, peak 83 MB footprint, back to 22 MB afterwards; the harness alone is 1.0% and 22 MB. A sample shows SwiftUI attribute-graph and metadata work, with no hot spot in CoreAudio or event handling |
+
+Screenshots: `docs/screenshots/m3b-hud/b1-notch-*.png`, `b1-pill-volume.png`, `b3-*` (the styles, and the HUD over music) and `b4-settings-latched.png`.
 
 ## Decisions
 

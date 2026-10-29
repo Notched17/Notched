@@ -22,6 +22,15 @@ struct HUDKeyReducer: Sendable {
     static let verifyDelay: TimeInterval = 0.15
     static let standardStep = 1.0 / 16
     static let fineStep = 1.0 / 64
+    /// A second timeout within this long removes the tap for good.
+    static let timeoutWindow: TimeInterval = 10 * 60
+    static let timeoutsToTrip = 2
+    /// A callback slower than this is too slow to sit in the keyboard's path.
+    static let slowCallback: TimeInterval = 0.05
+    static let slowWindow: TimeInterval = 60
+    static let slowCallbacksToTrip = 3
+    /// Failures in a row before a kind of key is left to macOS.
+    static let failuresToPass = 3
 
     enum Event: Equatable, Sendable {
         case keyDown(MediaKeyEvent), keyUp(MediaKeyEvent.Key)
@@ -55,6 +64,13 @@ struct HUDKeyReducer: Sendable {
     private var visible = false
     private var trusted = false
     private var brightnessArmed = false
+    /// The tap has been taken away. Final for this reducer: a new tap gets a new one.
+    private var removed = false
+    private var timeouts: [Date] = []
+    private var slowCallbacks: [Date] = []
+    private var failureStreak: [HUDKind: Int] = [:]
+    /// Kinds of key left to macOS until their output changes.
+    private var passThrough: Set<HUDKind> = []
 
     /// Counts presses (a down and its repeats), for counting unconfirmed ones.
     private var press = 0
@@ -81,6 +97,7 @@ struct HUDKeyReducer: Sendable {
             visible = value
         case .trust(let value):
             trusted = value
+            if !value, armed, !removed { return remove(.permissionRevoked, latch: false) }
         case .brightnessArmed(let value):
             brightnessArmed = value
         case .targetChanged(let kind):
@@ -88,14 +105,46 @@ struct HUDKeyReducer: Sendable {
             pendingPress[kind] = nil
             skipping[kind] = nil
             unconfirmedPresses[kind] = nil
+            failureStreak[kind] = nil
+            passThrough.remove(kind)
         case .verifyDue:
             return [HUDKind.volume, .brightness].compactMap { pending[$0] }.map { .reapply($0) }
         case .verified(let target, let reached):
             verified(target, reached: reached)
-        case .tapDisabled, .callbackTook:
-            break
+        case .tapDisabled(let byTimeout, let isTrusted):
+            return tapDisabled(byTimeout: byTimeout, trusted: isTrusted, now: now)
+        case .callbackTook(let seconds):
+            return callbackTook(seconds, now: now)
         }
         return []
+    }
+
+    // MARK: Health
+
+    /// macOS switched the tap off. Back on unless the permission is gone or
+    /// the HUD isn't armed; a second timeout inside ten minutes ends it.
+    private mutating func tapDisabled(byTimeout: Bool, trusted isTrusted: Bool, now: Date) -> [Effect] {
+        guard armed, !removed else { return [] }
+        guard isTrusted else {
+            trusted = false
+            return remove(.permissionRevoked, latch: false)
+        }
+        guard byTimeout else { return [.reEnableTap] }
+        timeouts.removeAll { now.timeIntervalSince($0) > Self.timeoutWindow }
+        timeouts.append(now)
+        return timeouts.count >= Self.timeoutsToTrip ? remove(.timeouts, latch: true) : [.reEnableTap]
+    }
+
+    private mutating func callbackTook(_ seconds: TimeInterval, now: Date) -> [Effect] {
+        guard armed, !removed, seconds > Self.slowCallback else { return [] }
+        slowCallbacks.removeAll { now.timeIntervalSince($0) > Self.slowWindow }
+        slowCallbacks.append(now)
+        return slowCallbacks.count >= Self.slowCallbacksToTrip ? remove(.slowCallbacks, latch: true) : []
+    }
+
+    private mutating func remove(_ reason: HUDStopReason, latch: Bool) -> [Effect] {
+        removed = true
+        return latch ? [.removeTap(reason), .latch(reason)] : [.removeTap(reason)]
     }
 
     // MARK: Keys
@@ -112,7 +161,7 @@ struct HUDKeyReducer: Sendable {
             press += 1
             swallowedAll[key] = true
         }
-        guard let step = step(for: event) else {
+        guard let step = step(for: event), !passThrough.contains(Self.kind(of: step)) else {
             swallowedAll[key] = false
             return [.pass]
         }
@@ -123,7 +172,7 @@ struct HUDKeyReducer: Sendable {
 
     /// What the press asks for, or nil when it isn't ours to handle.
     private func step(for event: MediaKeyEvent) -> HUDStep? {
-        guard armed, trusted, visible else { return nil }
+        guard armed, trusted, visible, !removed else { return nil }
         let modifiers = event.modifiers
         // Control and Command aren't ours; Option alone opens Sound or Displays settings.
         if !modifiers.isDisjoint(with: [.control, .command]) { return nil }
@@ -152,13 +201,22 @@ struct HUDKeyReducer: Sendable {
         inFlight = nil
         switch outcome {
         case .changed(let reading), .atLimit(let reading):
+            failureStreak[reading.kind] = 0
             pending[reading.kind] = nil
             return [.swallow, .show(reading, modifiers: event.modifiers)]
         case .unconfirmed(let reading, let target):
+            failureStreak[reading.kind] = 0
             pending[reading.kind] = target
             pendingPress[reading.kind] = press
             return [.swallow, .show(reading, modifiers: event.modifiers), .wake(now.addingTimeInterval(Self.verifyDelay))]
-        case .notSettable, .failed, .skipped:
+        case .failed(let kind):
+            // CoreAudio or DisplayServices errors: after a few in a row, leave this kind to macOS.
+            let streak = failureStreak[kind, default: 0] + 1
+            failureStreak[kind] = streak
+            if streak >= Self.failuresToPass { passThrough.insert(kind) }
+            swallowedAll[event.key] = false
+            return [.pass]
+        case .notSettable, .skipped:
             swallowedAll[event.key] = false
             return [.pass]
         }

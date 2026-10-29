@@ -151,7 +151,13 @@ final class MediaKeyTap: @unchecked Sendable {
         let flags = event.flags.rawValue
             | UInt64(nsEvent.modifierFlags.rawValue)
             | CGEventSource.flagsState(.combinedSessionState).rawValue
-        guard let key = MediaKeyEvent.parse(subtype: 8, data1: nsEvent.data1, flags: flags) else { return pass }
+        let parsed = MediaKeyEvent.parse(subtype: 8, data1: nsEvent.data1, flags: flags)
+        #if DEBUG
+        // For finding out which keys this Mac sends as media keys (are the brightness keys among them?).
+        let code = (nsEvent.data1 & 0xFFFF_0000) >> 16
+        MediaKeyTap.log.debug("System-defined key \(code, privacy: .public), ours: \(parsed != nil, privacy: .public)")
+        #endif
+        guard let key = parsed else { return pass }
 
         let verdict = context.engine.handle(key)
         let took = started.duration(to: .now)

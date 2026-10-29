@@ -239,7 +239,7 @@ final class HUDModule: IslandModule {
     private func show(_ reading: HUDReading, modifiers: MediaKeyEvent.Modifiers) {
         showSerial += 1
         let device = reading.kind == .volume ? context.services.audioOutputs.current : nil
-        context.activities.show(HUDBanner.make(reading: reading, device: device, serial: showSerial))
+        context.activities.show(HUDBanner.make(reading: reading, device: device, serial: showSerial, style: settings.style))
         // A mute press keeps the level and flips the mute; macOS doesn't click for it, or at a limit.
         let previous = lastReading[reading.kind]
         let isMuteToggle = previous.map { $0.level == reading.level && $0.isMuted != reading.isMuted } ?? false

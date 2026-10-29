@@ -30,6 +30,7 @@ final class HUDSettings {
         static let armedSession = "hud.armedSession"
         static let uncleanStreak = "hud.uncleanStreak"
         static let latch = "hud.latch"
+        static let style = "hud.style"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -41,6 +42,7 @@ final class HUDSettings {
     var armedSession: Bool { didSet { defaults.set(armedSession, forKey: Key.armedSession) } }
     /// Sessions in a row that ended while armed (`HUDLatchRule`).
     var uncleanStreak: Int { didSet { defaults.set(uncleanStreak, forKey: Key.uncleanStreak) } }
+    var style: HUDStyle { didSet { defaults.set(style.rawValue, forKey: Key.style) } }
     /// Set when the HUD turned itself off; no tap is installed while it is.
     var latch: HUDLatch? {
         didSet {
@@ -57,6 +59,7 @@ final class HUDSettings {
         isPaused = defaults.bool(forKey: Key.isPaused)
         armedSession = defaults.bool(forKey: Key.armedSession)
         uncleanStreak = defaults.integer(forKey: Key.uncleanStreak)
+        style = defaults.string(forKey: Key.style).flatMap(HUDStyle.init(rawValue:)) ?? .inline
         latch = defaults.data(forKey: Key.latch).flatMap { try? JSONDecoder().decode(HUDLatch.self, from: $0) }
     }
 }

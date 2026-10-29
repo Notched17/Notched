@@ -5,7 +5,7 @@ import SwiftUI
 /// Settings ▸ Modules ▸ Volume & Brightness: whether the HUD is running, the
 /// off switch, and the one permission it needs.
 struct HUDSettingsPane: View {
-    let settings: HUDSettings
+    @Bindable var settings: HUDSettings
     let registry: ModuleRegistry
     let permissions: PermissionCenter?
 
@@ -29,6 +29,22 @@ struct HUDSettingsPane: View {
                 Text("Volume")
             } footer: {
                 Text("While it's paused or turned off, the volume keys work as they always did and macOS shows its own HUD. The same switch is in the Notched menu in the menu bar.")
+            }
+
+            Section {
+                Picker("Style", selection: $settings.style) {
+                    ForEach(HUDStyle.allCases) { style in Text(style.title).tag(style) }
+                }
+                HStack {
+                    Spacer()
+                    HUDStylePreview(style: settings.style)
+                    Spacer()
+                }
+                .listRowSeparator(.hidden)
+            } header: {
+                Text("Look")
+            } footer: {
+                Text("Every style appears in the island next to the notch, then the island goes back to what it was showing.")
             }
 
             Section {

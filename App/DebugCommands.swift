@@ -22,7 +22,6 @@ import AppKit
 /// battery?power=battery|charging|notCharging|charged&level=N (a simulated reading)&show=0|80|100,
 /// keepawake?preset=30m|1h|2h|on|off, page?activity=<activity id> (e.g. keepawake, timers.stopwatch),
 /// page?panel=timers|keepawake (Home with that quick action open), network?name=0|1,
-/// hud-arm?on=0|1&seconds=20 (arms the media-key tap by hand; it disarms itself),
 /// hud-key?key=up|down|mute|bup|bdown&shift=1&option=1&repeats=N (posts a volume or brightness key),
 /// hang?ms=N&key=down (blocks the main thread and posts a key meanwhile, to show the tap doesn't wait for it).
 @MainActor
@@ -98,7 +97,6 @@ enum DebugCommands {
         case "network":
             if let name = query(url, "name") { environment.settings.network.showWiFiName = name == "1" }
         case "probe": Probes.handle(url)
-        case "hud-arm": DebugHUD.arm(on, seconds: query(url, "seconds").flatMap(Double.init) ?? 20)
         case "hud-key":
             DebugHUD.postKey(query(url, "key") ?? "up", shift: query(url, "shift") == "1",
                              option: query(url, "option") == "1", repeats: query(url, "repeats").flatMap(Int.init) ?? 0)

@@ -151,6 +151,7 @@ final class SettingsStore {
     let timers: TimersSettings
     let sensors: SensorsSettings
     let calls: CallsSettings
+    let hud: HUDSettings
 
     var enabledModules: Set<ModuleID> {
         didSet { defaults.set(enabledModules.map(\.rawValue).sorted(), forKey: Key.enabledModules) }
@@ -186,6 +187,7 @@ final class SettingsStore {
         timers = TimersSettings(defaults: defaults)
         sensors = SensorsSettings(defaults: defaults)
         calls = CallsSettings(defaults: defaults)
+        hud = HUDSettings(defaults: defaults)
         expandOnHover = defaults.object(forKey: Key.expandOnHover) as? Bool ?? true
         hapticsEnabled = defaults.object(forKey: Key.hapticsEnabled) as? Bool ?? true
         notchTheme = defaults.string(forKey: Key.notchTheme).flatMap(IslandTheme.init(rawValue:)) ?? .notchBlack

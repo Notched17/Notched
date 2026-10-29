@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// M3b Part B, Task 7: arms the media-key tap by hand so it can be exercised
-// before the HUD module exists. Replaced by `HUDModule` in Task 9, and the
-// `hud-arm` command goes with it. DEBUG only.
+// DEBUG-only helpers for exercising the HUD without pressing keys: post a
+// volume or brightness key the way the keyboard does, and block the main
+// thread to show the tap decides without it.
 
 #if DEBUG
 import AppKit
@@ -10,45 +10,6 @@ import CoreGraphics
 
 @MainActor
 enum DebugHUD {
-    private static var tap: MediaKeyTap?
-    private static var engine: HUDKeyEngine?
-    private static var autoDisarm: Task<Void, Never>?
-
-    /// Arms the tap for `seconds` (a hand-armed tap always disarms itself), so
-    /// a forgotten one can never sit in the keyboard's path.
-    static func arm(_ on: Bool, seconds: Double) {
-        autoDisarm?.cancel()
-        autoDisarm = nil
-        if let engine, let tap {
-            engine.send(.armed(false))
-            tap.setEnabled(false)
-            tap.remove()
-            Self.tap = nil
-            Self.engine = nil
-            probeLog.notice("hud: disarmed")
-        }
-        guard on else { return }
-        let engine = HUDKeyEngine(volume: CoreAudioVolumeControl(), brightness: nil) { effects in
-            for effect in effects { probeLog.notice("hud: effect \(String(describing: effect), privacy: .public)") }
-        }
-        let tap = MediaKeyTap(engine: engine)
-        guard tap.install() else {
-            probeLog.notice("hud: couldn't install the tap")
-            return
-        }
-        Self.engine = engine
-        Self.tap = tap
-        engine.send(.armed(true))
-        engine.send(.visible(true))
-        engine.send(.trust(true))
-        probeLog.notice("hud: armed for \(seconds, privacy: .public) s")
-        autoDisarm = Task {
-            try? await Task.sleep(for: .seconds(seconds))
-            guard !Task.isCancelled else { return }
-            arm(false, seconds: 0)
-        }
-    }
-
     /// Posts a volume or brightness key as the keyboard would: a system-defined
     /// event at the HID tap, a down, `repeats` auto-repeats, then an up.
     static func postKey(_ name: String, shift: Bool, option: Bool, repeats: Int) {

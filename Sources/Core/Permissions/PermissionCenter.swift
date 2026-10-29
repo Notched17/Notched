@@ -47,10 +47,15 @@ final class PermissionCenter {
     @ObservationIgnored private let observers = NotificationTokens()
     @ObservationIgnored private var bluetoothRequester: BluetoothRequester?
     @ObservationIgnored private var locationManager: CLLocationManager?
+    @ObservationIgnored private let defaults: UserDefaults
 
-    init(scheduler: RefreshScheduler) {
+    init(scheduler: RefreshScheduler, defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         refresh()
-        observers.observe(NSApplication.didBecomeActiveNotification) { [weak self] in self?.refresh() }
+        observers.observe(NSApplication.didBecomeActiveNotification) { [weak self] in
+            self?.refresh()
+            self?.recheckDownloadsFolder()
+        }
         scheduler.register("permissions", every: .seconds(2), when: .whileUIVisible(Self.liveUpdatesKey)) { [weak self] in
             self?.refresh()
         }
@@ -62,7 +67,7 @@ final class PermissionCenter {
 
     func refresh() {
         var next: [Permission: PermissionStatus] = [:]
-        for permission in Permission.allCases { next[permission] = Self.probe(permission) }
+        for permission in Permission.allCases { next[permission] = Self.probe(permission, defaults: defaults) }
         if next != statuses { statuses = next }
     }
 
@@ -97,8 +102,27 @@ final class PermissionCenter {
             }
         case .automation:
             openSystemSettings(for: permission)
+        case .downloadsFolder:
+            if alreadyDenied { openSystemSettings(for: permission) } else { await readDownloadsFolder() }
         }
         refresh()
+    }
+
+    /// Reads ~/Downloads off the main thread, which is what shows the
+    /// system prompt, and records the answer (see `DownloadsAccess`).
+    private func readDownloadsFolder() async {
+        if let result = await Task.detached(operation: { DownloadsAccess.read() }).value {
+            DownloadsAccess.record(result, defaults: defaults)
+        }
+        refresh()
+    }
+
+    /// The answer can change in System Settings, so once Notched has asked it
+    /// reads again when the app is activated. A read that already has an
+    /// answer doesn't prompt, and it runs off the main thread regardless.
+    private func recheckDownloadsFolder() {
+        guard status(.downloadsFolder) != .notDetermined else { return }
+        Task { await readDownloadsFolder() }
     }
 
     func openSystemSettings(for permission: Permission) {
@@ -108,7 +132,7 @@ final class PermissionCenter {
 
     // MARK: Probes (read status without prompting)
 
-    private static func probe(_ permission: Permission) -> PermissionStatus {
+    private static func probe(_ permission: Permission, defaults: UserDefaults) -> PermissionStatus {
         switch permission {
         case .accessibility:
             return AXIsProcessTrusted() ? .granted : .off
@@ -136,6 +160,9 @@ final class PermissionCenter {
             case .notDetermined: return .notDetermined
             @unknown default: return .notDetermined
             }
+        case .downloadsFolder:
+            // Never reads the folder: that could block on a system prompt.
+            return DownloadsAccess.status(defaults: defaults)
         }
     }
 
@@ -168,6 +195,7 @@ extension Permission {
         case .reminders: "Privacy_Reminders"
         case .bluetooth: "Privacy_Bluetooth"
         case .location: "Privacy_LocationServices"
+        case .downloadsFolder: "Privacy_FilesAndFolders"
         }
     }
 }

@@ -6,11 +6,19 @@ struct ModuleServices {
     /// The audio output list. Now Playing's switcher and Bluetooth's connect
     /// banners share one set of CoreAudio listeners (`acquire`/`release`).
     let audioOutputs: AudioOutputService
+    /// Whether the camera and microphone are in use, and by which app. Camera
+    /// & Microphone and Calls share one set of listeners.
+    let sensors: SensorUsageService
     /// Permission status and requests. Nil only in tests.
     let permissions: PermissionCenter?
+    /// Whether the island can show a HUD right now. Nil only in tests.
+    let presence: IslandPresence?
 
-    init(audioOutputs: AudioOutputService = AudioOutputService(), permissions: PermissionCenter? = nil) {
+    init(audioOutputs: AudioOutputService = AudioOutputService(), sensors: SensorUsageService = SensorUsageService(),
+         permissions: PermissionCenter? = nil, presence: IslandPresence? = nil) {
+        self.presence = presence
         self.audioOutputs = audioOutputs
+        self.sensors = sensors
         self.permissions = permissions
     }
 }

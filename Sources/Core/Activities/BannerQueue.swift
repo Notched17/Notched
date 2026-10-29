@@ -9,6 +9,9 @@ enum BannerPriority: Int, Comparable, Sendable {
     case normal
     /// Low battery: waits longer and goes first.
     case high
+    /// A volume or brightness HUD: the user just pressed a key, so it shows at
+    /// once, over whatever banner is up (`ActivityCoordinator.show`).
+    case hud
 
     static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
 }

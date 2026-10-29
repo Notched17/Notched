@@ -34,15 +34,18 @@ extension TransientBanner {
     /// A banner in the standard look. `id` is the banner's category
     /// ("network", "battery.power"), so a newer one replaces a waiting one.
     static func standard(id: String, moduleID: ModuleID, content: BannerContent, priority: BannerPriority = .normal,
-                         accessibilityLabel: String) -> TransientBanner {
+                         duration: Duration? = nil, accessibilityLabel: String,
+                         openAction: (@MainActor () -> Void)? = nil) -> TransientBanner {
         let hasTrailing = content.value != nil || content.accessory != nil
         return TransientBanner(
             id: id,
             moduleID: moduleID,
             leading: IslandRegion { BannerLeading(content: content) },
             trailing: hasTrailing ? IslandRegion { BannerTrailing(content: content) } : nil,
+            duration: duration,
             priority: priority,
-            accessibilityLabel: accessibilityLabel
+            accessibilityLabel: accessibilityLabel,
+            openAction: openAction
         )
     }
 }

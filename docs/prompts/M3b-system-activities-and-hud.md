@@ -3,7 +3,11 @@ We're continuing Notched. M1, M1.5, M2 and M3a are done ✅ (confirm in `docs/RO
 **Two parts with a hard checkpoint.** Part A = system activities. Part B = HUD. When Part A is verified and committed, STOP and tell me, so I can end the session and start a fresh one for Part B (the plan, the roadmap and `CLAUDE.md` carry the context). If I say "continue", carry on.
 
 ## Model guide (for me, not for you)
-Plan mode: Opus high. Build steps: Sonnet. Part B Step B0 (event-tap safety design) and the Screen recording / Focus research spikes: Opus xhigh. Everything else Sonnet or Haiku (via `build-runner`).
+- Plan mode (Step 0, Part B plan): Opus, high effort.
+- Part A build steps (A1 to A6): Sonnet, medium effort. Use high for any Swift 6 concurrency error or private-API wrapper.
+- Screen recording (A3) and Focus (A5) research spikes: Opus, xhigh effort.
+- Part B Step B0 (event-tap safety design): Opus, xhigh effort. Part B build steps (B1 to B3): Sonnet, high effort, because a tap bug can break the keyboard.
+- Builds, tests and searches: Haiku via `build-runner` and `Explore`.
 
 ## Read first
 1. `CLAUDE.md` (binding): especially the safety rules for event taps, private APIs and permissions, and Token economy (use `Explore` and `build-runner`).

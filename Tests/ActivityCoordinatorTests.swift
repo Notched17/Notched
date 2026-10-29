@@ -267,6 +267,100 @@ struct ActivityCoordinatorTests {
         #expect(sut.hidden.isEmpty)
     }
 
+    @Test("An activity that stops being hideable comes back from hidden (a mic indicator hidden, then the camera turns on)")
+    func becomingNonHideableUnhides() {
+        let sut = makeCoordinator()
+        sut.post(activity("sensors", kind: .live, hideable: true))
+        sut.hide("sensors")
+        #expect(ids(sut.hidden) == ["sensors"])
+        sut.post(activity("sensors", kind: .live, hideable: false))
+        #expect(sut.hidden.isEmpty)
+        #expect(sut.primary?.id == "sensors")
+        sut.hide("sensors")
+        #expect(sut.hidden.isEmpty)
+    }
+
+    @Test("A non-hideable activity is never only listed: it takes a visible slot ahead of better-ranked hideable ones")
+    func nonHideableNeverListedOnly() {
+        let sut = makeCoordinator()
+        sut.post(activity("call1", kind: .system, hideable: false))
+        sut.post(activity("music", kind: .media))
+        sut.post(activity("timer", kind: .live, relevance: 50))
+        sut.post(activity("camera", kind: .live, relevance: 1, hideable: false))
+        #expect(Set(ids([sut.primary].compactMap { $0 } + sut.minimal)) == ["call1", "music", "camera"])
+        #expect(ids(sut.listedOnly) == ["timer"])
+        // The shown ones keep rank order.
+        #expect(ids([sut.primary].compactMap { $0 } + sut.minimal) == ["call1", "music", "camera"])
+        #expect(ids(sut.visible) == ["call1", "music", "timer", "camera"])
+    }
+
+    @Test("With four non-hideable activities the best three show and the last is listed")
+    func moreNonHideableThanSlots() {
+        let sut = makeCoordinator()
+        for id in ["a", "b", "c", "d"] { sut.post(activity(ActivityID(id), kind: .system, hideable: false)) }
+        #expect(ids([sut.primary].compactMap { $0 } + sut.minimal) == ["a", "b", "c"])
+        #expect(ids(sut.listedOnly) == ["d"])
+    }
+
+    @Test("Hideable activities fill only the slots non-hideable ones leave")
+    func hideableFillRemainingSlots() {
+        let sut = makeCoordinator()
+        sut.post(activity("cam", kind: .live, hideable: false))
+        sut.post(activity("a", kind: .media))
+        sut.post(activity("b", kind: .live, relevance: 5))
+        sut.post(activity("c", kind: .passive))
+        #expect(ids([sut.primary].compactMap { $0 } + sut.minimal) == ["a", "b", "cam"])
+        #expect(ids(sut.listedOnly) == ["c"])
+    }
+
+    @Test("A swap to a hideable activity still shows it, even beside non-hideable ones")
+    func swapBesideNonHideable() {
+        let sut = makeCoordinator()
+        for id in ["x", "y", "z"] { sut.post(activity(ActivityID(id), kind: .system, hideable: false)) }
+        sut.post(activity("music", kind: .media))
+        sut.makePrimary("music")
+        #expect(sut.primary?.id == "music")
+    }
+
+    @Test("Setting an unchanged configuration doesn't refresh; a changed one does")
+    func configurationRefreshesOnlyOnChange() {
+        let sut = makeCoordinator()
+        sut.post(activity("a"))
+        let before = wakes.dates.count
+        sut.configuration = sut.configuration
+        #expect(wakes.dates.count == before)
+        var changed = sut.configuration
+        changed.alertDuration = .seconds(6)
+        sut.configuration = changed
+        #expect(wakes.dates.count == before + 1)
+    }
+
+    @Test("Dismissing a banner takes it off at once and lets a waiting one follow")
+    func dismissBannerShowsNext() {
+        let sut = makeCoordinator()
+        sut.show(banner("one"))
+        sut.show(banner("two"))
+        #expect(sut.banner?.id == "one")
+        sut.dismissBanner("two")
+        #expect(sut.banner?.id == "one")
+        sut.dismissBanner("one")
+        #expect(sut.banner?.id == "two")
+        sut.dismissBanner("two")
+        #expect(sut.banner == nil)
+    }
+
+    @Test("A banner can carry a click action, and the action runs when called")
+    func bannerOpenAction() {
+        var opened = 0
+        var withAction = banner("download")
+        withAction.openAction = { opened += 1 }
+        let sut = makeCoordinator()
+        sut.show(withAction)
+        sut.banner?.openAction?()
+        #expect(opened == 1)
+        #expect(banner("plain").openAction == nil)
+    }
+
     @Test("Hiding the primary promotes the next activity")
     func hidePrimaryPromotesNext() {
         let sut = makeCoordinator()
@@ -524,6 +618,54 @@ struct ActivityCoordinatorTests {
         #expect(sut.bounceSerial == 1)
     }
 
+    @Test("A HUD banner takes the island at once, even from a high-priority banner, and that banner returns after it")
+    func hudBannerReplacesHighBannerAndItResumes() {
+        let sut = makeCoordinator()
+        sut.show(banner("low-battery", priority: .high))
+        sut.show(banner("hud.volume", priority: .hud))
+        #expect(sut.banner?.id == "hud.volume")
+        tick(sut, 2)
+        #expect(sut.banner?.id == "low-battery")
+        tick(sut, 2)
+        #expect(sut.banner == nil)
+    }
+
+    @Test("A second HUD replaces the first at once, and the first isn't brought back")
+    func hudBannerReplacesAnotherHud() {
+        let sut = makeCoordinator()
+        sut.show(banner("hud.volume", priority: .hud))
+        sut.show(banner("hud.brightness", priority: .hud))
+        #expect(sut.banner?.id == "hud.brightness")
+        tick(sut, 2)
+        #expect(sut.banner == nil)
+    }
+
+    @Test("Pressing the key again restarts the HUD's time without another bounce")
+    func hudBannerSameIdRestartsWithoutBounce() {
+        let sut = makeCoordinator()
+        sut.show(banner("hud.volume", priority: .hud))
+        #expect(sut.bounceSerial == 1)
+        tick(sut, 1.5)
+        sut.show(banner("hud.volume", priority: .hud))
+        tick(sut, 1)
+        #expect(sut.banner?.id == "hud.volume")
+        tick(sut, 1)
+        #expect(sut.banner == nil)
+        #expect(sut.bounceSerial == 1)
+    }
+
+    @Test("A HUD never takes a minimal slot or the primary")
+    func hudBannerLeavesActivitiesAlone() {
+        let sut = makeCoordinator()
+        sut.post(activity("a"))
+        sut.post(activity("b"))
+        sut.show(banner("hud.volume", priority: .hud))
+        #expect(sut.primary?.id == "a")
+        #expect(ids(sut.minimal) == ["b"])
+        tick(sut, 2)
+        #expect(sut.primary?.id == "a")
+    }
+
     @Test("Banners during an alert wait for it, then show one after the other in order")
     func bannerWaitsForAlert() {
         let sut = makeCoordinator()
@@ -631,5 +773,60 @@ extension ActivityPresentation {
             minimal: IslandRegion { Text(label) },
             expanded: ExpandedPresentation(center: ExpandedRegion { Text(label) })
         )
+    }
+}
+
+// MARK: User priority (#8)
+
+extension ActivityCoordinatorTests {
+    private func coordinator(ranking: RankingPolicy) -> ActivityCoordinator {
+        let clock = clock
+        var configuration = ActivityCoordinator.Configuration()
+        configuration.ranking = ranking
+        return ActivityCoordinator(configuration: configuration, now: { clock.now })
+    }
+
+    private func post(_ sut: ActivityCoordinator, _ id: String, kind: ActivityKind, module: ModuleID = "test", relevance: Double = 0) {
+        sut.post(LiveActivity(id: ActivityID(id), moduleID: module, kind: kind, title: id, relevance: relevance,
+                              accessibilityLabel: id, presentation: .text(id)))
+    }
+
+    @Test("With live ranked above media, a timer beats the music")
+    func userRanksLiveAboveMedia() {
+        let sut = coordinator(ranking: RankingPolicy(order: [.live, .media, .passive], pinned: []))
+        post(sut, "music", kind: .media)
+        post(sut, "timer", kind: .live)
+        #expect(sut.primary?.id == "timer")
+    }
+
+    @Test("A pinned timer beats the music but not a call")
+    func pinnedBeatsMusicNotCall() {
+        let sut = coordinator(ranking: RankingPolicy(order: RankingPolicy.default.order, pinned: ["timers"]))
+        post(sut, "music", kind: .media, module: "media")
+        post(sut, "timer", kind: .live, module: "timers")
+        #expect(sut.primary?.id == "timer")
+        post(sut, "call", kind: .system, module: "calls")
+        #expect(sut.primary?.id == "call")
+        #expect(sut.minimal.map(\.id) == ["timer", "music"])
+    }
+
+    @Test("Changing the ranking re-ranks what is already on the island")
+    func changingRankingReranks() {
+        let sut = coordinator(ranking: .default)
+        post(sut, "music", kind: .media, module: "media")
+        post(sut, "timer", kind: .live, module: "timers")
+        #expect(sut.primary?.id == "music")
+        sut.configuration.ranking = RankingPolicy(order: RankingPolicy.default.order, pinned: ["timers"])
+        #expect(sut.primary?.id == "timer")
+    }
+
+    @Test("A swap still works under a custom order")
+    func swapUnderCustomOrder() {
+        let sut = coordinator(ranking: RankingPolicy(order: [.passive, .live, .media], pinned: []))
+        post(sut, "music", kind: .media)
+        post(sut, "status", kind: .passive)
+        #expect(sut.primary?.id == "status")
+        sut.makePrimary("music")
+        #expect(sut.primary?.id == "music")
     }
 }

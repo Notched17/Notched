@@ -7,7 +7,8 @@ import Observation
 /// the way the iPhone Dynamic Island does (ADR-0006, ISLAND-BEHAVIOR.md §1–§2).
 /// Pure and clock-injected, so every rule is unit-tested:
 ///
-/// - **Ranking:** class (system > media > live > passive, ADR-0011), then relevance,
+/// - **Ranking:** system first, then the user's pinned modules, then the user's
+///   class order (default media > live > passive, ADR-0011/0016), then relevance,
 ///   then start order, so a newcomer never steals the island from an equal.
 /// - **Primary and minimal:** the top visible activity owns both compact
 ///   sides; the next two show as minimal bubbles (trailing, then leading).
@@ -34,6 +35,8 @@ final class ActivityCoordinator {
         var alertDuration: Duration = .seconds(4)
         var bannerDuration: Duration = .seconds(2)
         var recentRetention: Duration = .seconds(15 * 60)
+        /// The user's priority: class order and pinned modules (#8).
+        var ranking = RankingPolicy.default
 
         /// At most this many activities show on the island at once.
         static let maxVisible = 3
@@ -50,7 +53,14 @@ final class ActivityCoordinator {
         let serial: Int
     }
 
-    var configuration: Configuration
+    /// Changing it re-ranks at once; setting an equal value does nothing, since
+    /// the app reassigns it on every settings change.
+    var configuration: Configuration {
+        didSet {
+            guard configuration != oldValue else { return }
+            refresh(at: now())
+        }
+    }
 
     /// Every activity that hasn't ended, best first, with the user's swap
     /// applied. Hidden activities are included.
@@ -65,6 +75,9 @@ final class ActivityCoordinator {
     private(set) var banner: TransientBanner?
     /// Quick actions modules offer on Home, grouped by module in catalogue order.
     private(set) var homeActions: [HomeAction] = []
+    /// Tabs modules add to the expanded island, in the order they were set;
+    /// `ExpandedTabs.arrange` orders and limits them.
+    private(set) var moduleTabs: [IslandTab] = []
     /// The module catalogue's order (set by `ModuleHost`), so Home's row
     /// doesn't depend on which module happened to start first.
     @ObservationIgnored var moduleOrder: [ModuleID] = []
@@ -75,7 +88,10 @@ final class ActivityCoordinator {
     var visible: [ActivityRecord] { live.filter { !$0.isHidden } }
     var hidden: [ActivityRecord] { live.filter(\.isHidden) }
     /// Visible activities that don't fit on the island; listed in the expanded view.
-    var listedOnly: [ActivityRecord] { Array(visible.dropFirst(Configuration.maxVisible)) }
+    var listedOnly: [ActivityRecord] {
+        let shown = Set(([primary].compactMap { $0 } + minimal).map(\.id))
+        return visible.filter { !shown.contains($0.id) }
+    }
 
     /// True while the pointer is on an island or the user has it expanded.
     /// Alerts and banners wait so they never interrupt the user.
@@ -142,6 +158,9 @@ final class ActivityCoordinator {
         if var record = entries[activity.id] {
             record.activity = activity
             record.revision += 1
+            // An activity that has become non-hideable (the camera turned on
+            // under a hidden mic indicator) comes back.
+            if !activity.isHideable { record.isHidden = false }
             entries[activity.id] = record
         } else {
             sequence += 1
@@ -185,6 +204,7 @@ final class ActivityCoordinator {
         }
         waitingBanners.removeAll { _, banner in banner.moduleID == module }
         if homeActions.contains(where: { $0.moduleID == module }) { setHomeActions([], from: module) }
+        if moduleTabs.contains(where: { $0.moduleID == module }) { setTabs([], from: module) }
         showWaitingAlertOrBanner(at: date)
         refresh(at: date)
     }
@@ -199,6 +219,12 @@ final class ActivityCoordinator {
             .map(\.element)
     }
 
+    /// Replaces a module's expanded-island tabs. A module that stops loses
+    /// them through `endAll(from:)`.
+    func setTabs(_ tabs: [IslandTab], from module: ModuleID) {
+        moduleTabs = moduleTabs.filter { $0.moduleID != module } + tabs.filter { $0.moduleID == module }
+    }
+
     /// Shows a transient banner, or queues it while an alert shows, the
     /// island is expanded, or an equally important banner is up.
     func show(_ newBanner: TransientBanner) {
@@ -207,12 +233,31 @@ final class ActivityCoordinator {
             // The same event again (another volume press): restart, no new bounce.
             banner = newBanner
             bannerEndsAt = date.addingTimeInterval(bannerDuration(newBanner))
+        } else if newBanner.priority == .hud, alert == nil, !isInteracting {
+            // A HUD never waits: the key was just pressed. It replaces the
+            // banner on screen, which resumes after it, unless that was
+            // another HUD (the older reading is stale).
+            if let current = banner, current.priority != .hud {
+                waitingBanners.enqueue(id: current.id, priority: current.priority, payload: current, at: date)
+            }
+            present(newBanner, at: date)
         } else if alert != nil || isInteracting || (banner.map { newBanner.priority <= $0.priority } ?? false) {
             waitingBanners.enqueue(id: newBanner.id, priority: newBanner.priority, payload: newBanner, at: date)
         } else {
             // Nothing showing, or this one matters more than the one up.
             present(newBanner, at: date)
         }
+        refresh(at: date)
+    }
+
+    /// Takes the banner off the island at once (the user clicked it) and lets
+    /// a waiting one follow.
+    func dismissBanner(_ id: String) {
+        guard banner?.id == id else { return }
+        banner = nil
+        bannerEndsAt = nil
+        let date = now()
+        showWaitingAlertOrBanner(at: date)
         refresh(at: date)
     }
 
@@ -360,13 +405,28 @@ final class ActivityCoordinator {
 
     /// Visible activities by class, relevance and start order, ignoring the swap.
     private func naturalVisibleOrder() -> [ActivityRecord] {
-        entries.values.filter { !$0.isHidden }.sorted(by: Self.ranksHigher)
+        entries.values.filter { !$0.isHidden }.sorted { ranksHigher($0, $1) }
     }
 
-    private static func ranksHigher(_ lhs: ActivityRecord, _ rhs: ActivityRecord) -> Bool {
-        if lhs.activity.kind != rhs.activity.kind { return lhs.activity.kind > rhs.activity.kind }
+    private func ranksHigher(_ lhs: ActivityRecord, _ rhs: ActivityRecord) -> Bool {
+        let left = configuration.ranking.key(kind: lhs.activity.kind, module: lhs.activity.moduleID)
+        let right = configuration.ranking.key(kind: rhs.activity.kind, module: rhs.activity.moduleID)
+        if left != right { return left < right }
         if lhs.activity.relevance != rhs.activity.relevance { return lhs.activity.relevance > rhs.activity.relevance }
         return lhs.sequence < rhs.sequence
+    }
+
+    /// The activities that get the island's visible slots, in rank order.
+    /// A non-hideable activity (a call, the camera indicator) always gets a
+    /// slot, ahead of better-ranked hideable ones, so the user never loses
+    /// sight of it; an explicit swap target also keeps its slot. Hideable
+    /// activities fill what's left in rank order.
+    private static func shownSlots(from visible: [ActivityRecord], promoted: ActivityID?) -> [ActivityRecord] {
+        let pinned = visible.filter { $0.id == promoted }
+            + visible.filter { !$0.activity.isHideable && $0.id != promoted }
+        var chosen = Set(pinned.prefix(Configuration.maxVisible).map(\.id))
+        for record in visible where chosen.count < Configuration.maxVisible { chosen.insert(record.id) }
+        return visible.filter { chosen.contains($0.id) }
     }
 
     /// Recomputes stale states and the island's arrangement, then reports the
@@ -379,14 +439,14 @@ final class ActivityCoordinator {
                 entries[id] = record
             }
         }
-        var ranked = entries.values.sorted(by: Self.ranksHigher)
+        var ranked = entries.values.sorted { ranksHigher($0, $1) }
         if let swap, let index = ranked.firstIndex(where: { $0.id == swap.promoted && !$0.isHidden }) {
             ranked.insert(ranked.remove(at: index), at: 0)
         }
         live = ranked
-        let visible = ranked.filter { !$0.isHidden }
-        primary = visible.first
-        minimal = Array(visible.dropFirst().prefix(Configuration.maxVisible - 1))
+        let shown = Self.shownSlots(from: ranked.filter { !$0.isHidden }, promoted: swap?.promoted)
+        primary = shown.first
+        minimal = Array(shown.dropFirst())
         scheduleWake(nextDeadline)
     }
 }

@@ -81,6 +81,7 @@ targets:
         NSBluetoothAlwaysUsageDescription: "Notched shows when your headphones and other Bluetooth devices connect."
         NSLocationWhenInUseUsageDescription: "Notched reads your Wi-Fi network's name when you turn that on for Network, and later your approximate location for local weather. macOS shares Wi-Fi names only with apps allowed to use Location."
         NSLocationUsageDescription: "Notched reads your Wi-Fi network's name when you turn that on for Network, and later your approximate location for local weather. macOS shares Wi-Fi names only with apps allowed to use Location."
+        NSDownloadsFolderUsageDescription: "Notched shows the progress of your downloads when you turn on Downloads."
         NSAudioCaptureUsageDescription: "Notched listens to the audio that's playing so the visualiser can move with the music."
 
   # ungive/mediaremote-adapter (BSD-3-Clause), vendored unmodified in

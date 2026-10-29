@@ -28,6 +28,14 @@ final class IslandManager {
         didSet { for controller in controllers.values { controller.behavior = behavior } }
     }
 
+    /// At least one island is on screen: not paused, and not hidden over a
+    /// fullscreen app. The HUD needs to know, since a swallowed key with no
+    /// island to show it would leave the user with no feedback.
+    private(set) var anyIslandShown = false {
+        didSet { if anyIslandShown != oldValue { onShownChange(anyIslandShown) } }
+    }
+    var onShownChange: (Bool) -> Void = { _ in }
+
     /// Pause hides every island until resumed (status menu or Settings).
     var isPaused = false {
         didSet { if isPaused != oldValue { applyVisibility() } }
@@ -221,6 +229,7 @@ final class IslandManager {
     }
 
     private func applyVisibility() {
+        var shown = false
         for (id, controller) in controllers {
             let fullscreenHere = FullscreenVisibility.shouldHide(
                 isFullscreen: fullscreen.fullscreenDisplays.contains(id),
@@ -228,7 +237,10 @@ final class IslandManager {
                 keepForMedia: keepShowingForMedia,
                 anyActivityKeepsIsland: activitiesKeepIsland
             )
-            controller.setHidden(isPaused || fullscreenHere)
+            let hidden = isPaused || fullscreenHere
+            controller.setHidden(hidden)
+            if !hidden { shown = true }
         }
+        anyIslandShown = shown
     }
 }

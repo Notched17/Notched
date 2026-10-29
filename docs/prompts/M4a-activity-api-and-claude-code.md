@@ -1,7 +1,11 @@
 We're continuing Notched. M1–M3b are done ✅ (confirm in `docs/ROADMAP.md`; if M3b isn't merged into `main`, stop and tell me). This is **M4a**: the expanded-tabs framework, the **Activity API**, and the **Claude Code** integration (#62 usage, #63 status plus approve/deny). It's the most "mine" part of the app, because it's how Claude Code shows up in the notch.
 
 ## Model guide (for me, not for you)
-Plan mode and the API/security design (Step 1): Opus high, xhigh for the security review. Implementation: Sonnet. JSONL parser tests and UI polish: Sonnet. Running builds/tests: Haiku via `build-runner`.
+- Plan mode (Step 0) and the tab-host design (Step 1): Opus, high effort.
+- Activity API security design and review (Step 2): Opus, xhigh effort. Its implementation: Sonnet, high effort.
+- Hook helper and installer (Step 3): Sonnet, high effort, because a bad settings.json merge can break Claude Code.
+- Usage parser tests and AI tab UI (Step 4): Sonnet, medium effort.
+- Builds, tests and searches: Haiku via `build-runner` and `Explore`.
 
 ## Read first
 1. `CLAUDE.md` (binding), especially security and permissions rules and Token economy.

@@ -32,6 +32,17 @@ final class HelloModule: IslandModule {
         if UserDefaults.standard.bool(forKey: Self.crashAtStartKey) {
             fatalError("Hello: simulated crash while starting (debug)")
         }
+        // Two demo tabs, to see the tab bar and a module tab's content.
+        let id = Self.descriptor.id
+        context.activities.setTabs([
+            IslandTab(id: "hello.demo", moduleID: id, title: "Demo", symbol: "sparkles", order: 0) {
+                HelloTabContent(symbol: "sparkles", text: "A module's tab")
+            },
+            IslandTab(id: "hello.usage", moduleID: id, title: "Usage", symbol: "chart.bar.fill",
+                      accessibilityLabel: "Demo usage", order: 1) {
+                HelloTabContent(symbol: "chart.bar.fill", text: "Another tab")
+            },
+        ])
     }
 
     func stop() {
@@ -86,6 +97,22 @@ final class HelloModule: IslandModule {
                 )
             )
         ))
+    }
+}
+
+/// The demo tabs' content.
+private struct HelloTabContent: View {
+    let symbol: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: Spacing.m) {
+            Image(systemName: symbol)
+                .font(.system(size: 26, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+            Text(text).font(.system(.headline, design: .rounded))
+        }
+        .frame(maxWidth: .infinity, minHeight: 56)
     }
 }
 

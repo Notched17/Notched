@@ -8,18 +8,24 @@ import AppKit
 ///
 /// Commands: expand, collapse, pill?on=, outline?on=, reduce-motion?on=,
 /// reduce-transparency?on=, increase-contrast?on= (on=default clears an override),
-/// fullscreen-fallback?on=, hello-alert, hello-session?on=, settings?pane=,
+/// settings?pane=modules&priority=1 (the Priority page), fullscreen-fallback?on=, hello-alert, hello-session?on=, settings?pane=,
 /// theme?notch=&pill=, onboarding?step=, launch-at-login?on=, appearance?mode=dark|light|system,
 /// lab?demo=music|call|agent|download&do=start|end|stale|hide|unhide|primary,
 /// lab?banner=charging, lab?run=full, lab?do=end-all, lab?download=0.74,
-/// page?id=home|music|call|agent|download (expand to that page),
+/// page?id=home|music|call|agent|download (expand to that page), tab?id=hello.demo|island (expand and pick a tab),
 /// setting?multiple=bubbles|sideBySide&click=open|expand&alerts=0|1&keyline=0|1, close-windows,
 /// media?on=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly&lyrics=0|1&ticker=0|1
 /// &visualizer=animated|still|off, page?id=media, settings?module=media, quit,
 /// module?id=<module>&on=0|1, crash-at-start?on=0|1 (Hello crashes while starting),
+/// sensors?camera=1&apps=Zoom,Voice%20Memos&unnamed=1&callapps=us.zoom.xos&claims=Zoom|0 (a simulated camera and microphone reading),
+/// downloads?scan=a.zip:400000:0.4,b.dmg:1200000&finish=a.zip (a simulated look at Downloads),
 /// battery?power=battery|charging|notCharging|charged&level=N (a simulated reading)&show=0|80|100,
 /// keepawake?preset=30m|1h|2h|on|off, page?activity=<activity id> (e.g. keepawake, timers.stopwatch),
-/// page?panel=timers|keepawake (Home with that quick action open), network?name=0|1.
+/// page?panel=timers|keepawake (Home with that quick action open), network?name=0|1,
+/// hud-key?key=up|down|mute|bup|bdown&shift=1&option=1&repeats=N (posts a volume or brightness key),
+/// hud-pause?on=0|1 (Pause HUD Replacement),
+/// hud-style?name=inline|vertical|circular|minimal,
+/// hang?ms=N&key=down (blocks the main thread and posts a key meanwhile, to show the tap doesn't wait for it).
 @MainActor
 enum DebugCommands {
     static func handle(_ url: URL, environment: AppEnvironment, windows: WindowCoordinator) {
@@ -45,7 +51,11 @@ enum DebugCommands {
             Log.app.info("Launch at login status: \(String(describing: environment.launchAtLogin.status), privacy: .public)")
         case "onboarding": windows.showOnboarding(startAt: query(url, "step").flatMap(OnboardingView.Step.init(name:)) ?? .welcome)
         case "settings":
-            windows.showSettings(query(url, "pane").flatMap(SettingsPane.init(rawValue:)), module: query(url, "module").map { ModuleID($0) })
+            if query(url, "priority") == "1" {
+                windows.showPriority()
+            } else {
+                windows.showSettings(query(url, "pane").flatMap(SettingsPane.init(rawValue:)), module: query(url, "module").map { ModuleID($0) })
+            }
         case "theme":
             if let theme = query(url, "notch").flatMap(IslandTheme.init(rawValue:)) { environment.settings.notchTheme = theme }
             if let theme = query(url, "pill").flatMap(IslandTheme.init(rawValue:)) { environment.settings.pillTheme = theme }
@@ -77,6 +87,11 @@ enum DebugCommands {
             let page: IslandViewModel.ExpandedPage = id == "media" ? .activity(MediaModule.activityID)
                 : ScenarioLab.Demo(rawValue: id).map { .activity($0.activityID) } ?? .home
             environment.islands.expandAll(to: page)
+        case "tab":
+            // tab?id=<tab id> (island shows the Island tab): expands, then picks that tab.
+            let tab = query(url, "id") ?? ExpandedTabs.islandID
+            environment.islands.expandAll(to: .home)
+            for controller in environment.islands.controllers.values { controller.model.selectTab(tab) }
         case "module":
             if let id = query(url, "id").map({ ModuleID($0) }) {
                 if on { environment.settings.enabledModules.insert(id) } else { environment.settings.enabledModules.remove(id) }
@@ -88,6 +103,17 @@ enum DebugCommands {
             battery(url, environment)
         case "network":
             if let name = query(url, "name") { environment.settings.network.showWiFiName = name == "1" }
+        case "probe": Probes.handle(url)
+        case "hud-key":
+            DebugHUD.postKey(query(url, "key") ?? "up", shift: query(url, "shift") == "1",
+                             option: query(url, "option") == "1", repeats: query(url, "repeats").flatMap(Int.init) ?? 0)
+        case "hud-pause":
+            (environment.modules.module(HUDModule.descriptor.id) as? HUDModule)?.setPaused(on)
+        case "hud-style":
+            if let style = query(url, "name").flatMap(HUDStyle.init(rawValue:)) { environment.settings.hud.style = style }
+        case "hang": DebugHUD.hang(milliseconds: query(url, "ms").flatMap(Double.init) ?? 1000, key: query(url, "key"))
+        case "downloads": downloads(url, environment)
+        case "sensors": sensors(url, environment)
         case "keepawake":
             guard let module = environment.modules.module(KeepAwakeModule.descriptor.id) as? KeepAwakeModule else { return }
             switch query(url, "preset") {
@@ -138,6 +164,45 @@ enum DebugCommands {
         case "fast": module.debugLifecycle = MediaLifecycle(staleAfter: 10, endAfter: 30)
         case "default": module.debugLifecycle = nil
         default: break
+        }
+    }
+
+    private static func downloads(_ url: URL, _ environment: AppEnvironment) {
+        guard let module = environment.modules.module(DownloadsModule.descriptor.id) as? DownloadsModule else { return }
+        // scan=a.zip:400000:0.4,b.dmg:1200000 are in-progress downloads (name:bytes[:fraction]);
+        // finish=a.zip adds a finished file by that name; an empty scan=  ends them all.
+        let entries = (query(url, "scan") ?? "").split(separator: ",").compactMap { item -> DownloadsScan.Entry? in
+            let parts = item.split(separator: ":").map(String.init)
+            guard parts.count >= 2, let bytes = Int64(parts[1]), let partial = DownloadNaming.partial(parts[0] + ".crdownload") else { return nil }
+            return DownloadsScan.Entry(key: partial.finalName, name: partial.displayName, partialName: parts[0] + ".crdownload", bytes: bytes,
+                                       fraction: parts.count > 2 ? Double(parts[2]) : nil, isUnconfirmed: false)
+        }
+        var finals: [String: DownloadsScan.Final] = [:]
+        if let name = query(url, "finish") { finals[name] = DownloadsScan.Final(size: 1_000, modified: Date()) }
+        module.simulate(DownloadsScan(entries: entries, finals: finals))
+    }
+
+    private static func sensors(_ url: URL, _ environment: AppEnvironment) {
+        let sensorsModule = environment.modules.module(SensorsModule.descriptor.id) as? SensorsModule
+        let callsModule = environment.modules.module(CallsModule.descriptor.id) as? CallsModule
+        guard sensorsModule != nil || callsModule != nil else { return }
+        // Names with a bundle id each, e.g. apps=Zoom,Voice%20Memos; unnamed=1 adds one we can't name;
+        // callapps=us.zoom.xos,com.apple.FaceTime adds real call apps.
+        var users = (query(url, "apps") ?? "").split(separator: ",").enumerated().map { index, name in
+            InputUser(pid: Int32(1000 + index), processBundleID: "debug.\(name)", appBundleID: "debug.\(name)", appName: String(name), attribution: .exact)
+        }
+        for (index, id) in (query(url, "callapps") ?? "").split(separator: ",").enumerated() {
+            users.append(InputUser(pid: Int32(3000 + index), processBundleID: String(id), appBundleID: String(id),
+                                   appName: CallApps.known[String(id)], attribution: .exact))
+        }
+        if query(url, "unnamed") == "1" {
+            users.append(InputUser(pid: 2000, processBundleID: "debug.unnamed", appBundleID: nil, appName: nil, attribution: .unknown))
+        }
+        let reading = SensorSnapshot(cameraRunning: query(url, "camera") == "1", micUsers: users)
+        // Both modules share one service, so one of them is enough to feed it.
+        if let sensorsModule { sensorsModule.simulate(reading) } else { callsModule?.simulate(reading) }
+        if let claims = query(url, "claims") {
+            sensorsModule?.simulate(claims: claims == "0" ? CallClaims() : CallClaims(identities: Set(claims.split(separator: ",").map { "debug.\($0)" }), isCallActive: true))
         }
     }
 

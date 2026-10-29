@@ -397,7 +397,7 @@ Also check:
 
 - **S2:** if recording can't be told apart from ScreenCaptureKit and sharing apps, should it say "Screen being captured", or cover ⌘⇧5 and QuickTime only?
 - **S1:** if a call app drops the mic when muted, should that app get a longer grace than 3 s? Slack voice clips will look like calls; is that acceptable?
-- **B0:** at max/min volume, should the key be swallowed and our HUD show "max", or passed to macOS?
+- **B0:** at max/min volume, should the key be swallowed and our HUD show "max", or passed to macOS? **Answered 29 Oct: swallowed, and our HUD shows full or empty** (`2026-10-29-m3b-hud-tap-safety-design.md`).
 
 ## Verification (end to end, per feature)
 

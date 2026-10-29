@@ -32,6 +32,8 @@ struct DownloadsSettingsPane: View {
         }
         .formStyle(.grouped)
         .navigationTitle("Downloads")
+        // Status is read from what the last check left behind, so look again when the pane opens.
+        .onAppear { permissions?.refresh() }
     }
 
     private var footer: String {

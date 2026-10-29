@@ -45,9 +45,9 @@ The same activity id updates in place, and keeps its position and slot. An alert
 
 ### Ranking (attached vs minimal) [decision, Apple doesn't document cross-app order]
 
-1. **Class:** `system` (call, screen recording, navigation-like) > `media` (whatever is playing) > `live` (timer, Claude Code working, keep-awake, download) > `passive` (charging). Whatever is playing keeps the attached island; the user's own timers and tools show as bubbles beside it (ADR-0011, M3a).
+1. **Class:** `system` (call, screen recording, navigation-like) > `media` (whatever is playing) > `live` (timer, Claude Code working, keep-awake, download, camera/mic indicator) > `passive` (charging). Whatever is playing keeps the attached island; the user's own timers and tools show as bubbles beside it (ADR-0011, M3a). **The user can change this** (Settings ▸ Modules ▸ Priority, ADR-0016): `system` is always first, then modules the user pinned, then their own order of media, live and passive.
 2. Within a class, higher `relevance` wins. On a tie, the activity started first wins: it's stable, and newer ones don't steal the island.
-3. The user overrides: **swap** (clicking a minimal bubble makes it primary; a two-finger horizontal swipe on the compact island cycles), and **hide** (swipe up on an activity, or a context-menu "Hide"). Hiding an activity doesn't end it; it stays listed in the expanded view's activity list and can be restored. System activities that aren't hideable ignore hide.
+3. The user overrides: **swap** (clicking a minimal bubble makes it primary; a two-finger horizontal swipe on the compact island cycles), and **hide** (swipe up on an activity, or a context-menu "Hide"). Hiding an activity doesn't end it; it stays listed in the expanded view's activity list and can be restored. System activities that aren't hideable ignore hide. **An activity that isn't hideable is never left hidden** (one that becomes non-hideable, like the camera indicator when the camera turns on, comes back) **and always takes one of the three visible slots**, ahead of better-ranked hideable ones, so it can't end up only in the list (ADR-0016).
 4. A user's swap is sticky until either activity ends or a new `system` activity arrives.
 
 ### Lifecycle
@@ -116,10 +116,10 @@ Implement a custom SwiftUI `Layout` for the expanded regions that follows Apple'
 |---|---|---|
 | Now Playing | Yes (private MediaRemote via mediaremote-adapter) | M2 |
 | Timer | Our own timers: yes, public. The Clock app's timers: private routes only (Atoll's `SystemTimerBridge`, GPL, adaptable). | Recommend adding #37 timers to M3. Clock-app mirroring is experimental and later. |
-| Calls (FaceTime, Zoom, Teams, Phone via iPhone) | "In a call" + duration via Core Audio per-process mic use + known call apps (public, heuristic). Caller name and ringing: no reliable route. | M3: "Call" system activity |
+| Calls (FaceTime, Zoom, Teams, Phone via iPhone) | "In a call" + duration via Core Audio per-process mic use + known call apps (public, heuristic). Caller name and ringing: no reliable route. No Mute/End (no public route). The call owns its mic and camera, shown as dots on it. | M3b: built, simulated-tested (ADR-0017) |
 | Screen recording | Detection yes: private SkyLight notify types 1502/1503, no permission (ADR-0014). Stop: only for `screencapture -v`; ⌘⇧5 ignores SIGINT. | Deferred |
-| Camera / mic in use | Yes (public) | M3 (#31) |
-| Downloads | Yes (heuristic `~/Downloads` watcher + progress xattr) | M3 |
+| Camera / mic in use | Yes (public); names only apps it can prove | M3b: built (#31), `.live`, not hideable while the camera is on |
+| Downloads | Yes (FSEvents on `~/Downloads`, partial-file names, progress xattr); needs Files & Folders | M3b: built (ADR-0018) |
 | Charging, AirPods connect, Caps Lock | Yes | M3a, as transient banners |
 | Focus | Only through an App Intents Focus Filter the user adds to each Focus. The DND notifications and `INFocusStatusCenter` don't work on 27.2 (ADR-0015). | Dropped from M3b |
 | Lock / unlock | Yes (distributed notifications) | Used by M6 lock-screen features |

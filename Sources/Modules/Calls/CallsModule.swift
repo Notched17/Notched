@@ -160,7 +160,7 @@ enum CallsPresentation {
             staleNote: nil,
             presentation: ActivityPresentation(
                 compactLeading: IslandRegion { CallGlyph(model: model, size: 14) },
-                compactTrailing: IslandRegion { CallDuration(startedAt: model.startedAt, font: IslandFont.compact) },
+                compactTrailing: IslandRegion { CallDuration(startedAt: model.startedAt, font: IslandFont.compact, compact: true) },
                 minimal: IslandRegion {
                     Image(systemName: "phone.fill")
                         .font(.system(size: 12, weight: .bold))
@@ -171,7 +171,7 @@ enum CallsPresentation {
                         IslandTile { Image(systemName: "phone.fill").font(.system(size: 18, weight: .semibold)).foregroundStyle(tint) }
                             .padding(.top, 6)
                     },
-                    trailing: ExpandedRegion { CallDuration(startedAt: model.startedAt, font: IslandFont.hero) },
+                    trailing: ExpandedRegion { CallDuration(startedAt: model.startedAt, font: IslandFont.hero, compact: false) },
                     bottom: ExpandedRegion {
                         VStack(alignment: .leading, spacing: Spacing.s) {
                             VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -218,13 +218,21 @@ private struct CallGlyph: View {
 }
 
 /// How long the call has lasted, or just "In a call" when it was already going.
+/// Beside the notch it's seconds for the first minute and then whole minutes,
+/// redrawn once a minute (`CallClock`); expanded it's the system's full timer.
 private struct CallDuration: View {
     let startedAt: Date?
     let font: Font
+    let compact: Bool
 
     var body: some View {
         Group {
-            if let startedAt {
+            if let startedAt, compact {
+                TimelineView(CallClockSchedule(startedAt: startedAt)) { context in
+                    Text(CallClock.compactText(elapsed: context.date.timeIntervalSince(startedAt)))
+                        .monospacedDigit()
+                }
+            } else if let startedAt {
                 Text(startedAt, style: .timer)
                     .monospacedDigit()
             } else {
@@ -247,6 +255,30 @@ private struct CallIndicator: View {
         HStack(spacing: Spacing.xs) {
             Circle().fill(tint).frame(width: 8, height: 8)
             Text(label).font(IslandFont.subtitle).foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Redraws a call's compact duration when it changes (`CallClock.nextTick`).
+private struct CallClockSchedule: TimelineSchedule {
+    let startedAt: Date
+
+    func entries(from startDate: Date, mode: TimelineScheduleMode) -> Entries {
+        Entries(startedAt: startedAt, cursor: startDate, isFirst: true)
+    }
+
+    struct Entries: Sequence, IteratorProtocol {
+        let startedAt: Date
+        var cursor: Date
+        var isFirst: Bool
+
+        mutating func next() -> Date? {
+            if isFirst {
+                isFirst = false
+                return cursor
+            }
+            cursor = CallClock.nextTick(startedAt: startedAt, after: cursor)
+            return cursor
         }
     }
 }

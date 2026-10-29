@@ -37,6 +37,7 @@ final class DownloadsModule: IslandModule {
     private(set) var isRunning = false
     /// The stream on the folder; kept (stopped) after `stop()` so tests can see it was removed.
     private(set) var watcher: DownloadsWatcher?
+    private var isWatching = false
     private let log = Log.module("downloads")
 
     convenience init(context: ModuleContext) {
@@ -68,6 +69,7 @@ final class DownloadsModule: IslandModule {
         isRunning = false
         observers.invalidate()
         deadline.schedule(at: nil)
+        isWatching = false
         watcher?.stop()
         context.activities.endAll()
     }
@@ -96,7 +98,8 @@ final class DownloadsModule: IslandModule {
     }
 
     private func startWatching() {
-        guard watcher == nil || watcher?.streamCount == 0 else { return }
+        guard !isWatching else { return }
+        isWatching = true
         let next = DownloadsWatcher(directory: directory) { [weak self] scan in
             MainActor.assumeIsolated { self?.handle(scan) }
         }
@@ -105,6 +108,9 @@ final class DownloadsModule: IslandModule {
     }
 
     private func stopWatching() {
+        // Nothing to take down if it never watched (the permission isn't allowed).
+        guard isWatching else { return }
+        isWatching = false
         watcher?.stop()
         reducer = DownloadsReducer()
         deadline.schedule(at: nil)
@@ -115,6 +121,7 @@ final class DownloadsModule: IslandModule {
 
     private func handle(_ scan: DownloadsScan) {
         guard isRunning else { return }
+        log.debug("Looked at the folder: \(scan.entries.count) in progress, \(scan.finals.count) finished")
         send(.scan(scan))
         watcher?.setWatchedNames(reducer.watchedNames)
     }

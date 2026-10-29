@@ -75,6 +75,39 @@ struct HUDKeyReducerHealthTests {
         #expect(paused.reduce(.tapDisabled(byTimeout: false, trusted: true), now: at(1)).isEmpty)
     }
 
+    // MARK: A press the tap stops seeing
+
+    /// Down swallowed, then the tap stops seeing events for a while.
+    private func pressInterrupted(by event: HUDKeyReducer.Event) -> [HUDKeyReducer.Effect] {
+        var sut = armed()
+        _ = sut.reduce(down(), now: start)
+        _ = sut.reduce(.applied(changed), now: start)
+        _ = sut.reduce(event, now: at(1))
+        return sut.reduce(.keyUp(.soundUp), now: at(1))
+    }
+
+    @Test("If macOS switched the tap off mid-press, macOS gets the key-up, so no key is left held down")
+    func keyUpPassesAfterTapDisabledMidPress() {
+        #expect(pressInterrupted(by: .tapDisabled(byTimeout: true, trusted: true)) == [.pass])
+        #expect(pressInterrupted(by: .tapDisabled(byTimeout: false, trusted: true)) == [.pass])
+    }
+
+    @Test("The same when the HUD is disarmed, hidden or loses permission mid-press")
+    func keyUpPassesAfterStateChangeMidPress() {
+        #expect(pressInterrupted(by: .armed(false)) == [.pass])
+        #expect(pressInterrupted(by: .visible(false)) == [.pass])
+        #expect(pressInterrupted(by: .trust(false)) == [.pass])
+    }
+
+    @Test("A press that begins after the tap is back is paired normally")
+    func pairingResumesAfterTapDisabled() {
+        var sut = armed()
+        _ = sut.reduce(.tapDisabled(byTimeout: true, trusted: true), now: at(0))
+        _ = sut.reduce(down(), now: at(1))
+        _ = sut.reduce(.applied(changed), now: at(1))
+        #expect(sut.reduce(.keyUp(.soundUp), now: at(1)) == [.swallow])
+    }
+
     // MARK: Permission
 
     @Test("Losing the permission removes the tap, without latching")

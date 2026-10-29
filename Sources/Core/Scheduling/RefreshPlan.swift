@@ -49,6 +49,9 @@ struct RefreshEntry: Sendable {
     let condition: RefreshCondition
     let registeredAt: Date
     var lastFired: Date?
+    /// False for a safety check (the HUD's permission watch), which must not
+    /// run any later on battery or in Low Power Mode.
+    var scalesWithPower = true
 }
 
 /// The pure scheduling rules behind `RefreshScheduler` (tested).
@@ -66,7 +69,7 @@ enum RefreshPlan {
     }
 
     static func interval(_ entry: RefreshEntry, in context: RefreshContext) -> TimeInterval {
-        entry.interval * context.power.intervalMultiplier
+        entry.interval * (entry.scalesWithPower ? context.power.intervalMultiplier : 1)
     }
 
     static func leeway(_ entry: RefreshEntry, in context: RefreshContext) -> TimeInterval {

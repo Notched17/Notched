@@ -93,10 +93,13 @@ struct HUDKeyReducer: Sendable {
             return applied(outcome, now: now)
         case .armed(let value):
             armed = value
+            if !value { releaseHeldPresses() }
         case .visible(let value):
             visible = value
+            if !value { releaseHeldPresses() }
         case .trust(let value):
             trusted = value
+            if !value { releaseHeldPresses() }
             if !value, armed, !removed { return remove(.permissionRevoked, latch: false) }
         case .brightnessArmed(let value):
             brightnessArmed = value
@@ -112,11 +115,20 @@ struct HUDKeyReducer: Sendable {
         case .verified(let target, let reached):
             verified(target, reached: reached)
         case .tapDisabled(let byTimeout, let isTrusted):
+            releaseHeldPresses()
             return tapDisabled(byTimeout: byTimeout, trusted: isTrusted, now: now)
         case .callbackTook(let seconds):
             return callbackTook(seconds, now: now)
         }
         return []
+    }
+
+    /// Events the tap doesn't see (it was switched off, or the HUD stepped
+    /// aside) reach macOS instead, so a press that was swallowed so far is no
+    /// longer wholly ours: its key-up must go to macOS too, or a key could be
+    /// left held down.
+    private mutating func releaseHeldPresses() {
+        for key in swallowedAll.keys { swallowedAll[key] = false }
     }
 
     // MARK: Health

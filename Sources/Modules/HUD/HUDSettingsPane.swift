@@ -11,6 +11,7 @@ struct HUDSettingsPane: View {
 
     private var module: HUDModule? { registry.module(HUDModule.descriptor.id) as? HUDModule }
     private var accessibility: PermissionStatus { permissions?.status(.accessibility) ?? .notDetermined }
+    private var inputMonitoring: PermissionStatus { permissions?.status(.inputMonitoring) ?? .notDetermined }
 
     var body: some View {
         Form {
@@ -61,6 +62,22 @@ struct HUDSettingsPane: View {
                 } label: {
                     Label("Accessibility", systemImage: Permission.accessibility.symbol)
                 }
+                // Only when macOS wouldn't make the key listener though Accessibility is allowed.
+                if module?.status == .listenerRefused {
+                    LabeledContent {
+                        HStack(spacing: Spacing.m) {
+                            PermissionStatusBadge(status: inputMonitoring)
+                            if inputMonitoring != .granted {
+                                Button(inputMonitoring == .denied ? "Open System Settings" : "Allow…") {
+                                    Task { await permissions?.request(.inputMonitoring) }
+                                }
+                                .controlSize(.small)
+                            }
+                        }
+                    } label: {
+                        Label("Input Monitoring", systemImage: Permission.inputMonitoring.symbol)
+                    }
+                }
             } header: {
                 Text("Access")
             } footer: {
@@ -79,6 +96,7 @@ struct HUDSettingsPane: View {
         case .paused: return "Paused: macOS shows its own HUD"
         case .latched: return "Turned off after a problem"
         case .notAllowed: return "Needs Accessibility"
+        case .listenerRefused: return "macOS wouldn't start the key listener"
         }
     }
 

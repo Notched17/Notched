@@ -121,15 +121,25 @@ struct HUDModuleTests {
         rig.module.stop()
     }
 
-    @Test("A tap the system refuses is not kept, and nothing is left armed")
+    @Test("A tap the system refuses, though Accessibility is allowed, is not kept, and says so rather than 'Needs Accessibility'")
     func refusedTapIsNotKept() {
         let rig = Rig()
         rig.bag.installResult = false
         rig.module.start()
         #expect(rig.taps.count == 1)
         #expect(!rig.module.isArmed)
-        #expect(rig.module.status == .notAllowed)
+        #expect(rig.module.status == .listenerRefused)
         #expect(rig.settings.hud.armedSession == false)
+        // The refused tap is taken down, not left half made.
+        #expect(rig.taps[0].log.last == "remove")
+        rig.module.stop()
+    }
+
+    @Test("Without Accessibility the status is still Needs Accessibility, not a refused listener")
+    func untrustedIsNotAListenerRefusal() {
+        let rig = Rig(trusted: false)
+        rig.module.start()
+        #expect(rig.module.status == .notAllowed)
         rig.module.stop()
     }
 
@@ -219,6 +229,22 @@ struct HUDModuleTests {
         await rig.settle()
         #expect(rig.taps[0].log.last == "setEnabled(true)")
         #expect(!rig.taps[0].log.contains("remove"))
+        rig.module.stop()
+    }
+
+    @Test("The permission is checked again before the tap is switched back on after a lock or wake")
+    func trustRecheckedBeforeReEnabling() async {
+        let rig = Rig()
+        rig.module.start()
+        rig.presence.isSuspended = true
+        await rig.settle()
+        #expect(rig.taps[0].log.last == "setEnabled(false)")
+        // Accessibility was removed while the screen was locked.
+        rig.bag.trusted = false
+        rig.presence.isSuspended = false
+        await rig.settle()
+        #expect(rig.taps[0].log.last == "remove")
+        #expect(rig.module.status == .notAllowed)
         rig.module.stop()
     }
 

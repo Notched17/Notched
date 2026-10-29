@@ -15,8 +15,11 @@ enum HUDStatus: Equatable, Sendable {
     /// Pause HUD Replacement is on.
     case paused
     case latched(HUDLatch)
-    /// No tap: Accessibility isn't allowed, or the system refused the tap.
+    /// No tap because Accessibility isn't allowed.
     case notAllowed
+    /// Accessibility is allowed but the system wouldn't make the tap; Input
+    /// Monitoring is the next thing to try.
+    case listenerRefused
 }
 
 /// The HUD's settings (Settings ▸ Modules ▸ Volume & Brightness), persisted

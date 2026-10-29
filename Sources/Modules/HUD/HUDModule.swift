@@ -54,6 +54,8 @@ final class HUDModule: IslandModule {
     @ObservationIgnored private var lastOutputID: UInt32?
     /// Counts what's shown, so a press at a limit can nudge the bar each time.
     @ObservationIgnored private var showSerial = 0
+    /// Accessibility is allowed but the system wouldn't make the tap.
+    @ObservationIgnored private var installRefused = false
     @ObservationIgnored private var lastReading: [HUDKind: HUDReading] = [:]
     @ObservationIgnored private let log = Log.module("hud")
 
@@ -121,6 +123,7 @@ final class HUDModule: IslandModule {
     // MARK: Arming
 
     private func arm() {
+        installRefused = false
         guard isRunning, tap == nil, !settings.isPaused, settings.latch == nil, dependencies.isTrusted() else { return }
         let weakModule = WeakModule()
         weakModule.module = self
@@ -135,6 +138,9 @@ final class HUDModule: IslandModule {
         let tap = dependencies.makeTap(engine)
         guard tap.install() else {
             log.error("The event tap couldn't be installed")
+            // Take down whatever a slow or refused install left behind.
+            tap.remove()
+            installRefused = true
             return
         }
         self.engine = engine
@@ -144,7 +150,10 @@ final class HUDModule: IslandModule {
         let outputs = context.services.audioOutputs
         outputs.acquire()
         lastOutputID = outputs.current?.id
-        trustToken = context.scheduler.register("hud.trust", every: .seconds(2)) { [weak self] in self?.checkTrust() }
+        // A safety check: every 2 s whatever the power source (design §5).
+        trustToken = context.scheduler.register("hud.trust", every: .seconds(2), scalesWithPower: false) { [weak self] in
+            self?.checkTrust()
+        }
         engine.send(.trust(true))
         engine.send(.visible(context.services.presence?.canShowHUD ?? true))
         engine.send(.armed(true))
@@ -181,7 +190,11 @@ final class HUDModule: IslandModule {
             Task { @MainActor [weak self] in self?.followPresence(generation) }
         }
         engine?.send(.visible(canShow))
-        tap?.setEnabled(!(suspended || paused))
+        let enabled = !(suspended || paused)
+        // The permission may have gone while the screen was locked, when the
+        // 2 s check isn't running: look before the tap is switched back on.
+        if enabled { checkTrust() }
+        tap?.setEnabled(enabled)
     }
 
     /// A new output device starts the pending and failure counts afresh.
@@ -282,6 +295,8 @@ final class HUDModule: IslandModule {
             status = .paused
         } else if tap != nil {
             status = .running
+        } else if installRefused {
+            status = .listenerRefused
         } else {
             status = .notAllowed
         }

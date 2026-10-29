@@ -52,6 +52,17 @@ struct RefreshPlanTests {
         #expect(RefreshPlan.nextDeadline([entry(1, every: 2)], context: context)?.date == start + 8)
     }
 
+    @Test("A safety check that opts out of power scaling keeps its interval on battery and in Low Power Mode")
+    func safetyEntryIgnoresPower() {
+        var safety = entry(1, every: 2)
+        safety.scalesWithPower = false
+        var context = awake
+        context.power = .battery
+        #expect(RefreshPlan.nextDeadline([safety], context: context)?.date == start + 2)
+        context.power = .lowPower
+        #expect(RefreshPlan.nextDeadline([safety], context: context)?.date == start + 2)
+    }
+
     @Test("Nothing runs while the screens are asleep or locked")
     func suspended() {
         var context = awake

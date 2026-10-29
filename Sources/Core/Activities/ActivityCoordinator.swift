@@ -75,6 +75,9 @@ final class ActivityCoordinator {
     private(set) var banner: TransientBanner?
     /// Quick actions modules offer on Home, grouped by module in catalogue order.
     private(set) var homeActions: [HomeAction] = []
+    /// Tabs modules add to the expanded island, in the order they were set;
+    /// `ExpandedTabs.arrange` orders and limits them.
+    private(set) var moduleTabs: [IslandTab] = []
     /// The module catalogue's order (set by `ModuleHost`), so Home's row
     /// doesn't depend on which module happened to start first.
     @ObservationIgnored var moduleOrder: [ModuleID] = []
@@ -201,6 +204,7 @@ final class ActivityCoordinator {
         }
         waitingBanners.removeAll { _, banner in banner.moduleID == module }
         if homeActions.contains(where: { $0.moduleID == module }) { setHomeActions([], from: module) }
+        if moduleTabs.contains(where: { $0.moduleID == module }) { setTabs([], from: module) }
         showWaitingAlertOrBanner(at: date)
         refresh(at: date)
     }
@@ -213,6 +217,12 @@ final class ActivityCoordinator {
         homeActions = next.enumerated()
             .sorted { (rank($0.element.moduleID), $0.offset) < (rank($1.element.moduleID), $1.offset) }
             .map(\.element)
+    }
+
+    /// Replaces a module's expanded-island tabs. A module that stops loses
+    /// them through `endAll(from:)`.
+    func setTabs(_ tabs: [IslandTab], from module: ModuleID) {
+        moduleTabs = moduleTabs.filter { $0.moduleID != module } + tabs.filter { $0.moduleID == module }
     }
 
     /// Shows a transient banner, or queues it while an alert shows, the

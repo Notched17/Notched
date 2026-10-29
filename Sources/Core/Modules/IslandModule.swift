@@ -98,6 +98,12 @@ struct ActivitySink {
         coordinator.endAll(from: moduleID)
     }
 
+    /// Replaces this module's tabs on the expanded island (`IslandTab`). Pass
+    /// an empty array to remove them; stopping the module removes them too.
+    func setTabs(_ tabs: [IslandTab]) {
+        coordinator.setTabs(tabs, from: moduleID)
+    }
+
     /// Replaces this module's quick actions on the island's Home page.
     func setHomeActions(_ actions: [HomeAction]) {
         coordinator.setHomeActions(actions, from: moduleID)

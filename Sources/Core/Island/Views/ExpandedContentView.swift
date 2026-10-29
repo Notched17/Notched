@@ -15,7 +15,9 @@ struct ExpandedContentView: View {
         ZStack(alignment: .top) {
             VStack(spacing: Spacing.s) {
                 Group {
-                    if let record = model.expandedActivity {
+                    if let tab = model.selectedModuleTab {
+                        IslandTabContent(tab: tab)
+                    } else if let record = model.expandedActivity {
                         ActivityExpandedView(record: record, housing: model.housingSize)
                     } else {
                         HomeView(model: model)
@@ -23,7 +25,15 @@ struct ExpandedContentView: View {
                 }
                 .id(pageKey)
                 .transition(AnyTransition(.blurReplace).combined(with: .opacity))
-                if pages.count > 1, model.activities.alert == nil {
+                if model.showsTabBar {
+                    // Page dots only mean something on the Island tab.
+                    HStack(spacing: Spacing.m) {
+                        if pages.count > 1, model.selectedModuleTab == nil {
+                            PageIndicator(count: pages.count, current: pages.firstIndex(of: model.currentPage) ?? 0)
+                        }
+                        IslandTabBar(model: model, onSelect: model.onTabChanged)
+                    }
+                } else if pages.count > 1, model.activities.alert == nil {
                     PageIndicator(count: pages.count, current: pages.firstIndex(of: model.currentPage) ?? 0)
                 }
             }

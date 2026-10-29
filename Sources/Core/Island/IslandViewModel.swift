@@ -30,6 +30,8 @@ final class IslandViewModel {
     @ObservationIgnored var actions = IslandActions()
     /// Called when the island's surface is clicked.
     @ObservationIgnored var onSurfaceTap: () -> Void = {}
+    /// Called after the user changes the expanded island's tab (haptics).
+    @ObservationIgnored var onTabChanged: () -> Void = {}
     #if DEBUG
     /// Draws a 1 px outline around the island to check pixel alignment.
     var debugOutline = false
@@ -196,6 +198,7 @@ final class IslandViewModel {
 
     /// The activity the expanded island shows: the alerting one, else the primary.
     var expandedActivity: ActivityRecord? {
+        if selectedModuleTab != nil { return nil }
         if let alert = activities.alert, let record = activities.live.first(where: { $0.id == alert.activityID }) {
             return record
         }
@@ -205,7 +208,64 @@ final class IslandViewModel {
         }
     }
 
-    var expandedPageKey: String { expandedActivity.map { "activity.\($0.id)" } ?? "home" }
+    var expandedPageKey: String {
+        if let tab = selectedModuleTab { return "tab.\(tab.id)" }
+        return expandedActivity.map { "activity.\($0.id)" } ?? "home"
+    }
+
+    // MARK: Tabs
+
+    /// The tab the user picked; Island unless a module tab is chosen.
+    var selectedTab: String = ExpandedTabs.islandID
+
+    /// Module tabs in display order (the Island tab isn't listed).
+    var tabs: [IslandTab] {
+        let order = ExpandedTabs.arrange(activities.moduleTabs.map(\.entry), moduleOrder: activities.moduleOrder.map(\.rawValue))
+        return order.compactMap { entry in activities.moduleTabs.first { $0.id == entry.id } }
+    }
+
+    /// The tab shown: the picked one, or Island when its module went away.
+    var currentTabID: String {
+        ExpandedTabs.resolve(selected: selectedTab, available: tabs.map(\.id))
+    }
+
+    /// The module tab on screen. Never during an alert, which always shows
+    /// its activity on the Island tab; the pick returns afterwards.
+    var selectedModuleTab: IslandTab? {
+        guard activities.alert == nil, currentTabID != ExpandedTabs.islandID else { return nil }
+        return tabs.first { $0.id == currentTabID }
+    }
+
+    /// The bar exists only when a module offers a tab, and not during an alert.
+    var showsTabBar: Bool { !tabs.isEmpty && activities.alert == nil }
+
+    @discardableResult
+    func selectTab(_ id: String) -> Bool {
+        let target = ExpandedTabs.resolve(selected: id, available: tabs.map(\.id))
+        guard target != currentTabID else { return false }
+        selectedTab = target
+        openHomeAction = nil
+        return true
+    }
+
+    @discardableResult
+    func stepTab(by offset: Int) -> Bool {
+        selectTab(ExpandedTabs.step(from: currentTabID, by: offset, available: tabs.map(\.id)))
+    }
+
+    /// Runs a key press that reached the expanded island. True when handled.
+    @discardableResult
+    func handle(_ command: ExpandedKeyCommand) -> Bool {
+        switch command {
+        case .selectTab(let position):
+            guard let id = ExpandedTabs.id(atPosition: position, available: tabs.map(\.id)) else { return false }
+            return selectTab(id)
+        case .nextTab: return stepTab(by: 1)
+        case .previousTab: return stepTab(by: -1)
+        case .pageBack: return page(by: -1)
+        case .pageForward: return page(by: 1)
+        }
+    }
 
     // MARK: Pages
 
@@ -234,6 +294,7 @@ final class IslandViewModel {
 
     /// Selects the page an island region leads to: the activity shown there, or Home.
     func selectPage(for target: IslandTarget) {
+        selectedTab = ExpandedTabs.islandID
         switch target {
         case .island:
             selectedPage = activities.banner == nil ? (activities.primary.map { .activity($0.id) } ?? .home) : .home
@@ -245,6 +306,7 @@ final class IslandViewModel {
     /// Moves to the next (or previous) page, stopping at the ends.
     @discardableResult
     func page(by offset: Int) -> Bool {
+        guard currentTabID == ExpandedTabs.islandID else { return false }
         let all = pages
         guard let index = all.firstIndex(of: currentPage) else { return false }
         let next = index + offset

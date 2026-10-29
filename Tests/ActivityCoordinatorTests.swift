@@ -618,6 +618,54 @@ struct ActivityCoordinatorTests {
         #expect(sut.bounceSerial == 1)
     }
 
+    @Test("A HUD banner takes the island at once, even from a high-priority banner, and that banner returns after it")
+    func hudBannerReplacesHighBannerAndItResumes() {
+        let sut = makeCoordinator()
+        sut.show(banner("low-battery", priority: .high))
+        sut.show(banner("hud.volume", priority: .hud))
+        #expect(sut.banner?.id == "hud.volume")
+        tick(sut, 2)
+        #expect(sut.banner?.id == "low-battery")
+        tick(sut, 2)
+        #expect(sut.banner == nil)
+    }
+
+    @Test("A second HUD replaces the first at once, and the first isn't brought back")
+    func hudBannerReplacesAnotherHud() {
+        let sut = makeCoordinator()
+        sut.show(banner("hud.volume", priority: .hud))
+        sut.show(banner("hud.brightness", priority: .hud))
+        #expect(sut.banner?.id == "hud.brightness")
+        tick(sut, 2)
+        #expect(sut.banner == nil)
+    }
+
+    @Test("Pressing the key again restarts the HUD's time without another bounce")
+    func hudBannerSameIdRestartsWithoutBounce() {
+        let sut = makeCoordinator()
+        sut.show(banner("hud.volume", priority: .hud))
+        #expect(sut.bounceSerial == 1)
+        tick(sut, 1.5)
+        sut.show(banner("hud.volume", priority: .hud))
+        tick(sut, 1)
+        #expect(sut.banner?.id == "hud.volume")
+        tick(sut, 1)
+        #expect(sut.banner == nil)
+        #expect(sut.bounceSerial == 1)
+    }
+
+    @Test("A HUD never takes a minimal slot or the primary")
+    func hudBannerLeavesActivitiesAlone() {
+        let sut = makeCoordinator()
+        sut.post(activity("a"))
+        sut.post(activity("b"))
+        sut.show(banner("hud.volume", priority: .hud))
+        #expect(sut.primary?.id == "a")
+        #expect(ids(sut.minimal) == ["b"])
+        tick(sut, 2)
+        #expect(sut.primary?.id == "a")
+    }
+
     @Test("Banners during an alert wait for it, then show one after the other in order")
     func bannerWaitsForAlert() {
         let sut = makeCoordinator()

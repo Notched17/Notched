@@ -223,6 +223,14 @@ final class ActivityCoordinator {
             // The same event again (another volume press): restart, no new bounce.
             banner = newBanner
             bannerEndsAt = date.addingTimeInterval(bannerDuration(newBanner))
+        } else if newBanner.priority == .hud, alert == nil, !isInteracting {
+            // A HUD never waits: the key was just pressed. It replaces the
+            // banner on screen, which resumes after it, unless that was
+            // another HUD (the older reading is stale).
+            if let current = banner, current.priority != .hud {
+                waitingBanners.enqueue(id: current.id, priority: current.priority, payload: current, at: date)
+            }
+            present(newBanner, at: date)
         } else if alert != nil || isInteracting || (banner.map { newBanner.priority <= $0.priority } ?? false) {
             waitingBanners.enqueue(id: newBanner.id, priority: newBanner.priority, payload: newBanner, at: date)
         } else {

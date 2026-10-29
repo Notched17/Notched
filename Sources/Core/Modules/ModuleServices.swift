@@ -11,9 +11,12 @@ struct ModuleServices {
     let sensors: SensorUsageService
     /// Permission status and requests. Nil only in tests.
     let permissions: PermissionCenter?
+    /// Whether the island can show a HUD right now. Nil only in tests.
+    let presence: IslandPresence?
 
     init(audioOutputs: AudioOutputService = AudioOutputService(), sensors: SensorUsageService = SensorUsageService(),
-         permissions: PermissionCenter? = nil) {
+         permissions: PermissionCenter? = nil, presence: IslandPresence? = nil) {
+        self.presence = presence
         self.audioOutputs = audioOutputs
         self.sensors = sensors
         self.permissions = permissions

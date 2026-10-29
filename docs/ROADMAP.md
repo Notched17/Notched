@@ -145,6 +145,8 @@ Robustness: sleep/wake wasn't tried physically (the timer and ring re-check on w
 | 21 | Brightness HUD | Same for display brightness on the built-in display. | Private DisplayServices (`DisplayServicesGetBrightness/SetBrightness`) via a `dlopen` wrapper. Experimental: hide the option if the symbols aren't found. |
 | 23 | HUD styles | Styles: inline-in-notch (default), vertical, circular, minimal. | Pure SwiftUI once #20 works. |
 
+**M3b Part B status (29 Oct 2026):** #20 volume HUD is built (branch `m3b-system`) and checked with synthetic key events; ADR-0019. 🟨 What's left is on Charlie's list: real key presses, Bluetooth outputs, revoking Accessibility while running, an external display and fullscreen. Swallowing the key at a session tap does suppress the Control Center HUD on 27.2 (no "Show alongside" needed). #21 and #23 follow.
+
 ---
 
 ## M6: Hard, fragile and polish

@@ -38,6 +38,8 @@ private final class Rig {
         var engines: [HUDKeyEngine] = []
         var installResult = true
         var trusted: Bool
+        var feedbackOn = false
+        var feedbackPlays = 0
         init(trusted: Bool) { self.trusted = trusted }
     }
 
@@ -46,6 +48,7 @@ private final class Rig {
     let coordinator = ActivityCoordinator()
     let presence = IslandPresence()
     let services: ModuleServices
+    let volume = FakeLevelControl()
     let module: HUDModule
 
     var taps: [FakeTap] { bag.taps }
@@ -63,18 +66,28 @@ private final class Rig {
             activities: ActivitySink(moduleID: HUDModule.descriptor.id, coordinator: coordinator), scheduler: RefreshScheduler(),
             settings: settings, services: services, previousSessionCrashed: previousSessionCrashed
         )
-        module = HUDModule(
-            context: context,
+        let dependencies = HUDModule.Dependencies(
             makeTap: { engine in
                 let tap = FakeTap(installResult: bag.installResult)
                 bag.taps.append(tap)
                 bag.engines.append(engine)
                 return tap
             },
-            trustCheck: { bag.trusted },
-            judgesLaunch: judgesLaunch
+            volume: volume,
+            isTrusted: { bag.trusted },
+            feedbackEnabled: { bag.feedbackOn },
+            playFeedback: { bag.feedbackPlays += 1 }
         )
+        module = HUDModule(context: context, dependencies: dependencies, judgesLaunch: judgesLaunch)
         presence.anyIslandShown = true
+    }
+
+    /// A whole press of `key` on the running module's engine; the verdict of its down.
+    @discardableResult
+    func press(_ key: MediaKeyEvent.Key, _ modifiers: MediaKeyEvent.Modifiers = []) -> TapVerdict {
+        let verdict = bag.engines[0].handle(MediaKeyEvent(key: key, phase: .down, isRepeat: false, modifiers: modifiers))
+        _ = bag.engines[0].handle(MediaKeyEvent(key: key, phase: .up, isRepeat: false, modifiers: modifiers))
+        return verdict
     }
 
     /// Lets the observation and delivery hops run.
@@ -260,6 +273,60 @@ struct HUDModuleTests {
         #expect(item?.state == .off)
         rig.module.setPaused(true)
         #expect(rig.module.menuItems().first?.state == .on)
+        rig.module.stop()
+    }
+
+    // MARK: What a press shows
+
+    @Test("A confirmed press shows the volume banner, above anything else on the island")
+    func confirmedPressShowsBanner() {
+        let rig = Rig()
+        rig.module.start()
+        #expect(rig.press(.soundUp) == .swallow)
+        #expect(rig.coordinator.banner?.id == "hud.volume")
+        #expect(rig.coordinator.banner?.priority == .hud)
+        rig.module.stop()
+    }
+
+    @Test("A key that macOS handles shows no banner of ours")
+    func passedKeyShowsNothing() {
+        let rig = Rig()
+        rig.volume.setSucceeds = false
+        rig.module.start()
+        #expect(rig.press(.soundUp) == .pass)
+        #expect(rig.coordinator.banner == nil)
+        rig.module.stop()
+    }
+
+    @Test("The feedback sound follows the system preference, and Shift flips it")
+    func feedbackSoundFollowsPreference() {
+        let rig = Rig()
+        rig.bag.feedbackOn = true
+        rig.module.start()
+        rig.press(.soundUp)
+        #expect(rig.bag.feedbackPlays == 1)
+        rig.press(.soundUp, [.shift])
+        #expect(rig.bag.feedbackPlays == 1)
+        rig.bag.feedbackOn = false
+        rig.press(.soundUp)
+        #expect(rig.bag.feedbackPlays == 1)
+        rig.press(.soundUp, [.shift])
+        #expect(rig.bag.feedbackPlays == 2)
+        rig.module.stop()
+    }
+
+    @Test("There's no sound for the mute key, or for a press at the top")
+    func noSoundForMuteOrLimit() {
+        let rig = Rig()
+        rig.bag.feedbackOn = true
+        rig.module.start()
+        rig.press(.soundUp)
+        #expect(rig.bag.feedbackPlays == 1)
+        rig.press(.mute)
+        #expect(rig.bag.feedbackPlays == 1)
+        rig.volume.levelValue = 1.0
+        rig.press(.soundUp)
+        #expect(rig.bag.feedbackPlays == 1)
         rig.module.stop()
     }
 }

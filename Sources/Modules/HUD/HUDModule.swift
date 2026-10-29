@@ -3,6 +3,7 @@
 import AppKit
 import ApplicationServices
 import Observation
+import SwiftUI
 
 /// Volume and brightness HUD (#20, #21): the island shows the change instead
 /// of the macOS HUD. A thin shell around `HUDKeyEngine`: it owns the
@@ -26,6 +27,10 @@ final class HUDModule: IslandModule {
         isDebugOnly: false
     )
 
+    static func settingsPane(_ context: ModuleSettingsContext) -> AnyView? {
+        AnyView(HUDSettingsPane(settings: context.settings.hud, registry: context.registry, permissions: context.permissions))
+    }
+
     private(set) var status: HUDStatus = .notAllowed
     var isArmed: Bool { tap != nil }
 
@@ -35,8 +40,7 @@ final class HUDModule: IslandModule {
     }
 
     @ObservationIgnored private let context: ModuleContext
-    @ObservationIgnored private let makeTap: @MainActor (HUDKeyEngine) -> any MediaKeyTapping
-    @ObservationIgnored private let trustCheck: @MainActor () -> Bool
+    @ObservationIgnored private let dependencies: Dependencies
     @ObservationIgnored private let judgesLaunch: Bool
     @ObservationIgnored private let observers = NotificationTokens()
     @ObservationIgnored private let trustTimer = OneShotTimer()
@@ -48,7 +52,19 @@ final class HUDModule: IslandModule {
     /// Stale observation chains from an earlier arming check this and stop.
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var lastOutputID: UInt32?
+    /// Counts what's shown, so a press at a limit can nudge the bar each time.
+    @ObservationIgnored private var showSerial = 0
+    @ObservationIgnored private var lastReading: [HUDKind: HUDReading] = [:]
     @ObservationIgnored private let log = Log.module("hud")
+
+    /// What the module reaches the system through, so tests can stand in fakes.
+    struct Dependencies {
+        var makeTap: @MainActor (HUDKeyEngine) -> any MediaKeyTapping = { MediaKeyTap(engine: $0) }
+        var volume: any LevelControl & MuteControl = CoreAudioVolumeControl()
+        var isTrusted: @MainActor () -> Bool = { AXIsProcessTrusted() }
+        var feedbackEnabled: @MainActor () -> Bool = { HUDFeedback.systemPreference }
+        var playFeedback: @MainActor () -> Void = { HUDFeedback.play() }
+    }
 
     /// The first module started in a process judges how the last session ended.
     private static var launchJudged = false
@@ -56,15 +72,12 @@ final class HUDModule: IslandModule {
     private var settings: HUDSettings { context.settings.hud }
 
     convenience init(context: ModuleContext) {
-        self.init(context: context, makeTap: { MediaKeyTap(engine: $0) }, trustCheck: { AXIsProcessTrusted() },
-                  judgesLaunch: !Self.launchJudged)
+        self.init(context: context, dependencies: Dependencies(), judgesLaunch: !Self.launchJudged)
     }
 
-    init(context: ModuleContext, makeTap: @escaping @MainActor (HUDKeyEngine) -> any MediaKeyTapping,
-         trustCheck: @escaping @MainActor () -> Bool, judgesLaunch: Bool) {
+    init(context: ModuleContext, dependencies: Dependencies, judgesLaunch: Bool) {
         self.context = context
-        self.makeTap = makeTap
-        self.trustCheck = trustCheck
+        self.dependencies = dependencies
         self.judgesLaunch = judgesLaunch
         Self.launchJudged = true
     }
@@ -108,10 +121,10 @@ final class HUDModule: IslandModule {
     // MARK: Arming
 
     private func arm() {
-        guard isRunning, tap == nil, !settings.isPaused, settings.latch == nil, trustCheck() else { return }
+        guard isRunning, tap == nil, !settings.isPaused, settings.latch == nil, dependencies.isTrusted() else { return }
         let weakModule = WeakModule()
         weakModule.module = self
-        let engine = HUDKeyEngine(volume: CoreAudioVolumeControl(), brightness: nil) { effects in
+        let engine = HUDKeyEngine(volume: dependencies.volume, brightness: nil) { effects in
             // On the main thread (a state change) handle it now; from the tap thread, hop over.
             if Thread.isMainThread {
                 MainActor.assumeIsolated { weakModule.module?.handle(effects) }
@@ -119,7 +132,7 @@ final class HUDModule: IslandModule {
                 Task { @MainActor in weakModule.module?.handle(effects) }
             }
         }
-        let tap = makeTap(engine)
+        let tap = dependencies.makeTap(engine)
         guard tap.install() else {
             log.error("The event tap couldn't be installed")
             return
@@ -190,7 +203,7 @@ final class HUDModule: IslandModule {
     /// when System Settings changes it): revoked removes the tap, granted arms it.
     func checkTrust() {
         guard isRunning else { return }
-        let trusted = trustCheck()
+        let trusted = dependencies.isTrusted()
         if tap != nil {
             engine?.send(.trust(trusted))
         } else if trusted {
@@ -205,9 +218,8 @@ final class HUDModule: IslandModule {
         guard isRunning else { return }
         for effect in effects {
             switch effect {
-            case .show(let reading, _):
-                // The HUD itself comes with the banner views.
-                log.debug("show \(reading.kind == .volume ? "volume" : "brightness", privacy: .public) \(reading.level, privacy: .public)")
+            case .show(let reading, let modifiers):
+                show(reading, modifiers: modifiers)
             case .wake(let date):
                 verifyTimer.schedule(at: date)
             case .removeTap(let reason):
@@ -221,6 +233,20 @@ final class HUDModule: IslandModule {
             }
         }
         refreshStatus()
+    }
+
+    /// The banner for a swallowed key, and the click a volume change makes.
+    private func show(_ reading: HUDReading, modifiers: MediaKeyEvent.Modifiers) {
+        showSerial += 1
+        let device = reading.kind == .volume ? context.services.audioOutputs.current : nil
+        context.activities.show(HUDBanner.make(reading: reading, device: device, serial: showSerial))
+        // A mute press keeps the level and flips the mute; macOS doesn't click for it, or at a limit.
+        let previous = lastReading[reading.kind]
+        let isMuteToggle = previous.map { $0.level == reading.level && $0.isMuted != reading.isMuted } ?? false
+        lastReading[reading.kind] = reading
+        guard reading.kind == .volume, !reading.atLimit, !isMuteToggle,
+              HUDFeedback.shouldPlay(preference: dependencies.feedbackEnabled(), modifiers: modifiers) else { return }
+        dependencies.playFeedback()
     }
 
     static var latchedBanner: TransientBanner {

@@ -115,6 +115,8 @@ indirect enum OrderedJSON: Equatable, Sendable {
             let digitsStart = index
             while index < scalars.count, ("0"..."9").contains(scalars[index]) { index += 1 }
             guard index > digitsStart else { throw error("Expected digits") }
+            // JSON has no leading zeros: 0 may only be followed by . e or E.
+            if scalars[digitsStart] == "0", index - digitsStart > 1 { throw error("Numbers can't have leading zeros") }
             if index < scalars.count, scalars[index] == "." {
                 index += 1
                 let fractionStart = index

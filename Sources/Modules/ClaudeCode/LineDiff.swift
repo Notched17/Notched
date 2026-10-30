@@ -33,6 +33,7 @@ enum LineDiff {
                 skipped = true
             }
         }
+        if skipped { result.append(Line(id: result.count, kind: .gap, text: "…")) }
         return result
     }
 

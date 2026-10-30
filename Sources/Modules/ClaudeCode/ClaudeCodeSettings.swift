@@ -3,15 +3,6 @@
 import Foundation
 import Observation
 
-/// What the installer last did to `~/.claude/settings.json`, so "Remove"
-/// can put back exactly what was there.
-struct HookInstallRecord: Codable, Equatable, Sendable {
-    /// The backup taken before Notched's first write; nil if there was no file.
-    var backupPath: String?
-    /// SHA-256 (hex) of the file as Notched last wrote it.
-    var writtenHash: String
-}
-
 /// Claude Code's settings (Settings ▸ Modules ▸ Claude Code), persisted under `claudecode.*`.
 @MainActor
 @Observable

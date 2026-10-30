@@ -3,6 +3,15 @@
 import CryptoKit
 import Foundation
 
+/// What the installer last did to `~/.claude/settings.json`, so "Remove"
+/// can put back exactly what was there.
+struct HookInstallRecord: Codable, Equatable, Sendable {
+    /// The backup taken before Notched's first write; nil if there was no file.
+    var backupPath: String?
+    /// SHA-256 (hex) of the file as Notched last wrote it.
+    var writtenHash: String
+}
+
 /// The file-system side of installing Notched's Claude Code hooks: it reads
 /// and backs up `~/.claude/settings.json`, writes it atomically, copies the
 /// `notched-hook` helper, and restores exactly what was there on removal.

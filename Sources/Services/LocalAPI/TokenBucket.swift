@@ -40,9 +40,8 @@ struct FailureLimiter: Sendable {
         self.window = window
     }
 
-    mutating func isBlocked(at now: Date) -> Bool {
-        failures.removeAll { now.timeIntervalSince($0) >= window }
-        return failures.count >= maxFailures
+    func isBlocked(at now: Date) -> Bool {
+        failures.filter { now.timeIntervalSince($0) < window }.count >= maxFailures
     }
 
     mutating func recordFailure(at now: Date) {

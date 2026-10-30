@@ -179,11 +179,8 @@ enum ActivityPayload {
     }
 
     static func parseDate(_ text: String) -> Date? {
-        let plain = ISO8601DateFormatter()
-        plain.formatOptions = [.withInternetDateTime]
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return plain.date(from: text) ?? fractional.date(from: text)
+        (try? Date(text, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
+            ?? (try? Date(text, strategy: Date.ISO8601FormatStyle()))
     }
 
     /// A JSON number, but not a boolean (which Foundation bridges to NSNumber).

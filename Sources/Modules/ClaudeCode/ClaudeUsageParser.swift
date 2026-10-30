@@ -26,16 +26,11 @@ struct UsageRecord: Equatable, Sendable {
 /// a line it can't use is skipped, never fatal.
 enum ClaudeUsageParser {
     private static let needle = Data("\"output_tokens\"".utf8)
-    private static let withFraction: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
-    private static let plain: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter
-    }()
+    /// A log timestamp, with or without fractional seconds.
+    static func parseDate(_ text: String) -> Date? {
+        (try? Date(text, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
+            ?? (try? Date(text, strategy: Date.ISO8601FormatStyle()))
+    }
 
     static func parse(line: Data) -> UsageRecord? {
         // Most lines (prompts, tool results, titles) have no usage; skip them without decoding.
@@ -46,7 +41,7 @@ enum ClaudeUsageParser {
         if let type = json["type"] as? String, type != "assistant" { return nil }
         guard let message = json["message"] as? [String: Any], let usage = message["usage"] as? [String: Any],
               let messageID = message["id"] as? String,
-              let stamp = json["timestamp"] as? String, let timestamp = withFraction.date(from: stamp) ?? plain.date(from: stamp) else { return nil }
+              let stamp = json["timestamp"] as? String, let timestamp = parseDate(stamp) else { return nil }
         let model = (message["model"] as? String) ?? "unknown"
         // Claude Code's own placeholder messages cost nothing.
         guard model != "<synthetic>" else { return nil }

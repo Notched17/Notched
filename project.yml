@@ -52,6 +52,12 @@ targets:
         codeSign: true
         copy:
           destination: executables
+      # The Claude Code hook helper (#63). The app copies it to ~/.local/bin.
+      - target: notched-hook
+        embed: true
+        codeSign: true
+        copy:
+          destination: executables
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: me.rkck.Notched
@@ -134,6 +140,20 @@ targets:
         CLANG_ENABLE_OBJC_ARC: YES
         GCC_TREAT_WARNINGS_AS_ERRORS: NO
         GCC_WARN_INHIBIT_ALL_WARNINGS: YES
+
+  notched-hook:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Tools/notched-hook
+    settings:
+      base:
+        PRODUCT_NAME: notched-hook
+        PRODUCT_BUNDLE_IDENTIFIER: me.rkck.Notched.hook
+        # A tiny script-like tool: Swift 5 mode avoids top-level-code isolation friction.
+        SWIFT_VERSION: "5.0"
+        SKIP_INSTALL: YES
+        ENABLE_HARDENED_RUNTIME: YES
 
   NotchedTests:
     type: bundle.unit-test

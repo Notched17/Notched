@@ -66,7 +66,7 @@ actor ClaudeUsageService {
         var modified: Date
     }
 
-    private let roots: [URL]
+    private let rootsProvider: @Sendable () -> [URL]
     private let calendar: Calendar
     private var pricing: ClaudePricing
     private var aggregator: ClaudeUsageAggregator
@@ -77,8 +77,8 @@ actor ClaudeUsageService {
     private static let window: TimeInterval = Double(ClaudeUsageAggregator.keptDays) * 86_400
     private static let activeWithin: TimeInterval = 5 * 60
 
-    init(roots: [URL] = ClaudeUsageService.defaultRoots(), calendar: Calendar = .current, pricing: ClaudePricing = .load()) {
-        self.roots = roots
+    init(roots: @escaping @Sendable () -> [URL] = { ClaudeUsageService.defaultRoots() }, calendar: Calendar = .current, pricing: ClaudePricing = .load()) {
+        rootsProvider = roots
         self.calendar = calendar
         self.pricing = pricing
         aggregator = ClaudeUsageAggregator(calendar: calendar)
@@ -127,7 +127,7 @@ actor ClaudeUsageService {
     private func logFiles(modifiedAfter cutoff: Date) -> [LogFile] {
         var result: [LogFile] = []
         let keys: [URLResourceKey] = [.isRegularFileKey, .contentModificationDateKey, .fileSizeKey]
-        for root in roots {
+        for root in rootsProvider() {
             guard let walker = FileManager.default.enumerator(at: root, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles]) else { continue }
             for case let url as URL in walker where url.pathExtension == "jsonl" {
                 guard let values = try? url.resourceValues(forKeys: Set(keys)), values.isRegularFile == true,
@@ -190,11 +190,8 @@ actor ClaudeUsageService {
     /// into `-`; the last piece after the final `-` is the best short name.
     static func projectName(from file: URL) -> String {
         var folder = file.deletingLastPathComponent()
-        // Subagent logs live one level deeper: <session>/subagents/agent-x.jsonl
-        while folder.lastPathComponent == "subagents" || folder.deletingLastPathComponent().lastPathComponent != "projects" {
-            let parent = folder.deletingLastPathComponent()
-            if parent.path == folder.path { break }
-            folder = parent
+        while folder.deletingLastPathComponent().lastPathComponent != "projects", folder.path != "/" {
+            folder = folder.deletingLastPathComponent()
         }
         let name = folder.lastPathComponent
         return name.split(separator: "-").last.map(String.init) ?? name

@@ -38,6 +38,8 @@ struct ModuleSettingsContext {
     let registry: ModuleRegistry
     /// To show a permission's status. Nil only in tests.
     var permissions: PermissionCenter?
+    /// The local API, for the panes that manage its clients. Nil only in tests.
+    var api: APIGateway?
 }
 
 /// What a module may use. Its activity sink is scoped to its own id; any

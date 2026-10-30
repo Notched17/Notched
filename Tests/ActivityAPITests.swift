@@ -181,6 +181,23 @@ struct ActivityPayloadTests {
         }
     }
 
+    @Test("Banner links: title required, symbol and tint checked, always marked 'via link'")
+    func bannerLinks() {
+        func parse(_ text: String) -> ActivityPayload.BannerSpec? { URL(string: text).flatMap(ActivityPayload.parseBannerURL) }
+        let good = parse("notched://banner?title=Done&symbol=checkmark&tint=green&subtitle=ignored")
+        #expect(good?.title == "Done")
+        #expect(good?.symbol == "checkmark")
+        #expect(good?.tint == .green)
+        #expect(good?.subtitle == "via link")
+        #expect(parse("notched://banner?title=Hello%20there")?.title == "Hello there")
+        #expect(parse("notched://banner?title=Hi%E2%80%AEevil")?.title == "Hievil")
+        #expect(parse("notched://banner?title=" + String(repeating: "a", count: 90))?.title.count == 24)
+        for bad in ["notched://banner", "notched://banner?title=", "notched://banner?title=%20%20", "notched://banner?title=x&symbol=A%20B",
+                    "notched://banner?title=x&tint=hotpink", "notched://timer?title=x", "https://banner?title=x"] {
+            #expect(parse(bad) == nil, "\(bad)")
+        }
+    }
+
     @Test("Banners are validated too")
     func banners() {
         if case .success(let banner) = ActivityPayload.parseBanner(Data(#"{"title":"Done","subtitle":"ok","symbol":"checkmark","tint":"green"}"#.utf8)) {

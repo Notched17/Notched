@@ -102,9 +102,12 @@ private struct SessionsLine: View {
     let fromLogs: [ClaudeUsageSnapshot.ActiveSession]
 
     var body: some View {
-        let lines: [(name: String, detail: String)] = hooked.isEmpty
-            ? fromLogs.prefix(2).map { ($0.project, "active") }
-            : hooked.prefix(2).map { ($0.displayName, ClaudePresentation.headline($0.phase)) }
+        let lines: [(name: String, detail: String)]
+        if hooked.isEmpty {
+            lines = fromLogs.prefix(2).map { (name: $0.project, detail: "active") }
+        } else {
+            lines = hooked.prefix(2).map { (name: $0.displayName, detail: ClaudePresentation.headline($0.phase)) }
+        }
         if lines.isEmpty {
             Text("No active sessions").font(IslandFont.subtitle).foregroundStyle(.white.opacity(0.5))
         } else {

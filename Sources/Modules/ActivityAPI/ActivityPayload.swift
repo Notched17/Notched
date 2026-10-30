@@ -240,4 +240,28 @@ enum ActivityPayload {
         }
         return .success(BannerSpec(title: title, subtitle: subtitle, symbol: symbol, tint: tint))
     }
+
+    /// `notched://banner?title=Done&symbol=checkmark&tint=green`. Any app or
+    /// web page can open a link, so it carries no token: the title is
+    /// cleaned like any other text, and the app always shows "via link"
+    /// where the subtitle would be.
+    static func parseBannerURL(_ url: URL) -> BannerSpec? {
+        guard url.scheme?.lowercased() == "notched", url.host?.lowercased() == "banner",
+              let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems else { return nil }
+        func value(_ name: String) -> String? { items.first { $0.name == name }?.value }
+        guard let rawTitle = value("title") else { return nil }
+        let title = sanitize(rawTitle, limit: 24)
+        guard !title.isEmpty else { return nil }
+        var symbol: String?
+        if let name = value("symbol") {
+            guard isValidSymbolName(name) else { return nil }
+            symbol = name
+        }
+        var tint = ActivityTint.white
+        if let name = value("tint") {
+            guard let found = ActivityTint(rawValue: name) else { return nil }
+            tint = found
+        }
+        return BannerSpec(title: title, subtitle: "via link", symbol: symbol, tint: tint)
+    }
 }

@@ -10,10 +10,14 @@ import AppKit
 ///   and `hours=`; at least 5 s from a link), at most one per 2 s and five a
 ///   minute. With Timers off, it opens the module's settings instead, at most
 ///   once a minute.
+/// - `notched://banner?title=Done&symbol=checkmark&tint=green` shows a short
+///   banner marked "via link". Off unless Activity API ▸ "Allow banners from
+///   links" is on, at most one per 2 s and five a minute.
 @MainActor
 enum URLRouter {
     static let minimumTimer: TimeInterval = 5
     private static var timerLimit = RateLimit(minimumInterval: 2, maxPerWindow: 5, window: 60)
+    private static var bannerLimit = RateLimit(minimumInterval: 2, maxPerWindow: 5, window: 60)
     private static var settingsLimit = RateLimit(minimumInterval: 60, maxPerWindow: 1, window: 60)
 
     static func handle(_ url: URL, environment: AppEnvironment, windows: WindowCoordinator) {
@@ -33,6 +37,21 @@ enum URLRouter {
             } else if settingsLimit.allow(at: Date()) {
                 windows.showSettings(.modules, module: TimersModule.descriptor.id)
             }
+        case "banner":
+            guard environment.settings.api.allowLinkBanners,
+                  let module = environment.modules.module(ActivityAPIModule.descriptor.id) as? ActivityAPIModule else {
+                Log.app.notice("Ignored a banner link: links aren't allowed to show banners")
+                return
+            }
+            guard let spec = ActivityPayload.parseBannerURL(url) else {
+                Log.app.notice("Ignored a banner link that wasn't valid")
+                return
+            }
+            guard bannerLimit.allow(at: Date()) else {
+                Log.app.notice("Ignored a banner link: too many too quickly")
+                return
+            }
+            module.showBanner(spec, clientID: "link", source: "a link")
         #if DEBUG
         case "debug":
             DebugCommands.handle(url, environment: environment, windows: windows)

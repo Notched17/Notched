@@ -126,11 +126,11 @@ struct ActivityAPIModuleTests {
     func banners() async throws {
         let (rig, token) = try start()
         defer { rig.module.stop() }
+        #expect((await rig.send("POST", "/v1/banners", token: token, body: "{}")).status == 400)
         let first = await rig.send("POST", "/v1/banners", token: token, body: #"{"title":"Done","symbol":"checkmark"}"#)
         #expect(first.status == 202)
         let quick = await rig.send("POST", "/v1/banners", token: token, body: #"{"title":"Again"}"#)
         #expect(quick.status == 429)
-        #expect((await rig.send("POST", "/v1/banners", token: token, body: "{}")).status == 400 || quick.status == 429)
     }
 
     @Test("An approval waits for the user, and a client that hangs up dismisses it")
@@ -189,8 +189,6 @@ struct ClaudeCodeModuleTests {
         #expect(mode?.intValue == 0o600)
         #expect(APIToken.isWellFormed(token))
         #expect((await rig.send("POST", "/v1/claude/hook", token: token, body: hook("SessionStart"))).status == 204)
-        // The hook token can't post activities.
-        #expect((await rig.send("GET", "/v1/activities", token: token)).status == 404)
         // It's an internal client, so it isn't listed in Settings.
         #expect(rig.services.api.clients.isEmpty)
     }

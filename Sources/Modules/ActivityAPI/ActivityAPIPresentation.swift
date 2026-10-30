@@ -51,7 +51,7 @@ enum ActivityAPIPresentation {
             staleDate: entry.updatedAt.addingTimeInterval(spec.staleAfter),
             keylineTint: tint,
             accessibilityLabel: label,
-            openAction: url.map { url in { NSWorkspace.shared.open(url) } },
+            openAction: openAction(for: url),
             presentation: ActivityPresentation(
                 compactLeading: IslandRegion {
                     Image(systemName: symbol).font(.system(size: 14, weight: .semibold)).foregroundStyle(tint)
@@ -78,6 +78,12 @@ enum ActivityAPIPresentation {
                 )
             )
         )
+    }
+
+    /// A click opens the client's link in the browser (it was checked to be http or https).
+    private static func openAction(for url: URL?) -> (@MainActor () -> Void)? {
+        guard let url else { return nil }
+        return { _ = NSWorkspace.shared.open(url) }
     }
 
     static func activityID(_ key: ActivityKey) -> ActivityID { ActivityID("activityapi.\(key.clientID).\(key.id)") }

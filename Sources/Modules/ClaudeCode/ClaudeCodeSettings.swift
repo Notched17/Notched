@@ -19,6 +19,9 @@ final class ClaudeCodeSettings {
     var statusEnabled: Bool { didSet { defaults.set(statusEnabled, forKey: Key.status) } }
     /// Show the AI tab with token usage.
     var usageEnabled: Bool { didSet { defaults.set(usageEnabled, forKey: Key.usage) } }
+    /// Where `notched-hook` finds its token. Readable only by the user. Tests point it elsewhere.
+    @ObservationIgnored var tokenFileURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("Notched/claude-hook.token")
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults

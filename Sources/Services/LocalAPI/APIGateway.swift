@@ -79,6 +79,8 @@ final class APIGateway {
     @ObservationIgnored private var directory = ClientDirectory()
     @ObservationIgnored private var revokeListeners: [ModuleID: (String) -> Void] = [:]
     @ObservationIgnored private let server = LocalAPIServer()
+    /// False in tests, which call `handle` directly and must not open a socket.
+    @ObservationIgnored var startsServer = true
 
     /// The clients the user manages in Settings (internal ones are hidden).
     private(set) var clients: [APIClient] = []
@@ -110,7 +112,7 @@ final class APIGateway {
     func unregister(owner: ModuleID) {
         routes.removeAll { $0.owner == owner }
         revokeListeners[owner] = nil
-        if routes.isEmpty { server.stop() }
+        if routes.isEmpty, startsServer { server.stop() }
     }
 
     /// Called with the client's id when it's revoked, so a module can end what it posted.
@@ -119,6 +121,7 @@ final class APIGateway {
     }
 
     private func startServerIfNeeded() {
+        guard startsServer else { return }
         if settings.port == 0 { settings.port = Int.random(in: 49152...65535) }
         guard let port = UInt16(exactly: settings.port) else { return }
         server.start(port: port)

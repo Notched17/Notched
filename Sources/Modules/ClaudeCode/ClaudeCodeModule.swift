@@ -28,12 +28,6 @@ final class ClaudeCodeModule: IslandModule {
         AnyView(ClaudeCodeSettingsPane(settings: context.settings.claudeCode, api: context.settings.api, registry: context.registry))
     }
 
-    /// Where `notched-hook` finds its token. Readable only by the user.
-    static var tokenFileURL: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Notched/claude-hook.token")
-    }
-
     let model = ClaudeAIModel()
     private let context: ModuleContext
     private let settings: ClaudeCodeSettings
@@ -106,17 +100,17 @@ final class ClaudeCodeModule: IslandModule {
     private func ensureHookClient() {
         let api = context.services.api
         let fileManager = FileManager.default
-        if api.internalClient(named: Self.clientName) != nil, fileManager.fileExists(atPath: Self.tokenFileURL.path) { return }
+        if api.internalClient(named: Self.clientName) != nil, fileManager.fileExists(atPath: settings.tokenFileURL.path) { return }
         if let old = api.internalClient(named: Self.clientName) { api.revoke(clientID: old.id) }
         guard let created = api.createClient(name: Self.clientName, scopes: [.claude], isInternal: true) else {
             Log.module("claudecode").error("Couldn't create the hook client")
             return
         }
-        let directory = Self.tokenFileURL.deletingLastPathComponent()
+        let directory = settings.tokenFileURL.deletingLastPathComponent()
         do {
             try fileManager.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-            try Data(created.token.utf8).write(to: Self.tokenFileURL, options: .atomic)
-            try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: Self.tokenFileURL.path)
+            try Data(created.token.utf8).write(to: settings.tokenFileURL, options: .atomic)
+            try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: settings.tokenFileURL.path)
         } catch {
             Log.module("claudecode").error("Couldn't write the hook token file")
         }
@@ -152,7 +146,7 @@ final class ClaudeCodeModule: IslandModule {
         return .noContent
     }
 
-    private func choose(approvalID: String, _ answer: ClaudeSessionsReducer.Answer) {
+    func choose(approvalID: String, _ answer: ClaudeSessionsReducer.Answer) {
         apply(.answered(approvalID: approvalID, answer))
     }
 

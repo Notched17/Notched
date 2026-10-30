@@ -18,8 +18,9 @@ struct LocalAPIGuard: Sendable {
         guard let host = request.header("host")?.lowercased(), allowedHosts.contains(host) else {
             return .reject(.error(421, "bad_host", "Send requests to 127.0.0.1:\(port)."))
         }
-        // Browsers always send these on cross-site requests; curl and scripts never do.
-        let browserHeaders = request.headers.keys.contains { $0 == "origin" || $0.hasPrefix("sec-fetch-") }
+        // Browsers always send one of these on a cross-site request; curl and scripts don't. (Node's fetch sends
+        // Sec-Fetch-Mode, so that header alone isn't a sign of a web page.)
+        let browserHeaders = request.headers.keys.contains { $0 == "origin" || $0 == "sec-fetch-site" }
         if browserHeaders {
             return .reject(.error(403, "browser_forbidden", "Requests from web pages aren't allowed."))
         }

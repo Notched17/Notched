@@ -19,27 +19,39 @@ final class LocalAPIServer {
     private(set) var status: Status = .stopped
     @ObservationIgnored var handler: (@Sendable (HTTPRequest, UInt16) async -> HTTPResponse)?
     @ObservationIgnored private var listener: NWListener?
+    @ObservationIgnored private var startedPort: UInt16?
     @ObservationIgnored private var connections: [ObjectIdentifier: APIConnection] = [:]
     @ObservationIgnored private let queue = DispatchQueue(label: "me.rkck.Notched.localapi")
     private static let maxConnections = 16
 
+    /// Starts listening on `port`. Calling it again for the same port while a
+    /// listener exists (starting or ready) does nothing, so registering
+    /// several routes never restarts the socket.
     func start(port: UInt16) {
-        if case .listening(let current) = status, current == port { return }
+        if listener != nil, startedPort == port { return }
         stop()
         guard let nwPort = NWEndpoint.Port(rawValue: port) else { return }
         let parameters = NWParameters.tcp
-        // Loopback only: never reachable from another machine.
-        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: .any)
+        // Loopback only, on exactly this port: never reachable from another machine.
+        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: nwPort)
         parameters.allowLocalEndpointReuse = true
         do {
-            let listener = try NWListener(using: parameters, on: nwPort)
-            listener.stateUpdateHandler = { [weak self] state in
-                Task { @MainActor in self?.listenerChanged(state, port: port) }
+            let listener = try NWListener(using: parameters)
+            listener.stateUpdateHandler = { [weak self, weak listener] state in
+                Task { @MainActor in
+                    guard let self, let listener, self.listener === listener else { return } // a stale listener's news
+                    self.listenerChanged(state, port: port)
+                }
             }
-            listener.newConnectionHandler = { [weak self] connection in
-                Task { @MainActor in self?.accept(connection, port: port) }
+            listener.newConnectionHandler = { [weak self, weak listener] connection in
+                Task { @MainActor in
+                    guard let self, let listener, self.listener === listener else { connection.cancel(); return }
+                    self.accept(connection, port: port)
+                }
             }
             self.listener = listener
+            startedPort = port
+            status = .stopped
             listener.start(queue: queue)
         } catch {
             status = .failed("Couldn't listen on port \(port).")
@@ -50,6 +62,7 @@ final class LocalAPIServer {
     func stop() {
         listener?.cancel()
         listener = nil
+        startedPort = nil
         for connection in connections.values { connection.cancel() }
         connections.removeAll()
         APIDiscoveryFile.remove()
@@ -59,16 +72,20 @@ final class LocalAPIServer {
     private func listenerChanged(_ state: NWListener.State, port: UInt16) {
         switch state {
         case .ready:
+            // Only say we're listening if the socket really is on the port the clients were told.
+            guard listener?.port?.rawValue == port else {
+                status = .failed("Couldn't bind port \(port).")
+                return
+            }
             status = .listening(port)
             APIDiscoveryFile.write(port: port)
         case .failed(let error):
             listener?.cancel()
             listener = nil
+            startedPort = nil
             status = .failed(error == .posix(.EADDRINUSE) ? "Port \(port) is already in use." : "The listener failed.")
             APIDiscoveryFile.remove()
             Log.module("activityapi").error("Listener failed: \(error.localizedDescription, privacy: .public)")
-        case .cancelled:
-            break
         default:
             break
         }
@@ -113,7 +130,7 @@ final class APIConnection: @unchecked Sendable {
     private var finished = false
     private var gotRequest = false
     var onFinish: (@Sendable () -> Void)?
-    private static let readTimeout: TimeInterval = 5
+    private static let readTimeout: TimeInterval = 3
 
     init(connection: NWConnection, queue: DispatchQueue, handle: @escaping @Sendable (HTTPRequest) async -> HTTPResponse) {
         self.connection = connection

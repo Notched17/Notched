@@ -31,7 +31,18 @@ final class DirectoryWatcher: @unchecked Sendable {
 
     init(paths: [String], latency: TimeInterval = 2, onChange: @escaping @Sendable () -> Void) {
         self.onChange = onChange
-        var context = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
+        // The stream keeps the watcher alive until it is released, so a callback already queued
+        // can never run on a freed object. `stop()` releases the stream (and so the watcher).
+        var context = FSEventStreamContext(
+            version: 0, info: Unmanaged.passUnretained(self).toOpaque(),
+            retain: { info in
+                if let info { _ = Unmanaged<DirectoryWatcher>.fromOpaque(info).retain() }
+                return info
+            },
+            release: { info in
+                if let info { Unmanaged<DirectoryWatcher>.fromOpaque(info).release() }
+            },
+            copyDescription: nil)
         let callback: FSEventStreamCallback = { _, info, _, _, _, _ in
             guard let info else { return }
             Unmanaged<DirectoryWatcher>.fromOpaque(info).takeUnretainedValue().onChange()

@@ -91,8 +91,9 @@ final class APIGateway {
         self.settings = settings
         self.secrets = secrets
         for client in settings.savedClients {
-            guard let hash = secrets.load(account: client.id) else { continue }
-            directory.add(client, tokenHash: hash)
+            // If the Keychain can't be read right now (locked, a new signature), the client stays in the
+            // list with a hash nothing can match, so it isn't forgotten; the user can revoke it.
+            directory.add(client, tokenHash: secrets.load(account: client.id) ?? Data(repeating: 0, count: 32))
         }
         refreshClients()
         server.handler = { [weak self] request, port in
@@ -210,6 +211,10 @@ final class APIGateway {
         }
         directory.touch(id: client.id, at: now)
         if !client.isInternal { refreshClients() }
-        return await route.handler(APIContext(request: request, client: client, now: now))
+        var response = await route.handler(APIContext(request: request, client: client, now: now))
+        if let nonce = APIToken.validNonce(request.header("x-notched-nonce")), let hash = directory.tokenHash(id: client.id) {
+            response.extraHeaders["X-Notched-Proof"] = APIToken.proof(tokenHash: hash, nonce: nonce)
+        }
+        return response
     }
 }

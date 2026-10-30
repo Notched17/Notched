@@ -138,19 +138,24 @@ struct HookInstaller {
                 try installCLI(from: bundledCLI)
             }
             if plan.backupToTake, current != nil {
-                let backup = try takeBackup(of: target)
+                let backup = try takeBackup(of: target, protecting: [previous?.backupPath].compactMap { $0 })
                 // Remember only the first backup of an untouched file: that's "what was there".
                 if plan.kind == .install, previous == nil || previous?.writtenHash != plan.baseHash { backupPath = backup.path }
             }
             let mode = (try? fileManager.attributesOfItem(atPath: target.path)[.posixPermissions]) as? NSNumber
 
             if let data = plan.newData {
+                // Check with a second, independent parser before touching the file.
+                guard (try? JSONSerialization.jsonObject(with: data)) != nil else {
+                    return .failure(.message("Notched built an invalid settings.json, so it wrote nothing. This is a bug; please report it."))
+                }
                 try fileManager.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try data.write(to: target, options: .atomic)
                 if let mode { try? fileManager.setAttributes([.posixPermissions: mode], ofItemAtPath: target.path) }
-                // Check what we wrote still parses.
-                if case .failure = OrderedJSON.parse(String(decoding: data, as: UTF8.self)) {
-                    return .failure(.message("The written file didn't parse; restore it from the backup next to it."))
+                // Read it back; if it isn't what we meant, put the old file back.
+                if (try? Data(contentsOf: target)) != data {
+                    if let previousData = current.map({ Data($0.utf8) }) { try? previousData.write(to: target, options: .atomic) } else { try? fileManager.removeItem(at: target) }
+                    return .failure(.message("The file didn't read back as written, so the old settings.json was put back."))
                 }
             } else {
                 try fileManager.removeItem(at: target)
@@ -164,7 +169,7 @@ struct HookInstaller {
         return .success(HookInstallRecord(backupPath: hadFile ? backupPath : nil, writtenHash: Self.hash(data)))
     }
 
-    private func takeBackup(of file: URL) throws -> URL {
+    private func takeBackup(of file: URL, protecting protected: [String]) throws -> URL {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyyMMdd-HHmmss"
@@ -176,7 +181,9 @@ struct HookInstaller {
         let prefix = "settings.json.notched-backup-"
         let backups = ((try? fileManager.contentsOfDirectory(atPath: file.deletingLastPathComponent().path)) ?? [])
             .filter { $0.hasPrefix(prefix) }.sorted()
-        for old in backups.dropLast(5) {
+        // The backup "Remove" restores from is never pruned.
+        let keep = Set(protected.map { URL(fileURLWithPath: $0).lastPathComponent })
+        for old in backups.filter({ !keep.contains($0) }).dropLast(5) {
             try? fileManager.removeItem(at: file.deletingLastPathComponent().appendingPathComponent(old))
         }
         return backup

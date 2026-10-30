@@ -109,7 +109,9 @@ final class ClaudeCodeModule: IslandModule {
         let directory = settings.tokenFileURL.deletingLastPathComponent()
         do {
             try fileManager.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-            try Data(created.token.utf8).write(to: settings.tokenFileURL, options: .atomic)
+            try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+            // Created private from the start, never world-readable even for an instant.
+            fileManager.createFile(atPath: settings.tokenFileURL.path, contents: Data(created.token.utf8), attributes: [.posixPermissions: 0o600])
             try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: settings.tokenFileURL.path)
         } catch {
             Log.module("claudecode").error("Couldn't write the hook token file")
@@ -127,6 +129,12 @@ final class ClaudeCodeModule: IslandModule {
             return .error(400, "invalid_payload", "That isn't a Claude Code hook payload.")
         }
         guard event.kind == .permissionRequest else {
+            apply(.hook(event, approvalID: nil), now: api.now)
+            return .noContent
+        }
+
+        // Don't leave Claude Code waiting behind a card nobody can see.
+        if let presence = context.services.presence, presence.isPaused || presence.isSuspended || !presence.anyIslandShown {
             apply(.hook(event, approvalID: nil), now: api.now)
             return .noContent
         }
@@ -189,7 +197,10 @@ final class ClaudeCodeModule: IslandModule {
         context.activities.setTabs(tabs())
         guard watcher == nil else { return }
         usage = ClaudeUsageService()
-        let paths = ClaudeUsageService.defaultRoots().map(\.path)
+        // If Claude Code hasn't run yet there's no projects folder; watch ~/.claude so it is noticed when it appears.
+        var paths = ClaudeUsageService.defaultRoots().map(\.path)
+        let claudeHome = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude").path
+        if paths.isEmpty, FileManager.default.fileExists(atPath: claudeHome) { paths = [claudeHome] }
         if !paths.isEmpty {
             watcher = DirectoryWatcher(paths: paths) { [weak self] in
                 Task { @MainActor in self?.logsChanged() }

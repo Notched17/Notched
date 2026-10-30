@@ -49,6 +49,9 @@ struct HTTPRequestParserTests {
         #expect(HTTPRequestParser.parse(hugeHeader) == .failure(.headersTooLarge))
         #expect(HTTPRequestParser.parse(Data(String(repeating: "a", count: 9000).utf8)) == .failure(.headersTooLarge))
         #expect(HTTPRequestParser.parse(http("PUT /v1/x HTTP/1.1\nHost: h\nContent-Length: 99999\n\n")) == .failure(.bodyTooLarge))
+        // The Claude hook route takes bigger bodies (up to 256 KB), nothing else does.
+        #expect(HTTPRequestParser.parse(http("POST /v1/claude/hook HTTP/1.1\nHost: h\nContent-Length: 99999\n\n")) == .needMore)
+        #expect(HTTPRequestParser.parse(http("POST /v1/claude/hook HTTP/1.1\nHost: h\nContent-Length: 300000\n\n")) == .failure(.bodyTooLarge))
         #expect(HTTPRequestParser.parse(http("POST /v1/x HTTP/1.1\nHost: h\n\n")) == .failure(.lengthRequired))
         #expect(HTTPRequestParser.parse(http("POST /v1/x HTTP/1.1\nHost: h\nTransfer-Encoding: chunked\n\n")) == .failure(.unsupported))
         #expect(HTTPRequestParser.parse(http("POST /v1/x HTTP/1.1\nHost: h\nExpect: 100-continue\nContent-Length: 1\n\n")) == .failure(.unsupported))
@@ -141,12 +144,13 @@ struct LocalAPIGuardTests {
         #expect(status(missing) == 421)
     }
 
-    @Test("Browser requests (Origin or Sec-Fetch-*) are refused with 403")
+    @Test("Browser requests (Origin or Sec-Fetch-Site) are refused with 403")
     func browsers() {
         #expect(status(request(headers: ["Origin": "https://evil.example"])) == 403)
         #expect(status(request(headers: ["Origin": "null"])) == 403)
         #expect(status(request(headers: ["Sec-Fetch-Site": "cross-site"])) == 403)
-        #expect(status(request(headers: ["Sec-Fetch-Mode": "cors"])) == 403)
+        // Node's fetch sends Sec-Fetch-Mode alone; that is allowed.
+        #expect(status(request(headers: ["Sec-Fetch-Mode": "cors"])) == nil)
     }
 
     @Test("Preflight and odd methods get 405; writes need application/json")

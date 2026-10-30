@@ -172,7 +172,7 @@ struct HookInstallerTests {
         #expect(box.read() == "{\"mine\": true}")
     }
 
-    @Test("Only the newest five backups are kept")
+    @Test("Only the newest five backups are kept, plus the one Remove would restore from")
     func pruning() throws {
         let box = try Sandbox(); defer { box.cleanUp() }
         try box.write(original)
@@ -185,7 +185,26 @@ struct HookInstallerTests {
                 .replacingOccurrences(of: "\"A\": \"1\"", with: "\"A\": \"0\""))
             try box.write(original.replacingOccurrences(of: "\"A\": \"1\"", with: "\"A\": \"\(step + 2)\""))
         }
-        #expect(box.backups().count == 5)
+        #expect((5...6).contains(box.backups().count))
+    }
+
+    @Test("The backup that Remove restores from is never pruned, however many later backups there are")
+    func originalBackupProtected() throws {
+        let box = try Sandbox(); defer { box.cleanUp() }
+        try box.write(original)
+        let before = box.data()
+        let record = try #require(try box.install())
+        for step in 1...9 {
+            box.counter.seconds = Double(step) * 10
+            // The user changes the file, then Notched is updated again (same record kept: the original is still the baseline).
+            try box.write((box.read() ?? "").replacingOccurrences(of: "\"A\": \"1\"", with: "\"A\": \"\(step)\""))
+            try box.write(original.replacingOccurrences(of: "\"A\": \"1\"", with: "\"A\": \"x\(step)\""))
+            _ = try box.install(previous: record)
+        }
+        let backup = try #require(record.backupPath)
+        #expect(FileManager.default.fileExists(atPath: backup))
+        #expect(try Data(contentsOf: URL(fileURLWithPath: backup)) == before)
+        #expect(box.backups().count <= 6)
     }
 
     @Test("A symlinked settings.json stays a symlink and its target is updated")

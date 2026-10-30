@@ -67,6 +67,21 @@ enum APIToken {
         return difference == 0
     }
 
+    /// Proof that the server knows the client's token hash: HMAC-SHA256 of the
+    /// client's random nonce, keyed with SHA-256(token). `notched-hook` checks
+    /// it before trusting a reply, so another process that grabbed the port
+    /// while Notched wasn't running can't answer permission requests.
+    static func proof(tokenHash: Data, nonce: String) -> String {
+        let mac = HMAC<SHA256>.authenticationCode(for: Data(nonce.utf8), using: SymmetricKey(data: tokenHash))
+        return mac.map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// A nonce the client sent, if it's a plausible one (16–64 letters and digits).
+    static func validNonce(_ value: String?) -> String? {
+        guard let value, (16...64).contains(value.count), value.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) }) else { return nil }
+        return value
+    }
+
     /// The token from an `Authorization: Bearer …` header value.
     static func bearer(from header: String?) -> String? {
         guard let header else { return nil }
@@ -112,6 +127,8 @@ struct ClientDirectory: Sendable {
     }
 
     func client(id: String) -> APIClient? { clients.first { $0.id == id } }
+
+    func tokenHash(id: String) -> Data? { hashes[id] }
 
     mutating func touch(id: String, at date: Date) {
         guard let index = clients.firstIndex(where: { $0.id == id }) else { return }

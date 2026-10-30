@@ -34,12 +34,16 @@ enum HTTPParseResult: Equatable, Sendable {
 enum HTTPRequestParser {
     static let maxHeaderBytes = 8 * 1024
     static let maxBodyBytes = 16 * 1024
+    /// Claude Code hook payloads carry whole tool inputs (a file being written), so that one route allows more.
+    static let hookBodyBytes = 256 * 1024
+
+    static func defaultBodyLimit(for path: String) -> Int { path == "/v1/claude/hook" ? hookBodyBytes : maxBodyBytes }
     private static let separator = Data("\r\n\r\n".utf8)
     /// Headers that must not repeat: a repeat is how request smuggling starts.
     private static let singleValued: Set<String> = ["host", "content-length", "content-type", "authorization", "origin"]
     private static let bodyMethods: Set<String> = ["POST", "PUT", "PATCH"]
 
-    static func parse(_ data: Data) -> HTTPParseResult {
+    static func parse(_ data: Data, bodyLimit: (String) -> Int = HTTPRequestParser.defaultBodyLimit(for:)) -> HTTPParseResult {
         guard let end = data.range(of: separator) else {
             return data.count > maxHeaderBytes ? .failure(.headersTooLarge) : .needMore
         }
@@ -70,7 +74,7 @@ enum HTTPRequestParser {
             guard !raw.isEmpty, raw.count <= 9, raw.allSatisfy({ $0.isASCII && $0.isNumber }), let value = Int(raw) else {
                 return .failure(.malformed)
             }
-            guard value <= maxBodyBytes else { return .failure(.bodyTooLarge) }
+            guard value <= bodyLimit(path) else { return .failure(.bodyTooLarge) }
             length = value
         } else if bodyMethods.contains(method) {
             return .failure(.lengthRequired)
@@ -164,7 +168,7 @@ extension HTTPParseError {
     var response: HTTPResponse {
         switch self {
         case .headersTooLarge: .error(413, "too_large", "The request headers are too large.")
-        case .bodyTooLarge: .error(413, "too_large", "The request body is larger than \(HTTPRequestParser.maxBodyBytes) bytes.")
+        case .bodyTooLarge: .error(413, "too_large", "The request body is too large.")
         case .lengthRequired: .error(411, "length_required", "Send a Content-Length header with the body.")
         case .unsupported: .error(400, "unsupported", "Chunked bodies and Expect headers aren't supported.")
         case .malformed: .error(400, "bad_request", "The request couldn't be read.")

@@ -129,6 +129,24 @@ struct APIGatewayTests {
         #expect(lookalike.status == 404)
     }
 
+    @Test("A reply carries a proof only a holder of the token's hash can make, bound to the caller's nonce")
+    func proof() async throws {
+        let gateway = makeGateway()
+        let created = try #require(gateway.createClient(name: "CI", scopes: [.activity], now: t0))
+        let nonce = "abcdef0123456789abcdef"
+        let withNonce = await gateway.handle(request(token: created.token, headers: ["X-Notched-Nonce": nonce]), port: port, now: t0)
+        #expect(withNonce.extraHeaders["X-Notched-Proof"] == APIToken.proof(tokenHash: APIToken.hash(created.token), nonce: nonce))
+        let other = await gateway.handle(request(token: created.token, headers: ["X-Notched-Nonce": "ffffffffffffffffffffff"]), port: port, now: t0 + 1)
+        #expect(other.extraHeaders["X-Notched-Proof"] != withNonce.extraHeaders["X-Notched-Proof"])
+        let none = await gateway.handle(request(token: created.token), port: port, now: t0 + 2)
+        #expect(none.extraHeaders["X-Notched-Proof"] == nil)
+        let short = await gateway.handle(request(token: created.token, headers: ["X-Notched-Nonce": "short"]), port: port, now: t0 + 3)
+        #expect(short.extraHeaders["X-Notched-Proof"] == nil)
+        // Someone without the token can't be given a proof at all.
+        let stranger = await gateway.handle(request(token: APIToken.generate(), headers: ["X-Notched-Nonce": nonce]), port: port, now: t0 + 4)
+        #expect(stranger.extraHeaders["X-Notched-Proof"] == nil)
+    }
+
     @Test("Revoking stops the token at once and tells the modules")
     func revoke() async throws {
         let gateway = makeGateway()
@@ -157,10 +175,13 @@ struct APIGatewayTests {
         second.register(owner: "test", prefix: "/v1/things", scope: .activity) { _ in .json(200, [:]) }
         #expect(second.clients.map(\.name) == ["CI"])
         #expect(await second.handle(request(token: created.token), port: port, now: t0).status == 200)
-        // A client whose secret is gone can't be used.
+        // A client whose secret can't be read stays listed (so it can be revoked) but its token no longer works.
         secrets.delete(account: created.client.id)
         let third = APIGateway(settings: LocalAPISettings(defaults: UserDefaults(suiteName: suite)!), secrets: secrets)
-        #expect(third.clients.isEmpty)
+        third.startsServer = false
+        third.register(owner: "test", prefix: "/v1/things", scope: .activity) { _ in .json(200, [:]) }
+        #expect(third.clients.map(\.name) == ["CI"])
+        #expect(await third.handle(request(token: created.token), port: port, now: t0).status == 401)
     }
 
     @Test("Client names and scopes are validated; internal clients are hidden from the list")

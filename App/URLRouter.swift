@@ -51,7 +51,8 @@ enum URLRouter {
                 Log.app.notice("Ignored a banner link: too many too quickly")
                 return
             }
-            module.showBanner(spec, clientID: "link", source: "a link")
+            // A link can't pick the symbol or colour, so it can't look like a real system banner.
+            module.showBanner(ActivityPayload.BannerSpec(title: spec.title, subtitle: "via link", symbol: "link", tint: .white), clientID: "link", source: "a link")
         #if DEBUG
         case "debug":
             DebugCommands.handle(url, environment: environment, windows: windows)

@@ -59,6 +59,8 @@ final class AppEnvironment {
     }
 
     func start() {
+        // A crash or kill leaves the API's port file behind; the hook must not trust a port nobody owns.
+        APIDiscoveryFile.remove()
         power.onChange = { [weak self] state in self?.scheduler.context.power = state }
         systemActivity.onChange = { [weak self] suspended in
             self?.scheduler.context.suspended = suspended

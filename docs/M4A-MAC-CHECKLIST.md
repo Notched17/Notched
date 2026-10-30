@@ -6,13 +6,13 @@ M4a was written without Xcode (see the ROADMAP status). This list is how to fini
 
 1. `xcodegen generate` (a new target `notched-hook` and new folders were added).
 2. Build: `xcodebuild -project Notched.xcodeproj -scheme Notched -configuration Debug -derivedDataPath build build`. **Expect compile errors** in the files that couldn't be compiled where I wrote them: `Sources/Services/LocalAPI/LocalAPIServer.swift`, `Sources/Modules/ActivityAPI/*Presentation.swift`/`*Pane.swift`, `Sources/Core/Activities/ApprovalCard.swift`, `Sources/Modules/ClaudeCode/ClaudePresentation.swift`, `ClaudeAITab.swift`, `ClaudeCodeModule.swift`, `ClaudeCodeSettingsPane.swift`, `ClaudeUsageService.swift` (the FSEvents class). Paste me the errors.
-3. Run the tests. `APIModuleTests` and the existing `SymbolNameTests` are the new Mac-only ones; the other new suites ran 146 passing tests on Linux.
+3. Run the tests. `APIModuleTests` and the existing `SymbolNameTests` are the new Mac-only ones; the other new suites ran 148 passing tests on Linux.
 4. Confirm `Notched.app/Contents/MacOS/notched-hook` exists and `notched-hook --version` prints `1`.
 
 ## 2. Activity API: turn it on, then try to break it
 
 5. Install to `~/Applications/Notched.app`, launch, **Settings ▸ Modules ▸ Activity API**: turn it on. The pane should say "Listening on 127.0.0.1:<port>".
-6. `lsof -nP -iTCP -sTCP:LISTEN | grep Notched` must show `127.0.0.1:<port>`, **not** `*:<port>`. (If it shows `*`, tell me: the listener binding needs a fix, ADR-0021.)
+6. `lsof -nP -iTCP -sTCP:LISTEN | grep Notched` must show `127.0.0.1:<port>` (the same port Settings shows), **not** `*:<port>`, and the pane must go from "Starting…" to "Listening" without flicker or "Port in use". (If it shows `*`, tell me: the listener binding needs a fix, ADR-0021.)
 7. **New Client…** (name `test`, all scopes). Copy the token. `export NOTCHED_PORT=… NOTCHED_TOKEN=…`
 8. Post a progress activity (the curl in `docs/ACTIVITY-API.md`). Check it on the notch and the pill, update the progress, `DELETE` it, post a countdown, an `alert: true` one, and a banner.
 9. Refusals; each must give the status shown:
@@ -32,7 +32,8 @@ M4a was written without Xcode (see the ROADMAP status). This list is how to fini
 
 13. **Settings ▸ Modules ▸ Claude Code**: turn the module on. Press **Install Hooks…**: the diff sheet should show only added lines under `"hooks"`. Install.
 14. Check `~/.claude/settings.json` (your keys and order unchanged), a `settings.json.notched-backup-…` beside it, `~/.local/bin/notched-hook`, and `~/Library/Application Support/Notched/claude-hook.token` (mode `-rw-------`).
-15. In a **scratch folder** (`mkdir /tmp/scratch && cd /tmp/scratch && git init`), run `claude` and trust it. Ask it to do something slow so you see **"Claude is working…"** with the folder name, then something that needs permission (`run date in bash`). The island should expand with the command and **Deny / Allow**.
+15. Run `claude` once in the scratch folder below and then `/doctor`: it must not complain about the new hooks (`args`, `StopFailure`). If it does, tell me which key.
+15b. In a **scratch folder** (`mkdir /tmp/scratch && cd /tmp/scratch && git init`), run `claude` and trust it. Ask it to do something slow so you see **"Claude is working…"** with the folder name, then something that needs permission (`run date in bash`). The island should expand with the command and **Deny / Allow**.
 16. Answer **Allow** on the island: Claude Code continues. Repeat with **Deny**, **Deny and Stop Claude**, **Answer in Terminal** (Claude Code's own prompt must appear), and **Always Allow …** (check the rule it adds).
 17. **Open question A:** while the island card is up, does Claude Code *also* show its terminal prompt, or wait? Tell me which. **Open question B:** answer in the terminal while the card is up: does the card disappear?
 18. Let a turn run over 10 s: a "Claude finished" banner. A quick turn: none.

@@ -34,7 +34,7 @@ struct ClaudeHookEvent: Equatable, Sendable {
     var detail: String?
     var suggestion: AlwaysAllowSuggestion?
 
-    static let maxBodyBytes = 256 * 1024
+    static let maxBodyBytes = HTTPRequestParser.hookBodyBytes
 
     /// Nil if the body isn't a hook payload we can use.
     static func parse(_ data: Data, home: String = NSHomeDirectory()) -> ClaudeHookEvent? {

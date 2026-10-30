@@ -29,6 +29,7 @@ final class ActivityAPIModule: IslandModule {
     private let wake = OneShotTimer()
     private var approvals: [String: ApprovalWaiter] = [:]
     private var bannerLimits: [String: RateLimit] = [:]
+    private var approvalLimits: [String: RateLimit] = [:]
     private var isRunning = false
 
     init(context: ModuleContext) {
@@ -62,6 +63,7 @@ final class ActivityAPIModule: IslandModule {
         for waiter in approvals.values { waiter.resolve("dismissed") }
         approvals.removeAll()
         bannerLimits.removeAll()
+        approvalLimits.removeAll()
         context.services.api.unregister(owner: Self.descriptor.id)
         _ = reducer.reduce(.reset, now: Date())
         reducer = ActivityAPIReducer()
@@ -172,6 +174,11 @@ final class ActivityAPIModule: IslandModule {
         guard approvals[api.client.id] == nil else {
             return .error(409, "approval_pending", "This client already has an approval request open.")
         }
+        // Each request expands the island, so a client can't ask again straight away.
+        var limit = approvalLimits[api.client.id] ?? RateLimit(minimumInterval: 5, maxPerWindow: 6, window: 60)
+        let allowed = limit.allow(at: api.now)
+        approvalLimits[api.client.id] = limit
+        guard allowed else { return .error(429, "rate_limited", "Too many approval requests.", headers: ["Retry-After": "10"]) }
         guard let object = try? JSONSerialization.jsonObject(with: api.request.body), let json = object as? [String: Any],
               let rawTitle = json["title"] as? String else {
             return .error(400, "invalid_payload", "title is required.", field: "title")

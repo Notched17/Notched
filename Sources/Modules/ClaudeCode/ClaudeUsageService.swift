@@ -64,7 +64,11 @@ actor ClaudeUsageService {
         var offset: UInt64
         var partial: Data
         var modified: Date
+        /// The file's first bytes when it was first read: if they change, it's a different file.
+        var head: Data = Data()
     }
+
+    private static let headLength = 128
 
     private let rootsProvider: @Sendable () -> [URL]
     private let calendar: Calendar
@@ -73,6 +77,7 @@ actor ClaudeUsageService {
     private var files: [String: FileState] = [:]
     private var sessions: [String: (project: String, last: Date)] = [:]
     private var skipped = 0
+    private var clock = Date()
     private static let chunk = 1 << 20
     private static let window: TimeInterval = Double(ClaudeUsageAggregator.keptDays) * 86_400
     private static let activeWithin: TimeInterval = 5 * 60
@@ -97,6 +102,7 @@ actor ClaudeUsageService {
 
     /// Reads anything new and returns the numbers.
     func refresh(now: Date = Date()) -> ClaudeUsageSnapshot {
+        clock = now
         for file in logFiles(modifiedAfter: now.addingTimeInterval(-Self.window)) { read(file) }
         aggregator.prune(now: now)
         let active = sessions
@@ -144,15 +150,25 @@ actor ClaudeUsageService {
     private func read(_ file: LogFile) {
         let path = file.url.path
         var state = files[path] ?? FileState(inode: file.inode, offset: 0, partial: Data(), modified: .distantPast)
-        // Replaced or truncated: start again (the dedupe set absorbs repeats).
-        if state.inode != file.inode || file.size < state.offset { state = FileState(inode: file.inode, offset: 0, partial: Data(), modified: .distantPast) }
-        guard file.size > state.offset, let handle = try? FileHandle(forReadingFrom: file.url) else {
+        // Nothing new since the last look.
+        if file.size == state.offset, file.modified == state.modified, state.modified != .distantPast { return }
+        // Replaced, truncated, or rewritten without growing: start again (the dedupe set absorbs repeats).
+        let rewritten = file.size <= state.offset && file.modified != state.modified && state.modified != .distantPast
+        if state.inode != file.inode || file.size < state.offset || rewritten { state = FileState(inode: file.inode, offset: 0, partial: Data(), modified: .distantPast) }
+        guard file.size > 0, let handle = try? FileHandle(forReadingFrom: file.url) else {
+            state.modified = file.modified
             files[path] = state
             return
         }
         defer { try? handle.close() }
-        let project = Self.projectName(from: file.url)
         do {
+            // A different start means a different file, even if it grew.
+            let head = try handle.read(upToCount: Self.headLength) ?? Data()
+            if !state.head.isEmpty, head.prefix(state.head.count) != state.head {
+                state = FileState(inode: file.inode, offset: 0, partial: Data(), modified: .distantPast)
+            }
+            if state.head.count < head.count { state.head = head }
+            let project = Self.projectName(from: file.url)
             try handle.seek(toOffset: state.offset)
             while true {
                 guard let data = try handle.read(upToCount: Self.chunk), !data.isEmpty else { break }
@@ -176,8 +192,13 @@ actor ClaudeUsageService {
 
     private func consume(_ line: Data, project: String) {
         guard !line.isEmpty else { return }
-        if let record = ClaudeUsageParser.parse(line: Data(line)) {
-            guard record.timestamp > Date().addingTimeInterval(-Self.window) else { return }
+        switch ClaudeUsageParser.decode(line: Data(line)) {
+        case .ignored:
+            return
+        case .unreadable:
+            skipped += 1
+        case .record(let record):
+            guard record.timestamp > clock.addingTimeInterval(-Self.window) else { return }
             aggregator.add(record)
             if let id = record.sessionID {
                 let name = record.cwd.map { URL(fileURLWithPath: $0).lastPathComponent } ?? project

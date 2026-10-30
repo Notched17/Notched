@@ -32,19 +32,32 @@ enum ClaudeUsageParser {
             ?? (try? Date(text, strategy: Date.ISO8601FormatStyle()))
     }
 
+    enum Outcome: Equatable, Sendable {
+        case record(UsageRecord)
+        /// Not an assistant response with usage (prompts, titles, tool results).
+        case ignored
+        /// Looks like a response with usage but couldn't be read: the format may have changed.
+        case unreadable
+    }
+
     static func parse(line: Data) -> UsageRecord? {
+        if case .record(let record) = decode(line: line) { return record }
+        return nil
+    }
+
+    static func decode(line: Data) -> Outcome {
         // Most lines (prompts, tool results, titles) have no usage; skip them without decoding.
-        guard line.range(of: needle) != nil else { return nil }
+        guard line.range(of: needle) != nil else { return .ignored }
         var data = line
         if data.starts(with: [0xEF, 0xBB, 0xBF]) { data = data.dropFirst(3) }
-        guard let object = try? JSONSerialization.jsonObject(with: data), let json = object as? [String: Any] else { return nil }
-        if let type = json["type"] as? String, type != "assistant" { return nil }
+        guard let object = try? JSONSerialization.jsonObject(with: data), let json = object as? [String: Any] else { return .unreadable }
+        if let type = json["type"] as? String, type != "assistant" { return .ignored }
         guard let message = json["message"] as? [String: Any], let usage = message["usage"] as? [String: Any],
               let messageID = message["id"] as? String,
-              let stamp = json["timestamp"] as? String, let timestamp = parseDate(stamp) else { return nil }
+              let stamp = json["timestamp"] as? String, let timestamp = parseDate(stamp) else { return .unreadable }
         let model = (message["model"] as? String) ?? "unknown"
         // Claude Code's own placeholder messages cost nothing.
-        guard model != "<synthetic>" else { return nil }
+        guard model != "<synthetic>" else { return .ignored }
 
         let totalCacheWrite = count(usage["cache_creation_input_tokens"])
         var write5m = totalCacheWrite
@@ -55,7 +68,7 @@ enum ClaudeUsageParser {
             // Anything the split doesn't account for is billed as a 5-minute write.
             if write5m + write1h < totalCacheWrite { write5m += totalCacheWrite - write5m - write1h }
         }
-        return UsageRecord(
+        return .record(UsageRecord(
             messageID: messageID,
             requestID: (json["requestId"] as? String) ?? (json["request_id"] as? String),
             timestamp: timestamp,
@@ -67,7 +80,7 @@ enum ClaudeUsageParser {
             cacheRead: count(usage["cache_read_input_tokens"]),
             sessionID: json["sessionId"] as? String,
             cwd: json["cwd"] as? String
-        )
+        ))
     }
 
     /// A non-negative whole number from whatever JSON gave (an int, a double, or nothing).

@@ -50,6 +50,18 @@ struct ClaudeUsageParserTests {
         for text in skip { #expect(Fixture.record(text) == nil, "\(text)") }
     }
 
+    @Test("Decoding tells 'not usage' apart from 'looks like usage but unreadable'")
+    func outcomes() {
+        func outcome(_ text: String) -> ClaudeUsageParser.Outcome { ClaudeUsageParser.decode(line: Data(text.utf8)) }
+        #expect(outcome(#"{"type":"user","message":{"content":"hi"}}"#) == .ignored)
+        #expect(outcome(#"{"type":"user","message":{"usage":{"output_tokens":5}}}"#) == .ignored)
+        #expect(outcome(Fixture.line(model: "<synthetic>")) == .ignored)
+        #expect(outcome(#"{"output_tokens": "#) == .unreadable)
+        #expect(outcome(#"{"type":"assistant","message":{"id":"m","usage":{"output_tokens":5}}}"#) == .unreadable)
+        #expect(outcome(#"{"type":"assistant","message":{"usage":{"output_tokens":5}},"timestamp":"2026-10-29T10:00:00Z"}"#) == .unreadable)
+        if case .record = outcome(Fixture.assistant) {} else { Issue.record("expected a record") }
+    }
+
     @Test("Claude Code's synthetic placeholder messages cost nothing")
     func synthetic() {
         #expect(Fixture.record(Fixture.line(model: "<synthetic>")) == nil)

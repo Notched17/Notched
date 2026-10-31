@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import Darwin
 import Foundation
 
 /// How the shell is started (#64). Pure.
@@ -110,6 +111,35 @@ struct TerminalLifecycleReducer: Sendable {
         state.phase = .running
         state.startedAt = now
         return [.start(generation: state.generation)]
+    }
+}
+
+/// Finds the shell Notched just started. SwiftTerm doesn't expose its pid, but
+/// the shell is a direct child of this process, so it is the new child whose
+/// program is the launcher (`/bin/sh`) or the shell it then became.
+enum ChildProcesses {
+    static func pids(of parent: pid_t = getpid()) -> [pid_t] {
+        let capacity = 256
+        var buffer = [pid_t](repeating: 0, count: capacity)
+        let bytes = proc_listchildpids(parent, &buffer, Int32(capacity * MemoryLayout<pid_t>.size))
+        guard bytes > 0 else { return [] }
+        return Array(buffer.prefix(Int(bytes) / MemoryLayout<pid_t>.size)).filter { $0 > 1 }
+    }
+
+    static func path(of pid: pid_t) -> String? {
+        var buffer = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
+        let length = proc_pidpath(pid, &buffer, UInt32(buffer.count))
+        return length > 0 ? String(cString: buffer) : nil
+    }
+
+    /// The child that wasn't there `before`. If several appeared (another helper
+    /// starting at the same moment), the one running one of `programs`. A shell
+    /// reached through a symlink reports its real path, so a lone new child is
+    /// taken to be the shell even if the name doesn't match.
+    static func newChild(before: Set<pid_t>, programs: Set<String>, parent: pid_t = getpid()) -> pid_t? {
+        let fresh = pids(of: parent).filter { !before.contains($0) }
+        if fresh.count == 1 { return fresh[0] }
+        return fresh.first { pid in path(of: pid).map(programs.contains) ?? false }
     }
 }
 

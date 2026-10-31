@@ -325,3 +325,53 @@ struct TallTabTests {
         #expect(!module.model.isPinned)
     }
 }
+
+/// Finding the shell without SwiftTerm telling us its pid.
+@Suite("ChildProcesses")
+struct ChildProcessesTests {
+    private func spawn(_ path: String = "/bin/sleep", _ arguments: [String] = ["30"]) throws -> Process {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = arguments
+        try process.run()
+        return process
+    }
+
+    @Test("A process this one starts is listed as its child, with its program path")
+    func listsChildren() throws {
+        let process = try spawn()
+        defer { process.terminate(); process.waitUntilExit() }
+        #expect(ChildProcesses.pids().contains(process.processIdentifier))
+        #expect(ChildProcesses.path(of: process.processIdentifier) == "/bin/sleep")
+    }
+
+    @Test("The new child is found, and children that were already there are not")
+    func findsTheNewOne() throws {
+        let old = try spawn()
+        defer { old.terminate(); old.waitUntilExit() }
+        let before = Set(ChildProcesses.pids())
+        let new = try spawn()
+        defer { new.terminate(); new.waitUntilExit() }
+        #expect(ChildProcesses.newChild(before: before, programs: ["/bin/sh"]) == new.processIdentifier)
+    }
+
+    @Test("With several new children, the one running the right program is chosen")
+    func choosesByProgram() throws {
+        let before = Set(ChildProcesses.pids())
+        let helper = try spawn("/bin/sleep", ["30"])
+        let shell = try spawn("/bin/cat")   // waits on stdin, which is inherited
+        defer { for process in [helper, shell] { process.terminate(); process.waitUntilExit() } }
+        #expect(ChildProcesses.newChild(before: before, programs: ["/bin/cat"]) == shell.processIdentifier)
+        #expect(ChildProcesses.newChild(before: before, programs: ["/bin/nothing"]) == nil)
+    }
+
+    @Test("No new child means nothing is found")
+    func nothingNew() {
+        #expect(ChildProcesses.newChild(before: Set(ChildProcesses.pids()), programs: ["/bin/sh"]) == nil)
+    }
+
+    @Test("An unknown or unreadable pid has no path")
+    func noPath() {
+        #expect(ChildProcesses.path(of: 0x7FFF_FFF0) == nil)
+    }
+}

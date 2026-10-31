@@ -127,9 +127,10 @@ enum ChildProcesses {
     }
 
     static func path(of pid: pid_t) -> String? {
-        var buffer = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
+        var buffer = [UInt8](repeating: 0, count: 4 * Int(MAXPATHLEN))
         let length = proc_pidpath(pid, &buffer, UInt32(buffer.count))
-        return length > 0 ? String(cString: buffer) : nil
+        // `length` excludes the terminating NUL.
+        return length > 0 ? String(decoding: buffer.prefix(Int(length)), as: UTF8.self) : nil
     }
 
     /// The child that wasn't there `before`. If several appeared (another helper

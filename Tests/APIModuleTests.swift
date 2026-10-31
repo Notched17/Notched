@@ -27,7 +27,16 @@ private struct Rig<Module: IslandModule> {
     }
 
     func send(_ method: String, _ path: String, token: String, body: String = "") async -> HTTPResponse {
-        let request = HTTPRequest(method: method, path: path, query: [:],
+        // The real server splits "?a=b" off the path (HTTPRequestParser); do the same here.
+        let pieces = path.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+        var query: [String: String] = [:]
+        if pieces.count == 2 {
+            for pair in pieces[1].split(separator: "&") {
+                let kv = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+                query[kv[0]] = kv.count == 2 ? kv[1] : ""
+            }
+        }
+        let request = HTTPRequest(method: method, path: pieces[0], query: query,
                                   headers: ["host": "127.0.0.1:\(port)", "authorization": "Bearer " + token, "content-type": "application/json"],
                                   body: Data(body.utf8))
         return await services.api.handle(request, port: port, now: Date())

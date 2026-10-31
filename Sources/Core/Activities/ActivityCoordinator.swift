@@ -37,6 +37,8 @@ final class ActivityCoordinator {
         var recentRetention: Duration = .seconds(15 * 60)
         /// The user's priority: class order and pinned modules (#8).
         var ranking = RankingPolicy.default
+        /// Which expanded tabs show and in what order (#71).
+        var tabLayout = TabLayout.default
 
         /// At most this many activities show on the island at once.
         static let maxVisible = 3
@@ -266,7 +268,7 @@ final class ActivityCoordinator {
     /// Makes an activity the primary one until either it or the activity it
     /// displaced ends, or a new system activity arrives.
     func makePrimary(_ id: ActivityID) {
-        guard let target = entries[id], !target.isHidden else { return }
+        guard let target = entries[id], !target.isHidden, !isListedOnly(target) else { return }
         if naturalVisibleOrder().first?.id == id {
             swap = nil
         } else {
@@ -405,7 +407,13 @@ final class ActivityCoordinator {
 
     /// Visible activities by class, relevance and start order, ignoring the swap.
     private func naturalVisibleOrder() -> [ActivityRecord] {
-        entries.values.filter { !$0.isHidden }.sorted { ranksHigher($0, $1) }
+        entries.values.filter { !$0.isHidden && !isListedOnly($0) }.sorted { ranksHigher($0, $1) }
+    }
+
+    /// A module the user turned "Show in Compact" off for: its activities are
+    /// listed in the expanded view only. A non-hideable one (a call) always shows.
+    private func isListedOnly(_ record: ActivityRecord) -> Bool {
+        record.activity.isHideable && configuration.ranking.listedOnly.contains(record.activity.moduleID)
     }
 
     private func ranksHigher(_ lhs: ActivityRecord, _ rhs: ActivityRecord) -> Bool {
@@ -444,7 +452,7 @@ final class ActivityCoordinator {
             ranked.insert(ranked.remove(at: index), at: 0)
         }
         live = ranked
-        let shown = Self.shownSlots(from: ranked.filter { !$0.isHidden }, promoted: swap?.promoted)
+        let shown = Self.shownSlots(from: ranked.filter { !$0.isHidden && !isListedOnly($0) }, promoted: swap?.promoted)
         primary = shown.first
         minimal = Array(shown.dropFirst())
         scheduleWake(nextDeadline)

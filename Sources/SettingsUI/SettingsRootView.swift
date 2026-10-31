@@ -100,7 +100,7 @@ struct SettingsRootView: View {
         case .appearance: AppearancePane(settings: context.settings, accessibility: context.accessibility)
         case .modules:
             ModulesPane(settings: context.settings, navigation: navigation, modules: context.modules, registry: context.registry,
-                        permissions: context.permissions)
+                        permissions: context.permissions, accessibility: context.accessibility)
         case .permissions:
             PermissionsPane(permissions: context.permissions, modules: context.modules, settings: context.settings, scheduler: context.scheduler)
         case .about: AboutPane(showWelcome: context.showWelcome)

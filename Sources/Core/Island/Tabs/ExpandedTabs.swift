@@ -34,12 +34,15 @@ enum ExpandedTabs {
     /// The module tabs in display order: by `order`, then the module
     /// catalogue's order, then id. A repeated id keeps the first; the
     /// reserved id is dropped; only `maxModuleTabs` are kept.
-    static func arrange(_ entries: [TabEntry], moduleOrder: [String]) -> [TabEntry] {
+    static func arrange(_ entries: [TabEntry], moduleOrder: [String], layout: TabLayout = .default) -> [TabEntry] {
         let rank = { (id: String) in moduleOrder.firstIndex(of: id) ?? Int.max }
+        // The user's layout first: hidden tabs go (and so don't take one of the four places),
+        // listed tabs come in their order, the rest by their own order.
         let sorted = entries
-            .filter { $0.id != islandID }
+            .filter { $0.id != islandID && !layout.isHidden($0.id) }
             .sorted { (lhs, rhs) in
-                (lhs.order, rank(lhs.moduleID), lhs.id) < (rhs.order, rank(rhs.moduleID), rhs.id)
+                (layout.position(of: lhs.id) ?? Int.max, lhs.order, rank(lhs.moduleID), lhs.id)
+                    < (layout.position(of: rhs.id) ?? Int.max, rhs.order, rank(rhs.moduleID), rhs.id)
             }
         var seen = Set<String>()
         var result: [TabEntry] = []

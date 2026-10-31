@@ -11,12 +11,13 @@ struct IslandPreview: View {
     @State private var pendingExpand: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(settings: SettingsStore, accessibility: AccessibilityOptions) {
+    /// `activities` lets a pane show sample content (the layout editor); by default the island is empty.
+    init(settings: SettingsStore, accessibility: AccessibilityOptions, activities: ActivityCoordinator = ActivityCoordinator()) {
         self.settings = settings
         _model = State(initialValue: IslandViewModel(
             geometry: Self.geometry(for: settings),
             accessibility: accessibility,
-            activities: ActivityCoordinator()
+            activities: activities
         ))
     }
 

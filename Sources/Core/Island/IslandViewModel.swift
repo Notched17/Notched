@@ -230,7 +230,8 @@ final class IslandViewModel {
 
     /// Module tabs in display order (the Island tab isn't listed).
     var tabs: [IslandTab] {
-        let order = ExpandedTabs.arrange(activities.moduleTabs.map(\.entry), moduleOrder: activities.moduleOrder.map(\.rawValue))
+        let order = ExpandedTabs.arrange(activities.moduleTabs.map(\.entry), moduleOrder: activities.moduleOrder.map(\.rawValue),
+                                         layout: activities.configuration.tabLayout)
         return order.compactMap { entry in activities.moduleTabs.first { $0.id == entry.id } }
     }
 

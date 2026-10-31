@@ -10,6 +10,7 @@ struct ModulesPane: View {
     let modules: [ModuleDescriptor]
     let registry: ModuleRegistry
     let permissions: PermissionCenter
+    let accessibility: AccessibilityOptions
 
     var body: some View {
         NavigationStack(path: $navigation.modulePath) {
@@ -28,10 +29,10 @@ struct ModulesPane: View {
         }
     }
 
-    /// A module's options, or the Priority page (a reserved id on the same path,
+    /// A module's options, or the Layout page (a reserved id on the same path,
     /// so it gets the same back button). Type-erased like the modules' own panes.
     private func page(for id: ModuleID) -> AnyView {
-        if id == .priority { return AnyView(PriorityPane(settings: settings, modules: modules)) }
+        if id == .priority { return AnyView(LayoutPane(settings: settings, modules: modules, registry: registry, accessibility: accessibility)) }
         return registry.settingsPane(for: id) ?? AnyView(EmptyView())
     }
 
@@ -88,7 +89,7 @@ struct ModulesPane: View {
                         navigation.modulePath = [.priority]
                     } label: {
                         HStack {
-                            Label("Priority", systemImage: "arrow.up.arrow.down")
+                            Label("Layout", systemImage: "rectangle.3.group")
                             Spacer()
                             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                         }
@@ -96,7 +97,7 @@ struct ModulesPane: View {
                     }
                     .buttonStyle(.plain)
                 } footer: {
-                    Text("Choose what the island shows first when several things are happening. A call always stays on top.")
+                    Text("Choose what the island shows first, which modules appear beside the notch, and which tabs open in the expanded island and in what order.")
                 }
             }
         }

@@ -9,18 +9,38 @@ extension KeyboardShortcuts.Name {
 
 /// The one place that talks to KeyboardShortcuts (sindresorhus, MIT), which
 /// registers a Carbon hot key: public API, no permission and no event tap.
+///
+/// The library's own handler is registered once for the life of the app and
+/// the shortcut is switched with `enable`/`disable`, which is how its
+/// documentation uses it. The module's action sits behind that handler.
+/// The log lines (no clipboard content) show how far a key press got.
 @MainActor
 enum ClipboardHotkey {
-    /// Replaces any earlier handler, so turning the setting on twice can't make it fire twice.
+    private static var action: (@MainActor () -> Void)?
+    private static var isHandlerRegistered = false
+    private static let log = Log.module("clipboard")
+
     static func install(_ action: @escaping @MainActor () -> Void) {
-        KeyboardShortcuts.removeAllHandlers()
-        KeyboardShortcuts.onKeyUp(for: .clipboardHistory) {
-            MainActor.assumeIsolated { action() }
+        self.action = action
+        if !isHandlerRegistered {
+            isHandlerRegistered = true
+            KeyboardShortcuts.onKeyUp(for: .clipboardHistory) {
+                MainActor.assumeIsolated { ClipboardHotkey.fire() }
+            }
         }
+        KeyboardShortcuts.enable(.clipboardHistory)
+        let shortcut = KeyboardShortcuts.getShortcut(for: .clipboardHistory)
+        log.info("Hotkey on: \(shortcut.map { "\($0)" } ?? "no shortcut set", privacy: .public)")
     }
 
-    /// Notched has no other global shortcut, so this removes only the clipboard's.
     static func remove() {
-        KeyboardShortcuts.removeAllHandlers()
+        action = nil
+        KeyboardShortcuts.disable(.clipboardHistory)
+        log.info("Hotkey off")
+    }
+
+    private static func fire() {
+        log.info("Hotkey pressed (\(action == nil ? "no action" : "opening history"))")
+        action?()
     }
 }

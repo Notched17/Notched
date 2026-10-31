@@ -112,6 +112,7 @@ final class ClipboardModule: IslandModule {
 
     /// Opens the island on the Clipboard tab. The hotkey and the status menu call this.
     func showHistory() {
+        log.info("Opening the Clipboard tab")
         context.services.islandCommands.showTab(Self.tabID, true)
     }
 

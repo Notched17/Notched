@@ -154,6 +154,12 @@ final class SettingsStore {
     let hud: HUDSettings
     let api: LocalAPISettings
     let claudeCode: ClaudeCodeSettings
+    let colorPicker: ColorPickerSettings
+    let clipboard: ClipboardSettings
+    let calendar: CalendarSettings
+    let reminders: RemindersSettings
+    let weather: WeatherSettings
+    let terminal: TerminalSettings
 
     var enabledModules: Set<ModuleID> {
         didSet { defaults.set(enabledModules.map(\.rawValue).sorted(), forKey: Key.enabledModules) }
@@ -192,6 +198,12 @@ final class SettingsStore {
         hud = HUDSettings(defaults: defaults)
         api = LocalAPISettings(defaults: defaults)
         claudeCode = ClaudeCodeSettings(defaults: defaults)
+        colorPicker = ColorPickerSettings(defaults: defaults)
+        clipboard = ClipboardSettings(defaults: defaults)
+        calendar = CalendarSettings(defaults: defaults)
+        reminders = RemindersSettings(defaults: defaults)
+        weather = WeatherSettings(defaults: defaults)
+        terminal = TerminalSettings(defaults: defaults)
         expandOnHover = defaults.object(forKey: Key.expandOnHover) as? Bool ?? true
         hapticsEnabled = defaults.object(forKey: Key.hapticsEnabled) as? Bool ?? true
         notchTheme = defaults.string(forKey: Key.notchTheme).flatMap(IslandTheme.init(rawValue:)) ?? .notchBlack

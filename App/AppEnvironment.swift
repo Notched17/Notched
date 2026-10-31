@@ -34,7 +34,7 @@ final class AppEnvironment {
         var types: [any IslandModule.Type] = [
             MediaModule.self, TimersModule.self, KeepAwakeModule.self,
             BatteryModule.self, BluetoothModule.self, NetworkModule.self, CapsLockModule.self, SensorsModule.self, CallsModule.self, DownloadsModule.self, HUDModule.self,
-            ActivityAPIModule.self, ClaudeCodeModule.self,
+            ActivityAPIModule.self, ClaudeCodeModule.self, ColorPickerModule.self, ClipboardModule.self, CalendarModule.self, RemindersModule.self, WeatherModule.self, TerminalModule.self,
         ]
         #if DEBUG
         types.append(HelloModule.self)
@@ -50,11 +50,20 @@ final class AppEnvironment {
         accessibility = AccessibilityOptions()
         let expiryTimer = expiryTimer
         activities = ActivityCoordinator(scheduleWake: { date in expiryTimer.schedule(at: date) })
+        let islandCommands = IslandCommands()
+        let todayHub = TodayHub()
+        let coordinator = activities
+        todayHub.publishTabs = { [weak coordinator] tabs in coordinator?.setTabs(tabs, from: TodayHub.pseudoModuleID) }
         modules = ModuleRegistry(moduleTypes: Self.moduleTypes, coordinator: activities, settings: settings, scheduler: scheduler,
                                  services: ModuleServices(audioOutputs: AudioOutputService(), permissions: permissions, presence: presence,
-                                                          api: APIGateway(settings: settings.api, secrets: KeychainSecretStore())))
+                                                          api: APIGateway(settings: settings.api, secrets: KeychainSecretStore()),
+                                                          islandCommands: islandCommands, today: todayHub))
         fullscreen = FullscreenMonitor()
-        islands = IslandManager(accessibility: accessibility, activities: activities, fullscreen: fullscreen)
+        let islandManager = IslandManager(accessibility: accessibility, activities: activities, fullscreen: fullscreen)
+        islands = islandManager
+        islandCommands.showTab = { [weak islandManager] id, focus in islandManager?.showTab(id, focus: focus) }
+        islandCommands.collapse = { [weak islandManager] in islandManager?.collapseAll() }
+        islandCommands.requestKeyFocus = { [weak islandManager] in islandManager?.requestKeyFocus() }
         expiryTimer.action = { [weak activities] in activities?.advance(to: Date()) }
     }
 

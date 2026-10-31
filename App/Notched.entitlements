@@ -11,5 +11,9 @@
 	     user turns on "Show the Wi-Fi network's name". -->
 	<key>com.apple.security.personal-information.location</key>
 	<true/>
+	<!-- Hardened Runtime: lets Calendar read events through EventKit (#48), and
+	     Reminders later. Asked for only when the user turns that module on. -->
+	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
 </dict>
 </plist>

@@ -116,6 +116,19 @@ final class IslandManager {
         }
     }
     #endif
+    /// Opens the island on a module's tab. Only the island on the display the
+    /// pointer is on takes keyboard focus.
+    func showTab(_ id: String, focus: Bool) {
+        let pointer = NSEvent.mouseLocation
+        let active = controllers.values.first { $0.screenFrame?.contains(pointer) == true } ?? controllers.values.first
+        for controller in controllers.values { controller.expand(toTab: id, focus: focus && controller === active) }
+    }
+    /// Keyboard focus for the island on the display the pointer is on.
+    func requestKeyFocus() {
+        let pointer = NSEvent.mouseLocation
+        let active = controllers.values.first { $0.screenFrame?.contains(pointer) == true } ?? controllers.values.first
+        active?.focusForTyping()
+    }
     func collapseAll() { for controller in controllers.values { controller.collapse() } }
 
     /// Screen notifications arrive in bursts; settle for 200 ms before rebuilding.

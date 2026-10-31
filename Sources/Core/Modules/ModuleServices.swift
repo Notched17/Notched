@@ -15,10 +15,17 @@ struct ModuleServices {
     let presence: IslandPresence?
     /// The local HTTP API. Modules register routes; the socket exists only while one is registered.
     let api: APIGateway
+    /// Open or collapse the islands (a hotkey that shows a tab).
+    let islandCommands: IslandCommands
+    /// The shared Today tab: calendar, reminders and weather add sections to it.
+    let today: TodayHub
 
     init(audioOutputs: AudioOutputService = AudioOutputService(), sensors: SensorUsageService = SensorUsageService(),
-         permissions: PermissionCenter? = nil, presence: IslandPresence? = nil, api: APIGateway = APIGateway()) {
+         permissions: PermissionCenter? = nil, presence: IslandPresence? = nil, api: APIGateway = APIGateway(),
+         islandCommands: IslandCommands = IslandCommands(), today: TodayHub = TodayHub()) {
         self.api = api
+        self.islandCommands = islandCommands
+        self.today = today
         self.presence = presence
         self.audioOutputs = audioOutputs
         self.sensors = sensors

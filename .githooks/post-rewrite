@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Notched.xcodeproj is generated and git-ignored, so pulling or switching
+# branch leaves it stale (new files aren't in it). Regenerate it.
+# Enabled by `git config core.hooksPath .githooks` (scripts/go.sh does this).
+cd "$(git rev-parse --show-toplevel)" || exit 0
+command -v xcodegen >/dev/null 2>&1 && xcodegen generate --quiet || true
+exit 0

@@ -178,14 +178,24 @@ final class IslandViewModel {
     /// minimum and maximum (taller content is truncated).
     var expandedHeight: CGFloat {
         let measured = expandedPageHeights[expandedPageKey] ?? 0
-        return min(max(measured + expandedTopInset + IslandMetrics.expandedBottomInset, minExpandedHeight), maxExpandedHeight)
+        return min(max(measured + expandedTopInset + IslandMetrics.expandedBottomInset, minExpandedHeight), maxExpandedHeight(for: selectedModuleTab))
     }
 
     /// The pill has no camera housing row, so its content needs a top margin.
     var expandedTopInset: CGFloat { geometry.kind == .pill && expandedActivity != nil ? Spacing.l : 0 }
 
     var minExpandedHeight: CGFloat { headerHeight + IslandMetrics.expandedMinContentHeight }
-    var maxExpandedHeight: CGFloat { headerHeight + IslandMetrics.expandedMaxContentHeight }
+    /// The panel is sized for the tallest island any tab may ask for (ADR-0002:
+    /// it never resizes during interaction), so a taller tab (the Terminal)
+    /// enlarges it when the tab is added, not when it is shown.
+    var maxExpandedHeight: CGFloat {
+        headerHeight + max(IslandMetrics.expandedMaxContentHeight, tabs.compactMap(\.maxContentHeight).max() ?? 0)
+    }
+
+    /// The height limit of the island showing `tab` (the usual one unless it asks for more).
+    func maxExpandedHeight(for tab: IslandTab?) -> CGFloat {
+        headerHeight + (tab?.maxContentHeight ?? IslandMetrics.expandedMaxContentHeight)
+    }
 
     /// Measured content height of each expanded page, so a page that was shown
     /// before opens at the right size straight away.

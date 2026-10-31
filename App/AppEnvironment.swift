@@ -34,6 +34,7 @@ final class AppEnvironment {
         var types: [any IslandModule.Type] = [
             MediaModule.self, TimersModule.self, KeepAwakeModule.self,
             BatteryModule.self, BluetoothModule.self, NetworkModule.self, CapsLockModule.self, SensorsModule.self, CallsModule.self, DownloadsModule.self, HUDModule.self,
+            ActivityAPIModule.self, ClaudeCodeModule.self,
         ]
         #if DEBUG
         types.append(HelloModule.self)
@@ -50,13 +51,16 @@ final class AppEnvironment {
         let expiryTimer = expiryTimer
         activities = ActivityCoordinator(scheduleWake: { date in expiryTimer.schedule(at: date) })
         modules = ModuleRegistry(moduleTypes: Self.moduleTypes, coordinator: activities, settings: settings, scheduler: scheduler,
-                                 services: ModuleServices(audioOutputs: AudioOutputService(), permissions: permissions, presence: presence))
+                                 services: ModuleServices(audioOutputs: AudioOutputService(), permissions: permissions, presence: presence,
+                                                          api: APIGateway(settings: settings.api, secrets: KeychainSecretStore())))
         fullscreen = FullscreenMonitor()
         islands = IslandManager(accessibility: accessibility, activities: activities, fullscreen: fullscreen)
         expiryTimer.action = { [weak activities] in activities?.advance(to: Date()) }
     }
 
     func start() {
+        // A crash or kill leaves the API's port file behind; the hook must not trust a port nobody owns.
+        APIDiscoveryFile.remove()
         power.onChange = { [weak self] state in self?.scheduler.context.power = state }
         systemActivity.onChange = { [weak self] suspended in
             self?.scheduler.context.suspended = suspended

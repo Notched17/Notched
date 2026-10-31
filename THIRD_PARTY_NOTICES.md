@@ -78,3 +78,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
+
+## M4a: nothing adapted
+
+The Activity API, the `notched-hook` helper, the settings-file installer, the session reducer and the usage parser are original. farouqaldori/vibe-notch (Apache-2.0) was named as a reference but was not read, and no code or structure was taken from it. The usage-log deduplication (one response is written on several lines) is the approach ccusage documents; no ccusage code was used.

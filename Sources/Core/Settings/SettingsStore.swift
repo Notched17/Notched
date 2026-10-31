@@ -152,6 +152,8 @@ final class SettingsStore {
     let sensors: SensorsSettings
     let calls: CallsSettings
     let hud: HUDSettings
+    let api: LocalAPISettings
+    let claudeCode: ClaudeCodeSettings
 
     var enabledModules: Set<ModuleID> {
         didSet { defaults.set(enabledModules.map(\.rawValue).sorted(), forKey: Key.enabledModules) }
@@ -188,6 +190,8 @@ final class SettingsStore {
         sensors = SensorsSettings(defaults: defaults)
         calls = CallsSettings(defaults: defaults)
         hud = HUDSettings(defaults: defaults)
+        api = LocalAPISettings(defaults: defaults)
+        claudeCode = ClaudeCodeSettings(defaults: defaults)
         expandOnHover = defaults.object(forKey: Key.expandOnHover) as? Bool ?? true
         hapticsEnabled = defaults.object(forKey: Key.hapticsEnabled) as? Bool ?? true
         notchTheme = defaults.string(forKey: Key.notchTheme).flatMap(IslandTheme.init(rawValue:)) ?? .notchBlack

@@ -13,9 +13,12 @@ struct ModuleServices {
     let permissions: PermissionCenter?
     /// Whether the island can show a HUD right now. Nil only in tests.
     let presence: IslandPresence?
+    /// The local HTTP API. Modules register routes; the socket exists only while one is registered.
+    let api: APIGateway
 
     init(audioOutputs: AudioOutputService = AudioOutputService(), sensors: SensorUsageService = SensorUsageService(),
-         permissions: PermissionCenter? = nil, presence: IslandPresence? = nil) {
+         permissions: PermissionCenter? = nil, presence: IslandPresence? = nil, api: APIGateway = APIGateway()) {
+        self.api = api
         self.presence = presence
         self.audioOutputs = audioOutputs
         self.sensors = sensors

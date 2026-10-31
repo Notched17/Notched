@@ -13,7 +13,7 @@ struct CalendarReducerTests {
         calendar.timeZone = TimeZone(identifier: "UTC")!
         return calendar
     }()
-    let t0 = Date(timeIntervalSince1970: 1_800_000_000 - 1_800_000_000 % 86_400 + 10 * 3600)   // 10:00 UTC
+    let t0 = Date(timeIntervalSince1970: 1_800_007_200)   // 10:00 UTC on a day boundary + 10 h
     let blue = ColorValue(red: 0, green: 0, blue: 255)
 
     private func config(_ edit: (inout CalendarConfig) -> Void = { _ in }) -> CalendarConfig {

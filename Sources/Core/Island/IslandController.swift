@@ -70,6 +70,14 @@ final class IslandController {
         hostingView.onMouseDown = { [weak self] in self?.takeKeyFocus() }
         hostingView.onScroll = { [weak self] sample in self?.expandedScroll(sample) }
         panel.onCancel = { [weak self] in self?.send(.forceCollapse) }
+        panel.onKeyCommand = { [weak self] command in
+            guard let self else { return false }
+            let reduceMotion = model.accessibility.reduceMotion
+            let handled = withAnimation(reduceMotion ? Motion.reduced : Motion.content) { model.handle(command) }
+            if handled { feedback(.alignment) }
+            return handled
+        }
+        model.onTabChanged = { [weak self] in self?.feedback(.alignment) }
 
         layoutWindows()
         observeLayout()
@@ -274,7 +282,15 @@ final class IslandController {
     private func activate(_ target: IslandViewModel.IslandTarget) {
         switch target {
         case .island:
-            guard activities.banner == nil, let primary = activities.primary else { return }
+            if let banner = activities.banner {
+                // A click on a banner does what the banner says, if it says anything.
+                guard let open = banner.openAction else { return }
+                feedback(.generic)
+                open()
+                activities.dismissBanner(banner.id)
+                return
+            }
+            guard let primary = activities.primary else { return }
             if let open = primary.activity.openAction {
                 feedback(.generic)
                 open()

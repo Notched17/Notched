@@ -25,12 +25,16 @@ final class AppEnvironment {
     private let expiryTimer = OneShotTimer()
     private let power = PowerStateMonitor()
     private let systemActivity = SystemActivityMonitor()
+    /// What the island is doing, for modules that must know whether it can
+    /// show something right now (the HUD).
+    let presence = IslandPresence()
 
     /// Every module the app knows, in display order.
     static var moduleTypes: [any IslandModule.Type] {
         var types: [any IslandModule.Type] = [
             MediaModule.self, TimersModule.self, KeepAwakeModule.self,
-            BatteryModule.self, BluetoothModule.self, NetworkModule.self, CapsLockModule.self,
+            BatteryModule.self, BluetoothModule.self, NetworkModule.self, CapsLockModule.self, SensorsModule.self, CallsModule.self, DownloadsModule.self, HUDModule.self,
+            ActivityAPIModule.self, ClaudeCodeModule.self,
         ]
         #if DEBUG
         types.append(HelloModule.self)
@@ -47,19 +51,27 @@ final class AppEnvironment {
         let expiryTimer = expiryTimer
         activities = ActivityCoordinator(scheduleWake: { date in expiryTimer.schedule(at: date) })
         modules = ModuleRegistry(moduleTypes: Self.moduleTypes, coordinator: activities, settings: settings, scheduler: scheduler,
-                                 services: ModuleServices(audioOutputs: AudioOutputService(), permissions: permissions))
+                                 services: ModuleServices(audioOutputs: AudioOutputService(), permissions: permissions, presence: presence,
+                                                          api: APIGateway(settings: settings.api, secrets: KeychainSecretStore())))
         fullscreen = FullscreenMonitor()
         islands = IslandManager(accessibility: accessibility, activities: activities, fullscreen: fullscreen)
         expiryTimer.action = { [weak activities] in activities?.advance(to: Date()) }
     }
 
     func start() {
+        // A crash or kill leaves the API's port file behind; the hook must not trust a port nobody owns.
+        APIDiscoveryFile.remove()
         power.onChange = { [weak self] state in self?.scheduler.context.power = state }
-        systemActivity.onChange = { [weak self] suspended in self?.scheduler.context.suspended = suspended }
+        systemActivity.onChange = { [weak self] suspended in
+            self?.scheduler.context.suspended = suspended
+            self?.presence.isSuspended = suspended
+        }
+        islands.onShownChange = { [weak self] shown in self?.presence.anyIslandShown = shown }
         power.start()
         systemActivity.start()
         scheduler.context.power = power.state
         applySettings()
+        observeActivityPresence()
         // Modules follow their own setting (ModuleHost), outside the
         // observation below, so what they read while starting isn't tracked.
         modules.start(debuggerAttached: ModuleHost.isDebuggerAttached())
@@ -74,12 +86,24 @@ final class AppEnvironment {
             islands.appearance = settings.islandAppearance
             activities.configuration = settings.activityConfiguration
             islands.isPaused = settings.isPaused
+            presence.isPaused = settings.isPaused
             scheduler.context.islandVisible = !settings.isPaused
             islands.hideInFullscreen = settings.hideInFullscreen
             islands.keepShowingForMedia = settings.keepShowingForMedia
             islands.hideFromScreenCapture = settings.hideFromScreenCapture
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in self?.applySettings() }
+        }
+    }
+
+    /// Follows whether an alert is showing and whether the user is on the
+    /// island, which both close the HUD (the key goes to macOS meanwhile).
+    private func observeActivityPresence() {
+        withObservationTracking {
+            presence.alertShowing = activities.alert != nil
+            presence.isInteracting = activities.isInteracting
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in self?.observeActivityPresence() }
         }
     }
 }

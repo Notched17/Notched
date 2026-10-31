@@ -36,6 +36,10 @@ struct ModuleSettingsContext {
     let settings: SettingsStore
     /// To reach the running module, e.g. to show its live status.
     let registry: ModuleRegistry
+    /// To show a permission's status. Nil only in tests.
+    var permissions: PermissionCenter?
+    /// The local API, for the panes that manage its clients. Nil only in tests.
+    var api: APIGateway?
 }
 
 /// What a module may use. Its activity sink is scoped to its own id; any
@@ -94,6 +98,12 @@ struct ActivitySink {
     /// Removes everything this module shows, without Recent entries.
     func endAll() {
         coordinator.endAll(from: moduleID)
+    }
+
+    /// Replaces this module's tabs on the expanded island (`IslandTab`). Pass
+    /// an empty array to remove them; stopping the module removes them too.
+    func setTabs(_ tabs: [IslandTab]) {
+        coordinator.setTabs(tabs, from: moduleID)
     }
 
     /// Replaces this module's quick actions on the island's Home page.

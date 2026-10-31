@@ -41,8 +41,30 @@ final class IslandPanel: NSPanel {
 
     override func cancelOperation(_ sender: Any?) { onCancel() }
 
+    /// Tab and page keys while the panel has focus. True when handled.
+    var onKeyCommand: (ExpandedKeyCommand) -> Bool = { _ in false }
+
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 53 { onCancel() } else { super.keyDown(with: event) }
+        if event.keyCode == 53 {
+            onCancel()
+        } else if !route(event) {
+            super.keyDown(with: event)
+        }
+    }
+
+    /// ⌘1…⌘5 arrive as key equivalents before `keyDown`.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        route(event) || super.performKeyEquivalent(with: event)
+    }
+
+    private func route(_ event: NSEvent) -> Bool {
+        let flags = event.modifierFlags
+        guard isKeyWindow, let command = ExpandedTabs.command(
+            keyCode: event.keyCode, characters: event.charactersIgnoringModifiers,
+            command: flags.contains(.command), control: flags.contains(.control),
+            shift: flags.contains(.shift), option: flags.contains(.option)
+        ) else { return false }
+        return onKeyCommand(command)
     }
 
     /// Keep the frame exactly as set: the notch island deliberately reaches a

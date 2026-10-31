@@ -16,7 +16,7 @@ struct ModulesPane: View {
             form
                 .navigationTitle(SettingsPane.modules.title)
                 .navigationDestination(for: ModuleID.self) { id in
-                    registry.settingsPane(for: id)
+                    page(for: id)
                         .navigationBarBackButtonHidden()
                         .toolbar {
                             ToolbarItem(placement: .navigation) {
@@ -26,6 +26,13 @@ struct ModulesPane: View {
                         }
                 }
         }
+    }
+
+    /// A module's options, or the Priority page (a reserved id on the same path,
+    /// so it gets the same back button). Type-erased like the modules' own panes.
+    private func page(for id: ModuleID) -> AnyView {
+        if id == .priority { return AnyView(PriorityPane(settings: settings, modules: modules)) }
+        return registry.settingsPane(for: id) ?? AnyView(EmptyView())
     }
 
     private var form: some View {
@@ -56,6 +63,7 @@ struct ModulesPane: View {
                                                                              registry: registry))
                             // Nothing runs in safe mode; Resume Modules above is the way out.
                             .disabled(registry.isSafeMode)
+                            .contextMenu { pinMenu(for: module) }
                         if registry.suspendedIDs.contains(module.id) {
                             LabeledContent {
                                 Button("Turn On") { registry.resume(module.id) }
@@ -75,11 +83,41 @@ struct ModulesPane: View {
                 } footer: {
                     Text("A module that's off uses no energy at all. Permissions are only requested when you turn on a module that needs them.")
                 }
+                Section {
+                    Button {
+                        navigation.modulePath = [.priority]
+                    } label: {
+                        HStack {
+                            Label("Priority", systemImage: "arrow.up.arrow.down")
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                } footer: {
+                    Text("Choose what the island shows first when several things are happening. A call always stays on top.")
+                }
             }
         }
         .formStyle(.grouped)
     }
 
+    /// Right-click a module to pin it above the rest (see Priority).
+    @ViewBuilder
+    private func pinMenu(for module: ModuleDescriptor) -> some View {
+        if settings.activityRanking.pinned.contains(module.id) {
+            Button("Unpin") { settings.activityRanking = settings.activityRanking.unpinning(module.id) }
+        } else {
+            Button("Pin Above Others") { settings.activityRanking = settings.activityRanking.pinning(module.id) }
+        }
+    }
+
+}
+
+extension ModuleID {
+    /// Not a module: the Priority page's place on the Modules navigation path.
+    static let priority: ModuleID = "settings.priority"
 }
 
 /// Turning a module on asks for the permissions it needs, and only then.

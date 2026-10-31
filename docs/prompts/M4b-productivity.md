@@ -1,7 +1,11 @@
 We're continuing Notched. M1–M4a are done ✅ (confirm in `docs/ROADMAP.md`; if M4a isn't merged into `main`, stop and tell me). This is **M4b**: the productivity modules (clipboard, calendar + join, reminders, weather, colour picker, terminal) and the **layout editor**. These are mostly public-API and UI work, so most of the session is polish.
 
 ## Model guide (for me, not for you)
-Plan mode: Opus high. Everything else: Sonnet. Settings panes, docs, ROADMAP updates, running tests: Haiku via `build-runner`/`Explore`. Use Opus again only for the final fresh review.
+- Plan mode (Step 0): Opus, high effort.
+- Module build steps (1 to 7): Sonnet, medium effort. Use high for the terminal (6), because of its key-focus handling.
+- Settings panes, docs and ROADMAP updates: Sonnet, low effort.
+- Builds, tests and searches: Haiku via `build-runner` and `Explore`.
+- Final fresh-reviewer pass: Opus, high effort.
 
 ## Read first
 1. `CLAUDE.md` (binding) and `docs/ROADMAP.md` M4 rows **#45, #48 (+#49), #50, #51, #55, #64, #71**.

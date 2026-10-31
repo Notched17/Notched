@@ -29,6 +29,13 @@ final class WindowCoordinator {
         window.makeKeyAndOrderFront(nil)
     }
 
+    /// Settings ▸ Modules ▸ Priority.
+    func showPriority() {
+        settingsNavigation.selection = .modules
+        settingsNavigation.modulePath = [.priority]
+        showSettings()
+    }
+
     private func makeSettingsWindow() -> NSWindow {
         let context = SettingsContext(
             settings: environment.settings,

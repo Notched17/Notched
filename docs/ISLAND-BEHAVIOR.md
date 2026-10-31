@@ -19,7 +19,7 @@ Where Apple documents nothing (alert durations, cross-app ordering, spring value
 | **Compact + minimal** | Two or three visible activities | The **primary** activity stays attached, shown either as full compact or reduced-width compact (see §3). The others show as **minimal** bubbles: small black circles or ovals detached from the island by a small gap, each showing live data such as a countdown, never just a logo. | Minimal / reduced-width compact (iPhone 18 Pro) |
 | **Expanded** | Hover, the Mac's "touch and hold" (existing hover delay). Hovering a minimal bubble expands **that** activity. | The activity's expanded layout (§4), wrapping tightly around the camera housing. | Expanded on long-press |
 | **Alert expansion** | An activity update marked as an alert, or a new high-priority activity | The island expands to that activity's expanded view for a few seconds, then returns to the previous presentation. | Expanded on an alerting update |
-| **Transient banner** | Short system events: charging, Caps Lock, Bluetooth connected, Focus changed, volume/brightness (M5) | A "wide compact" banner (icon leading, short text or value trailing). It pre-empts the current compact view for 1.5–2.5 s **[decision]**, then restores it. It doesn't take a minimal slot. | Charging, silent switch, AirPods connect |
+| **Transient banner** | Short system events: charging, Caps Lock, Bluetooth connected, volume/brightness (M3b Part B) | A "wide compact" banner (icon leading, short text or value trailing). It pre-empts the current compact view for 1.5–2.5 s **[decision]**, then restores it. It doesn't take a minimal slot. A volume or brightness HUD is a banner too, but it never waits: it replaces whatever banner is up (which resumes after it), and it only takes the key while the island can show it (not expanded under the pointer, no alert showing, not paused or hidden), otherwise macOS keeps the key. | Charging, silent switch, AirPods connect, volume keys |
 | **Home** | Hover with nothing live | The current expanded "home" view: date and time header, quick actions, and later calendar and weather. Mac-only addition (iOS has no idle expansion). | — |
 
 **Never** split compact slots across activities: leading and trailing always come from the same activity. The current M1 coordinator does split them, and must change.
@@ -45,9 +45,9 @@ The same activity id updates in place, and keeps its position and slot. An alert
 
 ### Ranking (attached vs minimal) [decision, Apple doesn't document cross-app order]
 
-1. **Class:** `system` (call, screen recording, navigation-like) > `media` (whatever is playing) > `live` (timer, Claude Code working, keep-awake, download) > `passive` (charging). Whatever is playing keeps the attached island; the user's own timers and tools show as bubbles beside it (ADR-0011, M3a).
+1. **Class:** `system` (call, screen recording, navigation-like) > `media` (whatever is playing) > `live` (timer, Claude Code working, keep-awake, download, camera/mic indicator) > `passive` (charging). Whatever is playing keeps the attached island; the user's own timers and tools show as bubbles beside it (ADR-0011, M3a). **The user can change this** (Settings ▸ Modules ▸ Priority, ADR-0016): `system` is always first, then modules the user pinned, then their own order of media, live and passive.
 2. Within a class, higher `relevance` wins. On a tie, the activity started first wins: it's stable, and newer ones don't steal the island.
-3. The user overrides: **swap** (clicking a minimal bubble makes it primary; a two-finger horizontal swipe on the compact island cycles), and **hide** (swipe up on an activity, or a context-menu "Hide"). Hiding an activity doesn't end it; it stays listed in the expanded view's activity list and can be restored. System activities that aren't hideable ignore hide.
+3. The user overrides: **swap** (clicking a minimal bubble makes it primary; a two-finger horizontal swipe on the compact island cycles), and **hide** (swipe up on an activity, or a context-menu "Hide"). Hiding an activity doesn't end it; it stays listed in the expanded view's activity list and can be restored. System activities that aren't hideable ignore hide. **An activity that isn't hideable is never left hidden** (one that becomes non-hideable, like the camera indicator when the camera turns on, comes back) **and always takes one of the three visible slots**, ahead of better-ranked hideable ones, so it can't end up only in the list (ADR-0016).
 4. A user's swap is sticky until either activity ends or a new `system` activity arrives.
 
 ### Lifecycle
@@ -116,11 +116,12 @@ Implement a custom SwiftUI `Layout` for the expanded regions that follows Apple'
 |---|---|---|
 | Now Playing | Yes (private MediaRemote via mediaremote-adapter) | M2 |
 | Timer | Our own timers: yes, public. The Clock app's timers: private routes only (Atoll's `SystemTimerBridge`, GPL, adaptable). | Recommend adding #37 timers to M3. Clock-app mirroring is experimental and later. |
-| Calls (FaceTime, Zoom, Teams, Phone via iPhone) | "In a call" + duration via Core Audio per-process mic use + known call apps (public, heuristic). Caller name and ringing: no reliable route. | M3: "Call" system activity |
-| Screen recording | Yes (private CGS screen-watcher notifications + the `screencapture` process), including a Stop button | M3: system activity |
-| Camera / mic in use | Yes (public) | M3 (#31) |
-| Downloads | Yes (heuristic `~/Downloads` watcher + progress xattr) | M3 |
-| Charging, AirPods connect, Focus, Caps Lock | Yes. Focus *names* need Full Disk Access. | M3, as transient banners |
+| Calls (FaceTime, Zoom, Teams, Phone via iPhone) | "In a call" + duration via Core Audio per-process mic use + known call apps (public, heuristic). Caller name and ringing: no reliable route. No Mute/End (no public route). The call owns its mic and camera, shown as dots on it. | M3b: built, simulated-tested (ADR-0017) |
+| Screen recording | Detection yes: private SkyLight notify types 1502/1503, no permission (ADR-0014). Stop: only for `screencapture -v`; ⌘⇧5 ignores SIGINT. | Deferred |
+| Camera / mic in use | Yes (public); names only apps it can prove | M3b: built (#31), `.live`, not hideable while the camera is on |
+| Downloads | Yes (FSEvents on `~/Downloads`, partial-file names, progress xattr); needs Files & Folders | M3b: built (ADR-0018) |
+| Charging, AirPods connect, Caps Lock | Yes | M3a, as transient banners |
+| Focus | Only through an App Intents Focus Filter the user adds to each Focus. The DND notifications and `INFocusStatusCenter` don't work on 27.2 (ADR-0015). | Dropped from M3b |
 | Lock / unlock | Yes (distributed notifications) | Used by M6 lock-screen features |
 | **Maps turn-by-turn** | **No.** Mac Maps has no live navigation. Tahoe shows the iPhone's Live Activities in the menu bar, but no API lets another app read them (only an untested Accessibility scrape). | Not possible. Don't build it; at most a later experiment. |
 | Other apps' Live Activities (Uber, sports, flights) | No public route | Sports scores via a web API could be a later module |

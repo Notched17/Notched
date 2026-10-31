@@ -30,13 +30,14 @@ final class RefreshScheduler {
         every interval: Duration,
         tolerance: Double = RefreshPlan.minimumTolerance,
         when condition: RefreshCondition = .always,
+        scalesWithPower: Bool = true,
         _ work: @escaping @MainActor () -> Void
     ) -> RefreshToken {
         nextID += 1
         let token = RefreshToken(rawValue: nextID)
         entries.append(RefreshEntry(
             id: token, interval: interval.timeInterval, tolerance: tolerance,
-            condition: condition, registeredAt: now(), lastFired: nil
+            condition: condition, registeredAt: now(), lastFired: nil, scalesWithPower: scalesWithPower
         ))
         self.work[token] = work
         names[token] = name

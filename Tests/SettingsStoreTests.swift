@@ -193,4 +193,18 @@ struct SettingsStoreTests {
         #expect(sut.islandAppearance.multipleActivities == .sideBySide)
         #expect(!sut.islandAppearance.keyline)
     }
+
+    @Test("The activity priority defaults to ADR-0011, is saved, reaches the coordinator's configuration, and survives bad data")
+    func activityRankingPersists() {
+        let defaults = freshDefaults()
+        let sut = SettingsStore(defaults: defaults)
+        #expect(sut.activityRanking == .default)
+        sut.activityRanking = RankingPolicy.default.moving(.live, by: -1).pinning("timers")
+        #expect(sut.activityConfiguration.ranking == sut.activityRanking)
+        let reloaded = SettingsStore(defaults: defaults)
+        #expect(reloaded.activityRanking.order == [.live, .media, .passive])
+        #expect(reloaded.activityRanking.pinned == ["timers"])
+        defaults.set(Data("garbage".utf8), forKey: "activities.ranking")
+        #expect(SettingsStore(defaults: defaults).activityRanking == .default)
+    }
 }

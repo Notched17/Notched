@@ -145,3 +145,9 @@ For the whole screen: `screencapture -x /tmp/screen.png`. Look at the image befo
 - Delegate every `xcodebuild`, test, `xcodegen` and perf-script run to `build-runner` (Haiku). It returns pass/fail plus only the failing lines.
 - Keep planning, design decisions, Swift 6 concurrency work, all code edits, debugging and screenshot critique on the main model. Do not hand these to Haiku.
 - Read only the file ranges you need. Don't re-read files you just edited.
+
+## Model and effort policy (binding)
+- The stage prompt's Model guide is the source of truth for which model and effort to use in each part of a stage. If a step's guide is missing, default to Sonnet at medium effort.
+- Before starting each new step, state in one line which model and effort it needs. If the session isn't set to that, stop and ask the user to switch with `/model` or `/effort` before continuing. Never proceed on the wrong model silently.
+- Subagents follow their own frontmatter: `Explore` and `build-runner` are Haiku at low effort. Don't override them.
+- Opus at xhigh is for go/no-go spikes and safety-critical design only. Don't use it for routine building.

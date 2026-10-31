@@ -160,6 +160,101 @@ struct ModuleShellTests {
         }
     }
 
+    @Test("Camera & Microphone leaves no listener, observer or activity behind when it stops, however often it is switched")
+    func sensorsNeverLeak() {
+        let services = ModuleServices()
+        let (context, coordinator) = context(SensorsModule.descriptor.id, services: services)
+        for _ in 0..<5 {
+            let module = SensorsModule(context: context)
+            module.start()
+            services.sensors.flush()
+            #expect(module.isRunning)
+            #expect(services.sensors.listenerCount > 0)
+            module.stop()
+            services.sensors.flush()
+            #expect(!module.isRunning)
+            #expect(services.sensors.listenerCount == 0)
+            #expect(coordinator.live.isEmpty)
+        }
+    }
+
+    @Test("Camera & Microphone and Calls share one set of listeners; the last holder out removes them")
+    func sensorsAreShared() {
+        let services = ModuleServices()
+        let (context, _) = context(SensorsModule.descriptor.id, services: services)
+        let module = SensorsModule(context: context)
+        module.start()
+        services.sensors.acquire()  // Calls, say
+        services.sensors.flush()
+        let installed = services.sensors.listenerCount
+        #expect(installed > 0)
+        module.stop()
+        services.sensors.flush()
+        #expect(services.sensors.listenerCount == installed)
+        services.sensors.release()
+        services.sensors.flush()
+        #expect(services.sensors.listenerCount == 0)
+    }
+
+    @Test("Calls leaves no listener, observer, claim or activity behind when it stops, however often it is switched")
+    func callsNeverLeak() {
+        let services = ModuleServices()
+        let (context, coordinator) = context(CallsModule.descriptor.id, services: services)
+        for _ in 0..<5 {
+            let module = CallsModule(context: context)
+            module.start()
+            services.sensors.flush()
+            #expect(module.isRunning)
+            #expect(services.sensors.listenerCount > 0)
+            module.stop()
+            services.sensors.flush()
+            #expect(!module.isRunning)
+            #expect(services.sensors.listenerCount == 0)
+            #expect(coordinator.live.isEmpty)
+        }
+    }
+
+    @Test("A stopped Calls module can never leave the microphone indicator suppressed, even while Camera & Microphone keeps the service alive")
+    func callsClaimsClearedOnStop() {
+        let services = ModuleServices()
+        let (context, _) = context(CallsModule.descriptor.id, services: services)
+        services.sensors.acquire()  // Camera & Microphone, say
+        let module = CallsModule(context: context)
+        module.start()
+        services.sensors.setCallClaims(CallClaims(identities: ["us.zoom.xos"], isCallActive: true))
+        module.stop()
+        #expect(services.sensors.callClaims == CallClaims())
+        services.sensors.release()
+    }
+
+    @Test("Downloads removes its stream and activity when it stops, however often it is switched, and does nothing without the permission")
+    func downloadsNeverLeak() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("NotchedShellDownloads-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let (context, coordinator) = context(DownloadsModule.descriptor.id)
+        for _ in 0..<5 {
+            let module = DownloadsModule(context: context, directory: dir.path, requiresPermission: false)
+            module.start()
+            module.watcher?.flush()
+            #expect(module.isRunning)
+            #expect(module.watcher?.streamCount == 1)
+            module.stop()
+            module.watcher?.flush()
+            #expect(!module.isRunning)
+            #expect(module.watcher?.streamCount == 0)
+            #expect(coordinator.live.isEmpty)
+        }
+        // Without the permission (the real default) nothing is watched.
+        let center = PermissionCenter(scheduler: RefreshScheduler(), defaults: UserDefaults(suiteName: "DownloadsShell.\(UUID().uuidString)")!)
+        let guarded = ModuleServices(permissions: center)
+        let (guardedContext, _) = self.context(DownloadsModule.descriptor.id, services: guarded)
+        let module = DownloadsModule(context: guardedContext, directory: dir.path, requiresPermission: true)
+        module.start()
+        #expect(module.watcher == nil, "watched the folder without the permission")
+        module.stop()
+    }
+
     @Test("Caps Lock's event monitors are removed when it stops")
     func capsLockStops() {
         let (context, _) = context(CapsLockModule.descriptor.id)

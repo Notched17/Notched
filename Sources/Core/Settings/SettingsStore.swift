@@ -158,6 +158,7 @@ final class SettingsStore {
     let clipboard: ClipboardSettings
     let calendar: CalendarSettings
     let reminders: RemindersSettings
+    let weather: WeatherSettings
 
     var enabledModules: Set<ModuleID> {
         didSet { defaults.set(enabledModules.map(\.rawValue).sorted(), forKey: Key.enabledModules) }
@@ -200,6 +201,7 @@ final class SettingsStore {
         clipboard = ClipboardSettings(defaults: defaults)
         calendar = CalendarSettings(defaults: defaults)
         reminders = RemindersSettings(defaults: defaults)
+        weather = WeatherSettings(defaults: defaults)
         expandOnHover = defaults.object(forKey: Key.expandOnHover) as? Bool ?? true
         hapticsEnabled = defaults.object(forKey: Key.hapticsEnabled) as? Bool ?? true
         notchTheme = defaults.string(forKey: Key.notchTheme).flatMap(IslandTheme.init(rawValue:)) ?? .notchBlack

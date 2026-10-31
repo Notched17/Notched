@@ -86,6 +86,8 @@ final class TodayHub {
 extension EnvironmentValues {
     /// How many rows a Today section may show (it depends on the header).
     @Entry var todayRowLimit = 3
+    /// True when the weather strip shares the tab with the Calendar and Reminders columns, so it shows fewer hours.
+    @Entry var todayHasColumns = false
 }
 
 /// The Today tab (spec §3.1): a header strip, then up to two columns.
@@ -108,6 +110,7 @@ struct TodayTabView: View {
             }
         }
         .environment(\.todayRowLimit, layout.rowLimit)
+        .environment(\.todayHasColumns, !layout.columns.isEmpty)
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }

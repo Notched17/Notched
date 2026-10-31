@@ -22,9 +22,18 @@ struct IslandTab: Identifiable {
     /// module can register refreshes with `RefreshScheduler.setUIVisible`
     /// only while it's on screen.
     var onVisibilityChange: (@MainActor (Bool) -> Void)?
+    /// The tab's content types keys itself (the Terminal): Esc and the arrow
+    /// keys go to it, ⌘Esc collapses, and the island stays open while it has
+    /// keyboard focus (`IslandKeyboardPolicy`, ADR-0026).
+    var capturesKeyboard = false
+    /// A taller island than the usual content limit, for this tab only (points).
+    var maxContentHeight: CGFloat?
+    /// For a capturing tab: the user pinned the island open.
+    var keepsIslandOpen: (@MainActor () -> Bool)?
 
     init(id: String, moduleID: ModuleID, title: String, symbol: String, accessibilityLabel: String? = nil,
          order: Int = 0, onVisibilityChange: (@MainActor (Bool) -> Void)? = nil,
+         capturesKeyboard: Bool = false, maxContentHeight: CGFloat? = nil, keepsIslandOpen: (@MainActor () -> Bool)? = nil,
          @ViewBuilder content: @escaping () -> some View) {
         self.id = id
         self.moduleID = moduleID
@@ -33,6 +42,9 @@ struct IslandTab: Identifiable {
         self.accessibilityLabel = accessibilityLabel ?? title
         self.order = order
         self.onVisibilityChange = onVisibilityChange
+        self.capturesKeyboard = capturesKeyboard
+        self.maxContentHeight = maxContentHeight
+        self.keepsIslandOpen = keepsIslandOpen
         self.content = IslandRegion(content)
     }
 

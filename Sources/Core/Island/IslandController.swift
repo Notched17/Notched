@@ -28,6 +28,7 @@ final class IslandController {
     private var sensors: [IslandSensorPanel] = []
     private var hover = HoverStateMachine()
     private var hoverTimer: Task<Void, Never>?
+    private var resignKeyToken: (any NSObjectProtocol)?
     /// Identifies the latest presentation change, so a superseded animation's
     /// completion can't switch mouse handling under a newer one.
     private var transitionID = 0
@@ -82,6 +83,10 @@ final class IslandController {
         layoutWindows()
         observeLayout()
         observeAlerts()
+        observeKeyboardTab()
+        resignKeyToken = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.panelResignedKey() }
+        }
         panel.orderFrontRegardless()
         Log.island.info("Island on \(displayID, privacy: .public): \(String(describing: geometry.kind), privacy: .public) panel \(NSStringFromRect(frame), privacy: .public)")
     }
@@ -119,6 +124,8 @@ final class IslandController {
 
     func tearDown() {
         hoverTimer?.cancel()
+        if let resignKeyToken { NotificationCenter.default.removeObserver(resignKeyToken) }
+        resignKeyToken = nil
         for window in [panel] + sensors as [NSWindow] {
             window.orderOut(nil)
             window.close()
@@ -235,8 +242,43 @@ final class IslandController {
             Log.island.debug("ignored false exit at \(NSStringFromPoint(location), privacy: .public)")
             return
         }
+        if presentation == .expanded, keyboardTabHoldsIslandOpen {
+            Log.island.debug("kept open for the keyboard tab")
+            return
+        }
         send(.pointerExited)
     }
+
+    // MARK: Tabs that type keys (the Terminal; ADR-0026)
+
+    /// The pointer left, but the Terminal has keyboard focus or is pinned open.
+    private var keyboardTabHoldsIslandOpen: Bool {
+        guard let tab = model.selectedModuleTab else { return false }
+        return IslandKeyboardPolicy.holdsOpen(capturesKeyboard: tab.capturesKeyboard, pinned: tab.keepsIslandOpen?() ?? false, hasKeyFocus: panel.isKeyWindow)
+    }
+
+    /// Keeps the panel's key handling in step with the selected tab.
+    private func observeKeyboardTab() {
+        withObservationTracking {
+            panel.contentOwnsKeyboard = model.selectedModuleTab?.capturesKeyboard ?? false
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in self?.observeKeyboardTab() }
+        }
+    }
+
+    /// Keyboard focus went elsewhere (the user clicked another app) while the
+    /// Terminal was showing and the pointer had already left: close the island.
+    private func panelResignedKey() {
+        guard hover.state == .expanded, let tab = model.selectedModuleTab else { return }
+        let inside = model.containsPointer(NSEvent.mouseLocation, for: .expanded)
+        if IslandKeyboardPolicy.collapsesAfterLosingFocus(capturesKeyboard: tab.capturesKeyboard, pinned: tab.keepsIslandOpen?() ?? false, pointerInside: inside) {
+            send(.pointerExited)
+        }
+    }
+
+    /// Asks for keyboard focus now (a click inside the terminal view, which the
+    /// hosting view never sees). A no-op unless expanded.
+    func focusForTyping() { takeKeyFocus() }
 
     private func send(_ event: HoverStateMachine.Event) {
         let before = hover.state

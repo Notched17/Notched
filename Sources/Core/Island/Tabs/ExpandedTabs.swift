@@ -75,14 +75,14 @@ enum ExpandedTabs {
     /// `charactersIgnoringModifiers`; `keyCode` tells Tab and the arrows
     /// apart from letters on any keyboard layout.
     static func command(keyCode: UInt16, characters: String?, command: Bool, control: Bool, shift: Bool,
-                        option: Bool) -> ExpandedKeyCommand? {
+                        option: Bool, capturesKeyboard: Bool = false) -> ExpandedKeyCommand? {
         guard !option else { return nil }
         switch keyCode {
         case 48 where control && !command: // Tab
             return shift ? .previousTab : .nextTab
-        case 123 where !command && !control && !shift: // ←
+        case 123 where !command && !control && !shift && !capturesKeyboard: // ←
             return .pageBack
-        case 124 where !command && !control && !shift: // →
+        case 124 where !command && !control && !shift && !capturesKeyboard: // →
             return .pageForward
         default:
             guard command, !control, !shift, let digit = characters.flatMap({ Int($0) }), (1...5).contains(digit) else {

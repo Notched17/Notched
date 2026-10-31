@@ -10,4 +10,7 @@ final class IslandCommands {
     var showTab: (_ id: String, _ focus: Bool) -> Void = { _, _ in }
     /// Collapses every island, e.g. after an item was copied back.
     var collapse: () -> Void = {}
+    /// Gives the island under the pointer keyboard focus, after a click inside
+    /// a view that takes keys itself (the Terminal). Never called on hover.
+    var requestKeyFocus: () -> Void = {}
 }

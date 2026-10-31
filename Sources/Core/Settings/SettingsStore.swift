@@ -159,6 +159,7 @@ final class SettingsStore {
     let calendar: CalendarSettings
     let reminders: RemindersSettings
     let weather: WeatherSettings
+    let terminal: TerminalSettings
 
     var enabledModules: Set<ModuleID> {
         didSet { defaults.set(enabledModules.map(\.rawValue).sorted(), forKey: Key.enabledModules) }
@@ -202,6 +203,7 @@ final class SettingsStore {
         calendar = CalendarSettings(defaults: defaults)
         reminders = RemindersSettings(defaults: defaults)
         weather = WeatherSettings(defaults: defaults)
+        terminal = TerminalSettings(defaults: defaults)
         expandOnHover = defaults.object(forKey: Key.expandOnHover) as? Bool ?? true
         hapticsEnabled = defaults.object(forKey: Key.hapticsEnabled) as? Bool ?? true
         notchTheme = defaults.string(forKey: Key.notchTheme).flatMap(IslandTheme.init(rawValue:)) ?? .notchBlack

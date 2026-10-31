@@ -34,7 +34,7 @@ final class AppEnvironment {
         var types: [any IslandModule.Type] = [
             MediaModule.self, TimersModule.self, KeepAwakeModule.self,
             BatteryModule.self, BluetoothModule.self, NetworkModule.self, CapsLockModule.self, SensorsModule.self, CallsModule.self, DownloadsModule.self, HUDModule.self,
-            ActivityAPIModule.self, ClaudeCodeModule.self, ColorPickerModule.self, ClipboardModule.self, CalendarModule.self, RemindersModule.self, WeatherModule.self,
+            ActivityAPIModule.self, ClaudeCodeModule.self, ColorPickerModule.self, ClipboardModule.self, CalendarModule.self, RemindersModule.self, WeatherModule.self, TerminalModule.self,
         ]
         #if DEBUG
         types.append(HelloModule.self)
@@ -63,6 +63,7 @@ final class AppEnvironment {
         islands = islandManager
         islandCommands.showTab = { [weak islandManager] id, focus in islandManager?.showTab(id, focus: focus) }
         islandCommands.collapse = { [weak islandManager] in islandManager?.collapseAll() }
+        islandCommands.requestKeyFocus = { [weak islandManager] in islandManager?.requestKeyFocus() }
         expiryTimer.action = { [weak activities] in activities?.advance(to: Date()) }
     }
 

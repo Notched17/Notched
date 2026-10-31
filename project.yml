@@ -31,6 +31,11 @@ packages:
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     exactVersion: 2.2.0
+  # The terminal tab's emulator and pty (#64). MIT; see THIRD_PARTY_NOTICES.md.
+  # Held to the 1.2 line (patch updates only) so its API can't drift under us.
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm
+    minorVersion: 1.2.0
 
 targets:
   Notched:
@@ -49,6 +54,7 @@ targets:
         buildPhase: resources
     dependencies:
       - package: KeyboardShortcuts
+      - package: SwiftTerm
       # Bundled for /usr/bin/perl to load, never linked into the app.
       - target: MediaRemoteAdapter
         link: false

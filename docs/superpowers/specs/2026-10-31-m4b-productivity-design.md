@@ -1,6 +1,6 @@
 # M4b: productivity modules and layout editor (design, Step 0)
 
-- Status: **draft, waiting for Charlie's approval.** No code until then.
+- Status: **draft. Charlie answered §7 on 31 Oct (see §8); the Today tab layout (§3.1) waits for his confirmation.** No code until then, and the code is built on the Mac (§8, Q1).
 - Date: 2026-10-31
 - Prompt: `docs/prompts/M4b-productivity.md`. ROADMAP rows #45, #48 (+#49), #50, #51, #55, #64, #71.
 - Builds on: ADR-0006 (activity model), ADR-0011 (media stays primary), ADR-0012 (banners), ADR-0016 (priority), ADR-0020 (tabs).
@@ -48,6 +48,32 @@ The rules from CLAUDE.md and the prompt, so they aren't repeated in each section
 | Terminal | Terminal | |
 
 The modules stay separate: each has its own toggle, permission, settings pane and zero-cost-when-off behaviour. Only the tab is shared. That needs a small addition to the tab framework: a **shared tab with sections**. Each module calls `setTabSection(_:in: "today", order:)` through its sink, and the coordinator builds the "Today" tab from the sections it has. Ordering and dedupe stay in the pure `ExpandedTabs.arrange`, extended and unit-tested. ADR-0020 gets an amendment (ADR-0024).
+
+### 3.1 What the Today tab shows
+
+The expanded island is about 400 × 160 pt, so the tab has to be laid out for that space, like the "Up Next" and Reminders widgets rather than the full apps:
+
+```
+┌──────────────────────────────────────────────────┐
+│ ☀︎ 14°  Sunny · H 17° L 8° · Bristol    11 12 13 14 │  weather strip, ~36 pt
+│                                          ☀︎  ⛅︎ ⛅︎ 🌧 │  (the next 4–6 hours)
+├────────────────────────┬─────────────────────────┤
+│ CALENDAR               │ REMINDERS               │
+│ ▍10:00 Stand-up [Join] │ ○ Call Sam   overdue    │  two columns,
+│ ▍13:30 Lunch with Ana  │ ○ Submit essay  17:00   │  ~3 rows each
+│ ▍Tomorrow 09:00 Lab    │ ○ Buy milk              │
+│   2 more               │   4 more                │
+└────────────────────────┴─────────────────────────┘
+```
+
+- **Weather strip** on top: the condition symbol, temperature, condition, high/low and place, then the next 4–6 hours as small symbol + temperature cells.
+- **Calendar column**: the next events for today, then tomorrow under a "Tomorrow" label. Each row has the calendar's colour bar, the time, the title and a **Join** button when there's a meeting link. "2 more" opens Calendar.
+- **Reminders column**: overdue first (red time), then today, each with a checkbox (8 s undo). "4 more" opens Reminders.
+- **What adapts:**
+  - With only one of Calendar and Reminders on, that column takes the full width and gains a location/notes line.
+  - With Weather off, the columns get the strip's height (one more row each).
+  - With only Weather on, the tab shows the full hourly row (12 hours) and the high/low.
+  - Empty states are one quiet line: "No more events today", "Nothing due today".
 
 Alternatives:
 - **B. One tab per module, and the layout editor picks which four appear.** No framework change, but "every tab enabled" doesn't fit, and some module tabs are silently hidden.
@@ -235,3 +261,30 @@ As in the prompt's Verify section, which all needs a Mac:
 6. **Hotkey.** Is KeyboardShortcuts (SPM, MIT) OK? Keep ⌘⇧V as the default despite the "Paste and Match Style" clash, or pick another?
 7. **Reminders undo.** Commit after the 5 s undo window (recommended) or at once and revert on undo?
 8. **Layout editor.** Should it replace the Priority pane (recommended, so there's one place for it), or sit beside it?
+
+## 8. Charlie's answers (31 Oct 2026)
+
+These override the sections above where they differ.
+
+1. **Build M4b on the Mac**, after the M4a checklist. Nothing more is written in the Linux session.
+2. **Today tab:** asked what it shows. §3.1 was added in reply, and it waits for his confirmation.
+3. **Weather location: "Choose a City" is the default on first enable.** "Use My Location (Approximate)" is an opt-in in the pane. When it's on, it's a single `requestLocation()` with reduced accuracy, **at most once a day** (on the first refresh of the day, or on wake if the last fix is over 24 h old), and Location stays idle the rest of the time. If it's denied, the module goes back to the city. The 30-minute forecast refresh is one small HTTPS request and doesn't touch Location.
+4. **Clipboard: least computing power.** Decided:
+   - **Storage:** a JSON index plus image files. No database engine and no background work. The index is written only after a change, debounced 2 s, and atomically.
+   - **Reads:** the `changeCount` poll is one integer compare per tick, and the pasteboard is read only when the count changes.
+   - **Images and search:** thumbnails are made once, when an image is copied. Search filters the in-memory list only while the tab is showing.
+   - **Defaults:** 200 items, pins exempt, clear on quit off.
+5. **Terminal: yes to all three.**
+   - The shell persists across collapses.
+   - Plain Esc goes to the shell, and ⌘Esc collapses.
+   - The Terminal tab may make the island about 300 pt tall.
+6. **Hotkey:** KeyboardShortcuts, default ⌘⇧V.
+   - It's changeable (a recorder in the Clipboard pane) and can be turned off.
+   - The history is always reachable without it: through the Clipboard tab, and through a **Clipboard History** item in the status menu that opens the island on that tab.
+7. **Reminders undo: 8 s.** The completion is written when the 8 s run out, and quitting during the window writes it.
+8. **The layout editor replaces the Priority pane.** It must be intuitive:
+   - two clearly titled sections, "Compact Island" and "Expanded Tabs"
+   - plain-language row labels and a footer sentence under each
+   - drag handles plus Move Up/Down in the context menu, so drag isn't the only way
+   - the live preview above both sections
+   - Reset at the bottom

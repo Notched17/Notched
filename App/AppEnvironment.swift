@@ -34,7 +34,7 @@ final class AppEnvironment {
         var types: [any IslandModule.Type] = [
             MediaModule.self, TimersModule.self, KeepAwakeModule.self,
             BatteryModule.self, BluetoothModule.self, NetworkModule.self, CapsLockModule.self, SensorsModule.self, CallsModule.self, DownloadsModule.self, HUDModule.self,
-            ActivityAPIModule.self, ClaudeCodeModule.self, ColorPickerModule.self, ClipboardModule.self,
+            ActivityAPIModule.self, ClaudeCodeModule.self, ColorPickerModule.self, ClipboardModule.self, CalendarModule.self,
         ]
         #if DEBUG
         types.append(HelloModule.self)
@@ -51,10 +51,13 @@ final class AppEnvironment {
         let expiryTimer = expiryTimer
         activities = ActivityCoordinator(scheduleWake: { date in expiryTimer.schedule(at: date) })
         let islandCommands = IslandCommands()
+        let todayHub = TodayHub()
+        let coordinator = activities
+        todayHub.publishTabs = { [weak coordinator] tabs in coordinator?.setTabs(tabs, from: TodayHub.pseudoModuleID) }
         modules = ModuleRegistry(moduleTypes: Self.moduleTypes, coordinator: activities, settings: settings, scheduler: scheduler,
                                  services: ModuleServices(audioOutputs: AudioOutputService(), permissions: permissions, presence: presence,
                                                           api: APIGateway(settings: settings.api, secrets: KeychainSecretStore()),
-                                                          islandCommands: islandCommands))
+                                                          islandCommands: islandCommands, today: todayHub))
         fullscreen = FullscreenMonitor()
         let islandManager = IslandManager(accessibility: accessibility, activities: activities, fullscreen: fullscreen)
         islands = islandManager

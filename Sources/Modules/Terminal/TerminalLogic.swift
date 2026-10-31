@@ -121,9 +121,12 @@ enum ChildProcesses {
     static func pids(of parent: pid_t = getpid()) -> [pid_t] {
         let capacity = 256
         var buffer = [pid_t](repeating: 0, count: capacity)
-        let bytes = proc_listchildpids(parent, &buffer, Int32(capacity * MemoryLayout<pid_t>.size))
-        guard bytes > 0 else { return [] }
-        return Array(buffer.prefix(Int(bytes) / MemoryLayout<pid_t>.size)).filter { $0 > 1 }
+        let result = proc_listchildpids(parent, &buffer, Int32(capacity * MemoryLayout<pid_t>.size))
+        guard result > 0 else { return [] }
+        // Whether the return value counts pids or bytes differs between the docs and
+        // the SDK, so it is only used as success/failure: the unused part of the
+        // buffer is zero, and real pids are all above 1.
+        return buffer.filter { $0 > 1 }
     }
 
     static func path(of pid: pid_t) -> String? {

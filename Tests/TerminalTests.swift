@@ -54,8 +54,15 @@ struct TerminalLogicTests {
         try process.run()
         let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
         process.waitUntilExit()
-        #expect(output == home.resolvingSymlinksInPath().path)
+        // `pwd -P` prints /private/var/..., which URL.resolvingSymlinksInPath() shortens to /var/..., so use realpath.
+        #expect(output == Self.realPath(home.path))
         #expect(process.terminationStatus == 0)
+    }
+
+    private static func realPath(_ path: String) -> String {
+        guard let resolved = realpath(path, nil) else { return path }
+        defer { free(resolved) }
+        return String(cString: resolved)
     }
 
     // MARK: Lifecycle

@@ -230,9 +230,10 @@ Unchanged from the prompt, with Today's framework work folded into Calendar's st
 | 9 | Fresh-reviewer pass | Opus, high |
 
 After each step: build, test, install, screenshot, critique and commit (`feat(#55): …`). ADRs:
-- 0024: shared tabs with sections, amending 0020
-- 0025: terminal key handling
-- 0026: clipboard privacy and storage, plus the weather location method
+- 0024: clipboard storage and privacy (written with Step 2)
+- 0025: shared tabs with sections, amending 0020
+- 0026: terminal key handling
+- 0027: weather location method
 
 ## 6. Verification
 

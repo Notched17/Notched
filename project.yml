@@ -26,6 +26,12 @@ settings:
     DEAD_CODE_STRIPPING: YES
     ENABLE_APP_SANDBOX: NO
 
+packages:
+  # Global hot key for clipboard history (#45). MIT; see THIRD_PARTY_NOTICES.md.
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    exactVersion: 2.2.0
+
 targets:
   Notched:
     type: application
@@ -42,6 +48,7 @@ targets:
       - path: Vendor/mediaremote-adapter/bin/mediaremote-adapter.pl
         buildPhase: resources
     dependencies:
+      - package: KeyboardShortcuts
       # Bundled for /usr/bin/perl to load, never linked into the app.
       - target: MediaRemoteAdapter
         link: false

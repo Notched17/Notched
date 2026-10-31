@@ -155,6 +155,7 @@ final class SettingsStore {
     let api: LocalAPISettings
     let claudeCode: ClaudeCodeSettings
     let colorPicker: ColorPickerSettings
+    let clipboard: ClipboardSettings
 
     var enabledModules: Set<ModuleID> {
         didSet { defaults.set(enabledModules.map(\.rawValue).sorted(), forKey: Key.enabledModules) }
@@ -194,6 +195,7 @@ final class SettingsStore {
         api = LocalAPISettings(defaults: defaults)
         claudeCode = ClaudeCodeSettings(defaults: defaults)
         colorPicker = ColorPickerSettings(defaults: defaults)
+        clipboard = ClipboardSettings(defaults: defaults)
         expandOnHover = defaults.object(forKey: Key.expandOnHover) as? Bool ?? true
         hapticsEnabled = defaults.object(forKey: Key.hapticsEnabled) as? Bool ?? true
         notchTheme = defaults.string(forKey: Key.notchTheme).flatMap(IslandTheme.init(rawValue:)) ?? .notchBlack

@@ -139,6 +139,21 @@ final class IslandController {
         send(.forceExpand)
     }
 
+    /// The frame of the display this island is on.
+    var screenFrame: CGRect? { panel.screen?.frame }
+
+    /// Expands onto a module tab (a hotkey, the status menu). With `focus`,
+    /// takes keyboard focus once the island is open, so its search field works.
+    func expand(toTab id: String, focus: Bool) {
+        model.selectedPage = .home
+        send(.forceExpand)
+        model.selectTab(id)
+        if focus {
+            // The state machine has moved on by the next turn of the run loop.
+            DispatchQueue.main.async { [weak self] in self?.takeKeyFocus() }
+        }
+    }
+
     func collapse() { send(.forceCollapse) }
 
     /// Events from the sensors only matter while the island is compact.

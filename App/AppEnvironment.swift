@@ -34,7 +34,7 @@ final class AppEnvironment {
         var types: [any IslandModule.Type] = [
             MediaModule.self, TimersModule.self, KeepAwakeModule.self,
             BatteryModule.self, BluetoothModule.self, NetworkModule.self, CapsLockModule.self, SensorsModule.self, CallsModule.self, DownloadsModule.self, HUDModule.self,
-            ActivityAPIModule.self, ClaudeCodeModule.self,
+            ActivityAPIModule.self, ClaudeCodeModule.self, ColorPickerModule.self,
         ]
         #if DEBUG
         types.append(HelloModule.self)

@@ -105,7 +105,7 @@ struct ClipboardModuleTests {
         rig.module.start()
         let rep = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 40, pixelsHigh: 30, bitsPerSample: 8, samplesPerPixel: 4,
                                                 hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
-        rig.pasteboard.pendingImageData = try #require(rep.representation(using: .png, properties: [:]))
+        rig.pasteboard.pendingImageData = rep.representation(using: .png, properties: [:])
         rig.pasteboard.copy("", types: ["public.png"])
         poll(rig)
         // Nothing is recorded yet, and the main-thread read path wasn't used: the picture is still being encoded.

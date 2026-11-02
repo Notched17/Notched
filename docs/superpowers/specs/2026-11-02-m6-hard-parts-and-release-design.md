@@ -1,6 +1,6 @@
 # M6 plan: the hard parts, then release readiness
 
-- Status: **Step 0 draft, waiting for Charlie's approval and answers (§9)**
+- Status: **approved 2 Nov 2026; Charlie's answers are in §10**
 - Date: 2026-11-02
 - Prompt: `docs/prompts/M6-hard-parts-and-release.md`
 - Starting point: `main` at 5aa904b (M4b merged, PR #11)
@@ -129,3 +129,20 @@ If yes: Sparkle 2 (SPM), EdDSA appcast on GitHub Pages, stable and beta channels
 7. **M4b carry-overs:** (a) keep ⌘⇧V as the clipboard hotkey, or default to something that doesn't override Paste and Match Style (e.g. ⌥⌘V)? (b) Should a module turned off in *Show in Compact* still be allowed to alert?
 8. **Mac with a notch?** Which MacBook is this (for the lock-screen layout and the performance table)?
 9. **Working loop:** OK with me sending spike builds plus numbered test sheets, and you sending back the results files? (The alternative is running M6 in a local Claude Code session on the Mac, which can build and read logs directly. That's faster for the spikes.)
+
+## 10. Charlie's answers (2 Nov 2026) and what changes
+
+1. **M4a:** the usage tab's token counts and graph work; **the cost estimate doesn't**. The Activity API hasn't been checked. → #62 stays 🟨 until the cost estimate is fixed (housekeeping step, Sonnet medium). The spike test sheet gets a short Activity API check (a `notched://banner` link and a `curl` call), so #63 and the API can be marked from real results.
+2. **Auto-updates:** wanted, but set up later. → 6.4 is not done in M6; #76 is marked ⏸ "later, wanted".
+3. **Donations:** later. → no placeholder in M6.
+4. **Signing:** local builds only for this project. → `docs/RELEASING.md` describes a local Release build and install (Apple Development signing, as ADR-0005); no Developer ID or notarisation script.
+5. **AirPods:** test other models only if needed. → the spike records whatever model Charlie's AirPods report; the decoder handles the documented model ids, and other models are a later check if the route depends on the model.
+6. **Lock screen:** macOS 27's standard lock screen shows nothing for media, so our widget doesn't duplicate Apple's. The safe zone is still designed in Stage 1; the Stage 2 test sheet asks for one photo with the test label showing, to confirm it.
+7. **(a)** The clipboard hotkey becomes **⌥⇧V** (KeyboardShortcuts saves the old default on first launch, so a one-time migration moves an untouched ⌘⇧V to ⌥⇧V). **(b)** A module turned off in *Show in Compact* **doesn't alert** either; ADR-0028 is updated. Both in the housekeeping step.
+8. **Mac:** MacBook Air M4 15-inch (notched display), the reference machine for the performance table.
+9. **Working loop:** spike builds, numbered test sheets, results files back.
+
+### Revised order
+1. **Now (Opus xhigh):** the 6.1 and 6.2 spike probes and their test sheet (`docs/spikes/M6-spike-1.md`).
+2. **Housekeeping (Sonnet medium):** the cost estimate, ⌥⇧V, the listed-only alert rule, ROADMAP. It lands in the same build as the probes, so Charlie runs one build.
+3. Charlie runs the test sheet; then (Opus xhigh) ADR-0029/0030 go/no-go and the 6.3 Stage 1 safety design.

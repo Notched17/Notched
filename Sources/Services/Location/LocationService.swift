@@ -35,8 +35,8 @@ final class CoreLocationProvider: NSObject, DeviceLocationProvider {
         }
         self.manager = nil
         guard let fix else { return nil }
-        let name = await placeName(latitude: fix.latitude, longitude: fix.longitude)
-        return WeatherLocation(name: name ?? "Current location", latitude: fix.latitude, longitude: fix.longitude, source: .device)
+        // No reverse geocoding: CLGeocoder is deprecated, and a place name isn't worth another network call.
+        return WeatherLocation(name: "Current location", latitude: fix.latitude, longitude: fix.longitude, source: .device)
     }
 
     private func finish(_ fix: Fix?) {
@@ -44,11 +44,6 @@ final class CoreLocationProvider: NSObject, DeviceLocationProvider {
         continuation = nil
     }
 
-    /// The town's name, for the label only. Fails quietly offline.
-    private func placeName(latitude: Double, longitude: Double) async -> String? {
-        let placemarks = try? await CLGeocoder().reverseGeocodeLocation(CLLocation(latitude: latitude, longitude: longitude))
-        return placemarks?.first?.locality
-    }
 }
 
 extension CoreLocationProvider: CLLocationManagerDelegate {

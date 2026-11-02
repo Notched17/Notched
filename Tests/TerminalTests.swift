@@ -54,8 +54,15 @@ struct TerminalLogicTests {
         try process.run()
         let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
         process.waitUntilExit()
-        #expect(output == home.resolvingSymlinksInPath().path)
+        // `pwd -P` prints /private/var/..., which URL.resolvingSymlinksInPath() shortens to /var/..., so use realpath.
+        #expect(output == Self.realPath(home.path))
         #expect(process.terminationStatus == 0)
+    }
+
+    private static func realPath(_ path: String) -> String {
+        guard let resolved = realpath(path, nil) else { return path }
+        defer { free(resolved) }
+        return String(cString: resolved)
     }
 
     // MARK: Lifecycle
@@ -198,6 +205,25 @@ struct TerminalLogicTests {
         #expect(!process.isRunning)
     }
 
+    @Test("An exited child that hasn't been reaped yet counts as gone")
+    func zombieIsNotAlive() throws {
+        // posix_spawn, not Process, so nothing reaps the child behind the test's back.
+        var pid: pid_t = 0
+        let args = ["/bin/sh", "-c", "exit 0"]
+        var argv: [UnsafeMutablePointer<CChar>?] = args.map { strdup($0) } + [nil]
+        defer { argv.forEach { free($0) } }
+        #expect(posix_spawn(&pid, "/bin/sh", nil, nil, &argv, environ) == 0)
+        defer { var status: Int32 = 0; waitpid(pid, &status, 0) }
+        let deadline = Date().addingTimeInterval(2)
+        while !TerminalProcessKiller.isZombie(pid), Date() < deadline { usleep(10_000) }
+        #expect(TerminalProcessKiller.isZombie(pid))
+        #expect(!TerminalProcessKiller.isAlive(pid))
+        // And ending it returns at once instead of waiting out the grace period.
+        let start = Date()
+        TerminalProcessKiller.terminate(pid: pid, grace: 1)
+        #expect(Date().timeIntervalSince(start) < 0.5)
+    }
+
     @Test("It never signals pid 0, 1 or a negative pid")
     func killerRefusesBadPIDs() {
         TerminalProcessKiller.terminate(pid: 0)
@@ -323,5 +349,55 @@ struct TallTabTests {
         module.stop()
         #expect(coordinator.moduleTabs.isEmpty)
         #expect(!module.model.isPinned)
+    }
+}
+
+/// Finding the shell without SwiftTerm telling us its pid.
+@Suite("ChildProcesses")
+struct ChildProcessesTests {
+    private func spawn(_ path: String = "/bin/sleep", _ arguments: [String] = ["30"]) throws -> Process {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = arguments
+        try process.run()
+        return process
+    }
+
+    @Test("A process this one starts is listed as its child, with its program path")
+    func listsChildren() throws {
+        let process = try spawn()
+        defer { process.terminate(); process.waitUntilExit() }
+        #expect(ChildProcesses.pids().contains(process.processIdentifier))
+        #expect(ChildProcesses.path(of: process.processIdentifier) == "/bin/sleep")
+    }
+
+    @Test("The new child is found, and children that were already there are not")
+    func findsTheNewOne() throws {
+        let old = try spawn()
+        defer { old.terminate(); old.waitUntilExit() }
+        let before = Set(ChildProcesses.pids())
+        let new = try spawn()
+        defer { new.terminate(); new.waitUntilExit() }
+        #expect(ChildProcesses.newChild(before: before, programs: ["/bin/sh"]) == new.processIdentifier)
+    }
+
+    @Test("With several new children, the one running the right program is chosen")
+    func choosesByProgram() throws {
+        let before = Set(ChildProcesses.pids())
+        let helper = try spawn("/bin/sleep", ["30"])
+        let shell = try spawn("/bin/cat")   // waits on stdin, which is inherited
+        defer { for process in [helper, shell] { process.terminate(); process.waitUntilExit() } }
+        #expect(ChildProcesses.newChild(before: before, programs: ["/bin/cat"]) == shell.processIdentifier)
+        #expect(ChildProcesses.newChild(before: before, programs: ["/bin/nothing"]) == nil)
+    }
+
+    @Test("No new child means nothing is found")
+    func nothingNew() {
+        #expect(ChildProcesses.newChild(before: Set(ChildProcesses.pids()), programs: ["/bin/sh"]) == nil)
+    }
+
+    @Test("An unknown or unreadable pid has no path")
+    func noPath() {
+        #expect(ChildProcesses.path(of: 0x7FFF_FFF0) == nil)
     }
 }

@@ -23,6 +23,25 @@ struct RankingPolicy: Equatable, Codable, Sendable {
     /// Highest first. `normalized()` makes it a permutation of `rankable`.
     var order: [ActivityKind]
     var pinned: [ModuleID]
+    /// Modules with "Show in Compact" turned off (#71): their activities are
+    /// listed in the expanded view but never take the notch's sides or a bubble.
+    var listedOnly: [ModuleID] = []
+
+    init(order: [ActivityKind], pinned: [ModuleID], listedOnly: [ModuleID] = []) {
+        self.order = order
+        self.pinned = pinned
+        self.listedOnly = listedOnly
+    }
+
+    private enum CodingKeys: String, CodingKey { case order, pinned, listedOnly }
+
+    /// `listedOnly` is newer than the saved data: a policy saved without it still loads.
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        order = try container.decode([ActivityKind].self, forKey: .order)
+        pinned = try container.decodeIfPresent([ModuleID].self, forKey: .pinned) ?? []
+        listedOnly = try container.decodeIfPresent([ModuleID].self, forKey: .listedOnly) ?? []
+    }
 
     /// Where an activity sorts; smaller ranks higher.
     struct Key: Comparable, Hashable, Sendable {
@@ -47,7 +66,9 @@ struct RankingPolicy: Equatable, Codable, Sendable {
             order.insert(kind, at: min(Self.rankable.firstIndex(of: kind) ?? order.count, order.count))
         }
         var pins = Set<ModuleID>()
-        return RankingPolicy(order: order, pinned: pinned.filter { pins.insert($0).inserted })
+        var listed = Set<ModuleID>()
+        return RankingPolicy(order: order, pinned: pinned.filter { pins.insert($0).inserted },
+                             listedOnly: listedOnly.filter { listed.insert($0).inserted })
     }
 
     // MARK: Editing (the Priority pane)
@@ -64,11 +85,11 @@ struct RankingPolicy: Equatable, Codable, Sendable {
     /// Pins a module below those already pinned.
     func pinning(_ module: ModuleID) -> RankingPolicy {
         guard !pinned.contains(module) else { return self }
-        return RankingPolicy(order: order, pinned: pinned + [module])
+        return RankingPolicy(order: order, pinned: pinned + [module], listedOnly: listedOnly)
     }
 
     func unpinning(_ module: ModuleID) -> RankingPolicy {
-        RankingPolicy(order: order, pinned: pinned.filter { $0 != module })
+        RankingPolicy(order: order, pinned: pinned.filter { $0 != module }, listedOnly: listedOnly)
     }
 
     /// Moves a pinned module up (negative) or down (positive), stopping at the ends.
@@ -77,8 +98,18 @@ struct RankingPolicy: Equatable, Codable, Sendable {
         guard let index = pins.firstIndex(of: module) else { return self }
         let target = min(max(index + offset, 0), pins.count - 1)
         pins.insert(pins.remove(at: index), at: target)
-        return RankingPolicy(order: order, pinned: pins)
+        return RankingPolicy(order: order, pinned: pins, listedOnly: listedOnly)
     }
+
+    /// Turns "Show in Compact" off (`show` false) or back on for a module.
+    func showingInCompact(_ module: ModuleID, _ show: Bool) -> RankingPolicy {
+        var copy = self
+        copy.listedOnly.removeAll { $0 == module }
+        if !show { copy.listedOnly.append(module) }
+        return copy
+    }
+
+    func isListedOnly(_ module: ModuleID) -> Bool { listedOnly.contains(module) }
 
     // MARK: Saving
 

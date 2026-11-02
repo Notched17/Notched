@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import Darwin
 import Foundation
 
 /// How the shell is started (#64). Pure.
@@ -113,6 +114,39 @@ struct TerminalLifecycleReducer: Sendable {
     }
 }
 
+/// Finds the shell Notched just started. SwiftTerm doesn't expose its pid, but
+/// the shell is a direct child of this process, so it is the new child whose
+/// program is the launcher (`/bin/sh`) or the shell it then became.
+enum ChildProcesses {
+    static func pids(of parent: pid_t = getpid()) -> [pid_t] {
+        let capacity = 256
+        var buffer = [pid_t](repeating: 0, count: capacity)
+        let result = proc_listchildpids(parent, &buffer, Int32(capacity * MemoryLayout<pid_t>.size))
+        guard result > 0 else { return [] }
+        // Whether the return value counts pids or bytes differs between the docs and
+        // the SDK, so it is only used as success/failure: the unused part of the
+        // buffer is zero, and real pids are all above 1.
+        return buffer.filter { $0 > 1 }
+    }
+
+    static func path(of pid: pid_t) -> String? {
+        var buffer = [UInt8](repeating: 0, count: 4 * Int(MAXPATHLEN))
+        let length = proc_pidpath(pid, &buffer, UInt32(buffer.count))
+        // `length` excludes the terminating NUL.
+        return length > 0 ? String(decoding: buffer.prefix(Int(length)), as: UTF8.self) : nil
+    }
+
+    /// The child that wasn't there `before`. If several appeared (another helper
+    /// starting at the same moment), the one running one of `programs`. A shell
+    /// reached through a symlink reports its real path, so a lone new child is
+    /// taken to be the shell even if the name doesn't match.
+    static func newChild(before: Set<pid_t>, programs: Set<String>, parent: pid_t = getpid()) -> pid_t? {
+        let fresh = pids(of: parent).filter { !before.contains($0) }
+        if fresh.count == 1 { return fresh[0] }
+        return fresh.first { pid in path(of: pid).map(programs.contains) ?? false }
+    }
+}
+
 /// Ends a shell so no process outlives Notched or the module.
 enum TerminalProcessKiller {
     /// Hangs up the shell's process group (its pty session leader), waits a
@@ -124,10 +158,23 @@ enum TerminalProcessKiller {
         kill(target, SIGHUP)
         let deadline = Date().addingTimeInterval(grace)
         while isAlive(pid), Date() < deadline { usleep(10_000) }
-        if isAlive(pid) { kill(target, SIGKILL) }
+        // The group may outlive its leader (something that ignored the hang-up),
+        // so it is always swept; signals to the zombie leader itself do nothing.
+        if target < 0 || isAlive(pid) { kill(target, SIGKILL) }
     }
 
+    /// Running, as opposed to gone or a zombie. A zombie has to count as gone:
+    /// SwiftTerm reaps its child on the main queue, which `terminate` is
+    /// blocking, so an exited shell stays a zombie for the whole grace period.
     static func isAlive(_ pid: pid_t) -> Bool {
-        kill(pid, 0) == 0 || errno == EPERM
+        guard kill(pid, 0) == 0 || errno == EPERM else { return false }
+        return !isZombie(pid)
+    }
+
+    static func isZombie(_ pid: pid_t) -> Bool {
+        var info = proc_bsdinfo()
+        let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+        guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size else { return false }
+        return info.pbi_status == 5   // SZOMB in <sys/proc.h>
     }
 }

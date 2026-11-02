@@ -18,6 +18,7 @@
 ## The shell
 
 - Started **the first time the tab is shown**, not when the module is switched on, so enabling Terminal costs nothing. A login shell (`$SHELL`, validated; zsh if not usable) started through `/bin/sh -c 'cd "$1"; exec "$0" -l' <shell> <home>` so the working directory is the home folder without changing Notched's own, and nothing is spliced into the script (tested with hostile paths).
+- **Finding the shell's pid:** SwiftTerm doesn't expose it (`LocalProcessTerminalView.process` is internal), so the shell is the new direct child of Notched after `startProcess` (`ChildProcesses`, via libproc): a lone new child, or the one running `/bin/sh` or the shell. If it isn't found at once it is looked for again when terminating.
 - Owned by the **module**, not the tab: it keeps running while the island is collapsed and the tab content is rebuilt (the SwiftTerm view is re-hosted).
 - Ended when: Terminal is turned off, Notched quits (`willTerminate`, also via `stop()`), the user presses End Session, or the shell exits. `TerminalProcessKiller` sends SIGHUP to the shell's process group (a forkpty child leads its own), waits up to 0.4 s, then SIGKILL; it never signals pid 0 or 1.
 - **Crash-loop guard:** two shells in a row that exit within a second stop showing-the-tab from restarting one; New Session does. Each start has a generation so a late exit report can't end the next shell.

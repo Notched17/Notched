@@ -83,6 +83,14 @@ final class ModuleHost {
         stableTimer.schedule(at: now().addingTimeInterval(LaunchGuard.stableAfter))
     }
 
+    /// The tabs modules offer at this moment (also the debug demo's).
+    var liveTabs: [LayoutCatalogue.TabInfo] {
+        coordinator.moduleTabs.map { tab in
+            LayoutCatalogue.TabInfo(id: tab.id, title: tab.title, symbol: tab.symbol,
+                                    moduleName: descriptors.first { $0.id == tab.moduleID }?.name ?? tab.moduleID.rawValue)
+        }
+    }
+
     /// Stops every module, newest first, and records a clean quit.
     func shutDown() {
         stableTimer.schedule(at: nil)

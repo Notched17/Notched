@@ -28,6 +28,11 @@ final class ModuleRegistry {
     /// Every module this Mac can use, in display order.
     var descriptors: [ModuleDescriptor] { host.descriptors }
 
+    /// The tabs modules are offering right now, for the layout editor.
+    var liveTabs: [LayoutCatalogue.TabInfo] {
+        host.liveTabs
+    }
+
     /// Which modules run, for Settings to observe.
     var runningIDs: Set<ModuleID> { host.runningIDs }
     var suspendedIDs: Set<ModuleID> { host.suspendedIDs }

@@ -29,6 +29,7 @@ final class SettingsStore {
         static let debugForcePill = "debug.forcePill"
         static let multipleActivities = "activities.multipleActivities"
         static let activityRanking = "activities.ranking"
+        static let tabLayout = "tabs.layout"
         static let alertExpansion = "activities.alertExpansion"
         static let alertDuration = "activities.alertDuration"
         static let bannerDuration = "activities.bannerDuration"
@@ -136,6 +137,11 @@ final class SettingsStore {
         didSet { defaults.set(activityRanking.encoded(), forKey: Key.activityRanking) }
     }
 
+    /// Which expanded tabs show and in what order (#71).
+    var tabLayout: TabLayout {
+        didSet { defaults.set(tabLayout.encoded(), forKey: Key.tabLayout) }
+    }
+
     var recentRetention: RecentRetention { didSet { defaults.set(recentRetention.rawValue, forKey: Key.recentRetention) } }
     var clickBehavior: ClickBehavior { didSet { defaults.set(clickBehavior.rawValue, forKey: Key.clickBehavior) } }
     /// A subtle border around bubbles and the expanded island in dark surroundings.
@@ -222,6 +228,7 @@ final class SettingsStore {
         alertDuration = (defaults.object(forKey: Key.alertDuration) as? Double ?? 4).clamped(to: Self.alertDurationRange)
         bannerDuration = (defaults.object(forKey: Key.bannerDuration) as? Double ?? 2).clamped(to: Self.bannerDurationRange)
         activityRanking = RankingPolicy.load(from: defaults.data(forKey: Key.activityRanking))
+        tabLayout = TabLayout.load(from: defaults.data(forKey: Key.tabLayout))
         recentRetention = (defaults.object(forKey: Key.recentRetention) as? Int).flatMap(RecentRetention.init(rawValue:)) ?? .fifteenMinutes
         clickBehavior = defaults.string(forKey: Key.clickBehavior).flatMap(ClickBehavior.init(rawValue:)) ?? .open
         keyline = defaults.object(forKey: Key.keyline) as? Bool ?? true
@@ -248,7 +255,8 @@ final class SettingsStore {
             alertDuration: .milliseconds(Int((alertDuration * 1000).rounded())),
             bannerDuration: .milliseconds(Int((bannerDuration * 1000).rounded())),
             recentRetention: recentRetention.duration,
-            ranking: activityRanking
+            ranking: activityRanking,
+            tabLayout: tabLayout
         )
     }
 

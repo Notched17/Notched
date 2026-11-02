@@ -188,12 +188,12 @@ Alternatives:
   - The shell **stays alive while the island collapses** (like a drop-down terminal), so `vim` survives a collapse.
   - It ends when the module turns off, on quit, with an "End Session" item in the tab's menu, or when the shell exits; showing the tab again then starts a new one.
   - Cleanup sends `SIGHUP` to the process group, then `SIGKILL` after 2 s, and `waitpid`s, so no orphans. Verified with `ps` (and `applicationWillTerminate` is the backstop).
-- **Key focus.** This is the risky part; ADR-0025 records it.
+- **Key focus.** This is the risky part; ADR-0026 records it.
   - The panel may become key **only while the island is expanded and the Terminal tab is selected**, and only after a click in the terminal. It never takes focus on hover, which matches `takeKeyFocus()`. On collapse, on a tab change and on Esc, it calls the existing `giveBackKeyFocus()`, which re-activates the user's previous app.
   - **Esc collapses.** That means Esc never reaches the shell, which breaks `vim`. Recommendation: plain Esc goes to the terminal while it has focus, and **⌘Esc** (or ⌘W) collapses, with the shortcut shown in the tab's empty corner. This contradicts the ROADMAP/prompt ("Esc collapses"), so it's a question. (**Q5**)
   - Ctrl+C, Ctrl+D, Tab and ⌘V (paste) go to the shell. ⌘1–⌘5 and ⌃Tab still switch tabs (ADR-0020's key map); ⌘C copies the selection.
   - **Hover.** While the terminal has key focus, or within 3 s of the last keystroke, pointer exit doesn't collapse the island. A **Pin Open** toggle in the tab keeps it open until it's unpinned or Esc/⌘Esc is pressed. Both feed the `HoverStateMachine` as a new `holdOpen` input (pure and tested).
-  - The terminal never steals focus from another app while collapsed: the audit list goes in ADR-0025, with a test on the focus reducer.
+  - The terminal never steals focus from another app while collapsed: the audit list goes in ADR-0026, with a test on the focus reducer.
 - **Size.** The expanded island is at most about 408 × 160 pt, which is small for a terminal (about 60 × 9 cells at 11 pt SF Mono). Recommendation: the Terminal tab asks for a **taller expanded size** (about 408 × 300), and the font size can be set in Settings. Resizing the island resizes the PTY (`SIGWINCH` through SwiftTerm). This needs the tab host to allow a per-tab height override. (**Q5**)
 - **Reducer.** `TerminalFocusReducer` handles: may the panel be key; hold-open; pin; which key collapses; and process lifecycle intents (start, end, ended unexpectedly). The process handling itself isn't a reducer; it's covered by an integration test that starts `/bin/sh -c 'sleep 30'` and checks it's gone after stop.
 - **Attribution.** SwiftTerm goes in `THIRD_PARTY_NOTICES.md` (MIT) through SPM, not vendored.

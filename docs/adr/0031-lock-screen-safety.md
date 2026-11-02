@@ -1,6 +1,6 @@
 # ADR-0031: Lock-screen widgets (#59) and lyrics (#13b): safety design
 
-- Status: **proposed, waiting for Charlie's approval.** No code that puts a window on the lock screen is written until this is approved (M6 plan §4, Stage 1).
+- Status: **accepted 2 Nov 2026** for the Stage 2 spike, with Charlie's changes (§6). Stage 3 (the real widgets) waits for the spike's go/no-go.
 - Date: 2026-11-02
 - Rules it implements: CLAUDE.md "Safety rules for risky features: Lock-screen windows"; M6 prompt §6.3.
 - Numbers reserved: ADR-0029 per-app volume, ADR-0030 accessory battery (both waiting for spike results).
@@ -63,7 +63,7 @@ A pure, unit-tested `LockScreenReducer` (Foundation only, per the module contrac
   - It is never made key, the app is never activated, and there are no text fields.
   - Typing on the lock screen always goes to the password field.
 - **Never covers the password field or the user picker.** The window is a **small card, not full-screen**: at most 360 × 120 pt and at most 40 % of the screen width, centred horizontally, with its top at 30 % of the screen height (under the clock). It must never reach into the **bottom 45 % of the screen**, where the avatar, password field, user list and Touch ID prompt live. The geometry is a pure function, and a test checks that last rule for every screen size, including small and scaled ones.
-- **The primary display only** (the one with the login UI). External displays get nothing.
+- **The primary display by default** (the one with the login UI). A switch, **Also on other displays**, off by default, adds the same card, with the same safe-zone rule, on each secondary display.
 - **Clicks:**
   - The card ignores the mouse (`ignoresMouseEvents = true`), so clicks pass straight through.
   - Media buttons (play/pause, next) are a separate sub-switch, off until the Stage 2 spike shows that clicking one never moves focus away from the password field.
@@ -122,8 +122,11 @@ Any failure is a no-go: #59 and #13b are dropped (✖) with the evidence.
   - the safe-zone geometry for every screen size;
   - the wrapper's handling of missing symbols.
 
-## Open questions for Charlie
+### 6. Charlie's decisions (2 Nov 2026)
 
-1. Are the defaults in §4 right? In particular, track title and artwork **on**, event titles and lyrics **off**.
-2. Is showing it on the primary display only OK?
-3. If you use more than one user account on this Mac (the login screen then shows a user list), should the feature stay off entirely in that case? I'd suggest yes.
+1. **Adapt the technique into our own wrapper** rather than use the package: approved.
+2. **The defaults in §4** are fine for the test version; revisit before Stage 3 ships.
+3. **Secondary displays:** a switch, *Also on other displays*, off by default.
+4. **Other user accounts:** a switch, *Show when this Mac has other user accounts*, off by default. When another login account exists (a local account with a login shell, UID ≥ 501, not the current user), nothing is shown unless that switch is on. Fast user switching still always destroys everything (§2), whatever the switch says.
+
+Also noted while building: macOS Space ids are 64-bit (`uint64_t`, as in yabai's MIT headers); SkyLightWindow declares them `Int32`, which only works because of the arm64 calling convention. The wrapper uses `UInt64`.

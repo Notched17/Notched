@@ -1,6 +1,6 @@
-# M6 spike build 1: per-app volume (6.1), AirPods battery (6.2), Activity API check, lock-screen signals (6.3)
+# M6 spike build 1: per-app volume (6.1), AirPods battery (6.2), Activity API check, lock-screen signals and test label (6.3)
 
-About 45 minutes at the Mac. Every step is numbered; write what you hear or see in the **Notes** column (a word is enough), then send back the two results files and this sheet (see the end).
+About 70 minutes at the Mac; sections can be done on different days, in order. Every step is numbered; write what you hear or see in the **Notes** column (a word is enough), then send back the two results files and this sheet (see the end).
 
 The probes only run in the Debug build and only when you start them with the commands below. Turning the island's modules on or off doesn't matter for this sheet.
 
@@ -74,7 +74,39 @@ This probe **puts nothing on the lock screen**. It only writes down which signal
 | 4.9 | `open -g "notched://debug/probe?name=lockevents&action=stop"` | |
 | 4.10 | Optional but useful: a phone photo of the lock screen as it normally looks (clock, your picture, password field). Save it as `docs/spikes/results/lockscreen.jpg`. | |
 
-## 5. Send back
+## 5. Lock-screen test label (6.3 Stage 2, about 25 min)
+
+This is the first time anything goes on the lock screen: a **plain grey label** under the clock, which **removes itself 60 s after it appears**, whatever happens. Do section 4 first.
+
+> **If you ever can't unlock, or the label won't go away:**
+> 1. Wait. The label removes itself within 60 s.
+> 2. Type your password or use Touch ID anyway. The label never takes the keyboard, so typing always goes to the password field.
+> 3. From another device: `ssh` into the Mac and run `killall -9 Notched`.
+> 4. Last resort: hold the power button to restart. The test label is never armed at launch, so nothing comes back after a restart.
+>
+> Write down what happened and at which step.
+
+| # | Do | Notes |
+|---|---|---|
+| 5.1 | `open -g "notched://debug/probe?name=lockscreen&action=status"`. Then `open -g "notched://debug/probe?name=lockscreen&action=arm"` | |
+| 5.2 | Lock (⌃⌘Q). Within about a second, a grey label should appear under the clock. **Does it cover anything?** Is the password field / your picture fully visible? | |
+| 5.3 | Type your password straight away. Does it unlock normally, and is the label gone the instant the desktop appears? | |
+| 5.4 | Lock and unlock **20 times**, some quickly, some slowly. Did the label ever stay after unlocking, or ever show on the desktop? Did the password field ever misbehave? | |
+| 5.5 | Lock and wait **70 s**. The label should disappear by itself at about 60 s. Then unlock. | |
+| 5.6 | Lock, type a **wrong** password once, then the right one. | |
+| 5.7 | Lock, unlock with **Touch ID**. | |
+| 5.8 | Lock, wait until the screen goes dark, press a key, unlock. | |
+| 5.9 | Close the lid for 30 s, open, unlock. | |
+| 5.10 | Lock, **click on the label**, then type your password. Does the typing still go into the password field? | |
+| 5.11 | Lock, turn on **VoiceOver** (⌘F5). Does VoiceOver read the label? (It shouldn't.) Can you still get to the password field and unlock? Turn VoiceOver off (⌘F5). | |
+| 5.12 | **Crash test.** Run `(sleep 40; killall -9 Notched) &` in Terminal, then lock at once. The label appears, then vanishes when Notched is killed. **Unlock: does it work normally?** Then relaunch Notched (`open ~/Applications/Notched.app`) and run the *arm* command from 5.1. The results file should say **TURNED OFF: crashedWhileShowing**. Run *arm* once more, which should work again. | **Most important answer:** |
+| 5.13 | **Kill switch.** `defaults write me.rkck.Notched lockScreen.killSwitch -bool true`, then the *arm* command: it should be refused. Then `defaults delete me.rkck.Notched lockScreen.killSwitch`. | |
+| 5.14 | Only with an **external display**: `open -g "notched://debug/probe?name=lockscreen&action=arm&secondary=1"`, then lock. A label on both displays? Unlock. | |
+| 5.15 | Only with a **second account**: *arm* (plain) and lock: **nothing** should show. Then `open -g "notched://debug/probe?name=lockscreen&action=arm&others=1"` and lock: the label shows. Then switch to the other account (Control Centre ▸ *Login Window…*): nothing on their screen, ever. | |
+| 5.16 | A phone photo of the lock screen **with the label**, saved as `docs/spikes/results/lockscreen-label.jpg`. | |
+| 5.17 | `open -g "notched://debug/probe?name=lockscreen&action=disarm"` | |
+
+## 6. Send back
 
 1. Copy the results files into the repo, commit and push:
    `mkdir -p docs/spikes/results && cp ~/Library/Logs/Notched/spike-*.txt docs/spikes/results/`

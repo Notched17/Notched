@@ -150,3 +150,5 @@ If yes: Sparkle 2 (SPM), EdDSA appcast on GitHub Pages, stable and beta channels
 ### Progress (2 Nov 2026)
 - Spike build 1 compiles; all 1,128 tests pass on the Mac. Charlie runs `docs/spikes/M6-spike-1.md` later.
 - **6.3 Stage 1 written:** ADR-0031 (proposed). SkyLightWindow's technique is adapted into our own checked wrapper rather than used as a package: its window is full-screen and key, its level-400 Space stays shown after unlock, and its `dlsym` results aren't checked. A passive `lockevents` probe (no windows) is added to the spike sheet as §4, to confirm the lock signals the design relies on.
+- **ADR-0031 approved** with Charlie's changes: switches for other displays and for Macs with other user accounts, both off by default.
+- **6.3 Stage 2 written:** `SkyLightLockScreen` (checked wrapper), `LockScreenReducer` + geometry + kill switch + account filter (pure, tested in `Tests/LockScreenTests.swift`), `LockScreenController` (the shell, reused in Stage 3) and the `lockscreen` probe (a grey label that removes itself after 60 s). Spike sheet §5 is the physical test list. SkyLightWindow attributed in `THIRD_PARTY_NOTICES.md`.

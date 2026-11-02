@@ -26,6 +26,8 @@ enum Probes {
             AccessoryBatteryProbe.handle(action: query("action") ?? "run", seconds: query("seconds").flatMap(Double.init))
         case "lockevents":
             LockEventsProbe.handle(action: query("action") ?? "start")
+        case "lockscreen":
+            LockScreenProbe.handle(action: query("action") ?? "status", secondary: query("secondary") == "1", others: query("others") == "1")
         default: probeLog.error("Unknown probe \(query("name") ?? "-", privacy: .public)")
         }
     }

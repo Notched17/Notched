@@ -155,3 +155,9 @@ If yes: Sparkle 2 (SPM), EdDSA appcast on GitHub Pages, stable and beta channels
 
 ### Progress, 6.5 (2 Nov 2026, Sonnet)
 Done without the Mac: clipboard image encoding off the main thread; `scripts/soak.sh`, `scripts/perf-table.sh`; README, `docs/PRIVACY.md`, `CONTRIBUTING.md`, `docs/RELEASING.md` (local builds only); notices audit; accessibility audit and fixes (`docs/ACCESSIBILITY.md`: an Open Island route for keyboard and VoiceOver users, Reduce Motion, contrast, click targets); onboarding wording. Needs the Mac: VoiceOver spot-check, performance table, 8-hour soak, screenshots. Needs spike results: #17, #28, #59.
+
+### Spike round 1 results (2 Nov 2026, Opus)
+- **6.1:** works (attenuation, no glitches, device-change and app-quit recovery, 22.5 ms on speakers) but **undecided**: the crash and permission-refused tests weren't run, and CPU read 8–10 % with no baseline. TCC preflight can't see this permission. ADR-0029. The probe now reports IOProc time and process CPU.
+- **6.2:** not run. **6.3:** lock signals confirmed (ADR-0031 Evidence); a lid-close ordering fix added to the reducer, with tests.
+- **API/#63:** banners, activities, delete and revoke work; the "ring only" was the correct bubble while music played. #63 shows "Claude is working…"; Allow/Deny untested; a clipped "Wai…" label goes on the polish list.
+- Round 2 sheet: `docs/spikes/M6-spike-2.md`.

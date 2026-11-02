@@ -36,6 +36,23 @@ enum AudioTapProbe {
     private static var report: ProbeReport?
     private static var sessions: [String: AudioTapSession] = [:]
     private static var systemListeners: [AudioListener] = []
+    private static var lastCPU: (seconds: Double, at: Date)?
+    private static var outputChanges = 0
+    private static var processListChanges = 0
+
+    /// Notched's own CPU time (user + system), from getrusage.
+    static func processCPUSeconds() -> Double {
+        var usage = rusage()
+        getrusage(RUSAGE_SELF, &usage)
+        return Double(usage.ru_utime.tv_sec) + Double(usage.ru_utime.tv_usec) / 1e6
+            + Double(usage.ru_stime.tv_sec) + Double(usage.ru_stime.tv_usec) / 1e6
+    }
+
+    nonisolated static func nanoseconds(_ ticks: UInt64) -> Double {
+        var info = mach_timebase_info_data_t()
+        mach_timebase_info(&info)
+        return Double(ticks) * Double(info.numer) / Double(max(info.denom, 1))
+    }
 
     static func handle(action: String, app: String?, gain: Double?) {
         let report = Self.report ?? ProbeReport(name: "audiotap")
@@ -78,6 +95,14 @@ enum AudioTapProbe {
             report.line("untapped \(targets.isEmpty ? "nothing" : targets.joined(separator: ", "))")
         case "report":
             report.line("--- report: permission = \(permission()), \(sessions.count) tapped app(s), Notched pid \(getpid())")
+            let cpu = processCPUSeconds()
+            if let last = lastCPU, Date().timeIntervalSince(last.at) > 1 {
+                let window = Date().timeIntervalSince(last.at)
+                report.line("Notched process CPU since the last report: \(String(format: "%.3f", (cpu - last.seconds) / window * 100)) % over \(Int(window)) s (debug build); output changes \(outputChanges), process-list changes \(processListChanges)")
+            } else {
+                report.line("Notched process CPU: baseline taken; run report again after a minute for a figure")
+            }
+            lastCPU = (cpu, Date())
             for session in sessions.values { session.writeReport() }
             if let output = AudioDevices.defaultOutput() {
                 report.line("default output: \(AudioDevices.describe(output))")
@@ -96,11 +121,13 @@ enum AudioTapProbe {
         guard systemListeners.isEmpty else { return }
         let system = AudioObjectID(kAudioObjectSystemObject)
         if let output = AudioListener(object: system, selector: kAudioHardwarePropertyDefaultOutputDevice, handler: {
+            outputChanges += 1
             let name = AudioDevices.defaultOutput().map(AudioDevices.describe) ?? "none"
             report?.line("default output changed → \(name)")
             for session in sessions.values { session.build(reason: "output device changed") }
         }) { systemListeners.append(output) }
         if let processes = AudioListener(object: system, selector: kAudioHardwarePropertyProcessObjectList, handler: {
+            processListChanges += 1
             for (app, session) in sessions {
                 switch session.processesChanged() {
                 case .unchanged: break
@@ -129,11 +156,14 @@ final class TapCounters: Sendable {
     let callbacks = Atomic<Int>(0)
     let audibleCallbacks = Atomic<Int>(0)
     let formatMismatches = Atomic<Int>(0)
+    /// Time spent inside the IOProc, in mach ticks: tells whether the tap itself costs CPU.
+    let busyTicks = Atomic<UInt64>(0)
 
     func reset() {
         callbacks.store(0, ordering: .relaxed)
         audibleCallbacks.store(0, ordering: .relaxed)
         formatMismatches.store(0, ordering: .relaxed)
+        busyTicks.store(0, ordering: .relaxed)
     }
 }
 
@@ -154,6 +184,7 @@ final class AudioTapSession {
     private var overloads = 0
     private var builds = 0
     private var outputName = "-"
+    private var lastBusy: (ticks: UInt64, at: Date) = (0, Date())
 
     init(app: String, gain: Float, report: ProbeReport) {
         self.app = app
@@ -208,6 +239,7 @@ final class AudioTapSession {
 
         // 3. The IOProc: tapped audio × gain → the output. Built off the main actor (see makeIOBlock).
         counters.reset()
+        lastBusy = (0, Date())
         var procID: AudioDeviceIOProcID?
         status = AudioDeviceCreateIOProcIDWithBlock(&procID, device, nil, AudioTapRealtime.makeIOBlock(gain: gain, counters: counters))
         guard status == noErr, let procID else { return fail("AudioDeviceCreateIOProcIDWithBlock", status, reason) }
@@ -243,6 +275,13 @@ final class AudioTapSession {
 
     func writeReport() {
         report.line("\(app): output \(outputName), gain \(gain.value), builds \(builds); \(countersSummary)")
+        let ticks = counters.busyTicks.load(ordering: .relaxed)
+        let seconds = Date().timeIntervalSince(lastBusy.at)
+        if seconds > 1, ticks >= lastBusy.ticks {
+            let busy = AudioTapProbe.nanoseconds(ticks - lastBusy.ticks) / 1e9
+            report.line("\(app): IOProc busy \(String(format: "%.3f", busy / seconds * 100)) % of one core over the last \(Int(seconds)) s")
+        }
+        lastBusy = (ticks, Date())
         if aggregateID != AudioObjectID(kAudioObjectUnknown) { report.line("\(app): aggregate \(AudioDevices.latencySummary(aggregateID))") }
     }
 
@@ -277,6 +316,8 @@ final class AudioTapSession {
 enum AudioTapRealtime {
     nonisolated static func makeIOBlock(gain: TapGain, counters: TapCounters) -> AudioDeviceIOBlock {
         { _, input, _, output, _ in
+            let started = mach_absolute_time()
+            defer { _ = counters.busyTicks.wrappingAdd(mach_absolute_time() &- started, ordering: .relaxed) }
             _ = counters.callbacks.wrappingAdd(1, ordering: .relaxed)
             let inputs = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input))
             let outputs = UnsafeMutableAudioBufferListPointer(output)

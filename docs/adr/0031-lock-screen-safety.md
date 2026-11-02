@@ -130,3 +130,21 @@ Any failure is a no-go: #59 and #13b are dropped (✖) with the evidence.
 4. **Other user accounts:** a switch, *Show when this Mac has other user accounts*, off by default. When another login account exists (a local account with a login shell, UID ≥ 501, not the current user), nothing is shown unless that switch is on. Fast user switching still always destroys everything (§2), whatever the switch says.
 
 Also noted while building: macOS Space ids are 64-bit (`uint64_t`, as in yabai's MIT headers); SkyLightWindow declares them `Int32`, which only works because of the arm64 calling convention. The wrapper uses `UInt64`.
+
+## Evidence: lock signals on macOS 27.2 (spike round 1, 2 Nov 2026)
+
+From `docs/spikes/results/spike-lockevents.txt` (MacBook Air M4 15", one 1920 × 1243 display, no other accounts). The probe created no windows.
+
+| What the design relies on | Observed |
+|---|---|
+| `com.apple.screenIsLocked` / `com.apple.screenIsUnlocked` arrive | **Yes, every time:** five password locks, a wrong password, Touch ID, display sleep, lid close. A wrong password or Touch ID adds no events of its own. |
+| `CGSSessionScreenIsLocked` confirms the lock | **Yes.** It is `1` from the lock notification onwards (already at the notification, and at +0.5 s and +2 s), and **absent** (not `0`) when unlocked, with `onConsole = 1`. `LockStateReader` treats exactly that as unlocked; showing needs the key present and true. |
+| Unlock is seen promptly | `screenIsUnlocked` arrives with the key already absent; `didActivateApplication` follows within 50 ms. Either one tears the card down; the watchdog is only a backstop. |
+| Display sleep while locked | `screensDidSleep` then `screensDidWake`, with the key `1` throughout, then unlock. Matches §2 (destroy on sleep, confirm again on wake). |
+| Lid close | **`willSleep` and `screensDidSleep` come about 0.2 s *before* `screenIsLocked`.** On wake: `screensDidWake`, `didWake`, still locked, then unlock. |
+
+**Change made from this:** a lock notification that arrives while the screens are asleep is ignored, and so is a lock read that lands while they are asleep. The wake event confirms the lock again and shows the card then. Without this, a check left pending across a lid close would show the card on wake a moment before the wake signal rebuilt it (a flicker, not a safety problem). Tests: `lidCloseOrder`, `noShowWhileAsleep`. The safe-zone test now includes Charlie's 1920 × 1243 screen.
+
+`didActivateApplication` also fires about 0.15 s *before* every lock (the login window becoming active). It is harmless here: the reducer only reacts to it while a card is shown.
+
+Not covered by round 1, and still needed before the Stage 2 go/no-go: everything in the Stage 2 test list (§5), plus fast user switching and an external display if Charlie ever uses them.

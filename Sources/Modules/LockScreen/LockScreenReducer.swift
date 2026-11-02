@@ -105,6 +105,10 @@ struct LockScreenReducer: Sendable {
     private(set) var config = Config()
     /// The spike showed its card for this lock already; don't show it again until unlock.
     private(set) var spentUntilUnlock = false
+    /// Between screens sleeping and waking. Closing the lid sends the sleep
+    /// signals about 0.2 s *before* the lock notification (spike, 2 Nov), so a
+    /// lock seen while asleep waits for the wake, which checks again.
+    private(set) var screensAsleep = false
 
     mutating func reduce(_ event: Event, now: Date) -> [Effect] {
         switch event {
@@ -132,11 +136,12 @@ struct LockScreenReducer: Sendable {
             return []
 
         case .lockNotification:
-            guard config.allowsShowing, phase == .armed, !spentUntilUnlock else { return [] }
+            guard config.allowsShowing, phase == .armed, !spentUntilUnlock, !screensAsleep else { return [] }
             phase = .pending
             return [.checkLockState(after: config.confirmDelay)]
 
         case .screensWoke, .sessionBecameActive, .displaysChanged:
+            if event == .screensWoke { screensAsleep = false }
             // Whatever was there goes first; then look again, and show only if confirmed locked.
             let effects = leave()
             guard config.allowsShowing, !spentUntilUnlock else { return effects }
@@ -147,7 +152,7 @@ struct LockScreenReducer: Sendable {
             if state == .unlocked { spentUntilUnlock = false }
             switch (phase, state) {
             case (.pending, .locked):
-                guard config.allowsShowing else { phase = .armed; return [] }
+                guard config.allowsShowing, !screensAsleep else { phase = .armed; return [] }
                 phase = .shown
                 var effects: [Effect] = [.setShownFlag(true), .show(includeSecondaryScreens: config.includeSecondaryScreens),
                                          .startWatchdog(every: config.watchdogInterval)]
@@ -171,7 +176,11 @@ struct LockScreenReducer: Sendable {
         case .appActivated:
             return phase == .shown ? [.checkLockState(after: 0)] : []
 
-        case .sessionResigned, .screensSlept, .quit:
+        case .screensSlept:
+            screensAsleep = true
+            return leave()
+
+        case .sessionResigned, .quit:
             return leave()
 
         case .lifetimeReached:

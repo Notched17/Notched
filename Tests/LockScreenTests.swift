@@ -107,6 +107,25 @@ struct LockScreenReducerTests {
         #expect(sut.reduce(.lockState(.locked), now: now).contains(.show(includeSecondaryScreens: false)))
     }
 
+    @Test("Closing the lid: sleep comes before the lock, so the card waits for the wake (spike order, 2 Nov)")
+    func lidCloseOrder() {
+        var sut = armed()
+        _ = sut.reduce(.screensSlept, now: now)                       // willSleep, screensDidSleep
+        #expect(sut.reduce(.lockNotification, now: now).isEmpty)      // screenIsLocked, 0.2 s later
+        #expect(sut.phase == .armed)
+        #expect(sut.reduce(.screensWoke, now: now) == [.checkLockState(after: 0.5)])
+        #expect(sut.reduce(.lockState(.locked), now: now).contains(.show(includeSecondaryScreens: false)))
+    }
+
+    @Test("A lock check that lands while the screens are asleep shows nothing")
+    func noShowWhileAsleep() {
+        var sut = armed()
+        _ = sut.reduce(.lockNotification, now: now)
+        _ = sut.reduce(.screensSlept, now: now)
+        #expect(sut.reduce(.lockState(.locked), now: now).isEmpty)
+        #expect(sut.phase == .armed)
+    }
+
     @Test("A kill switch stops everything, even when enabled")
     func killSwitch() {
         var sut = armed { $0.killSwitch = true }
@@ -194,6 +213,7 @@ struct LockScreenGeometryTests {
     static let screens: [CGRect] = [
         CGRect(x: 0, y: 0, width: 1470, height: 956),      // MacBook Air 13"
         CGRect(x: 0, y: 0, width: 1710, height: 1112),     // MacBook Air 15"
+        CGRect(x: 0, y: 0, width: 1920, height: 1243),     // Charlie's Air 15" at "More Space" (spike, 2 Nov)
         CGRect(x: 0, y: 0, width: 1280, height: 800),
         CGRect(x: 0, y: 0, width: 1024, height: 640),      // scaled for larger text
         CGRect(x: 0, y: 0, width: 1920, height: 1080),

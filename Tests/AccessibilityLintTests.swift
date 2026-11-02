@@ -16,7 +16,7 @@ struct AccessibilityLintTests {
         return (enumerator?.allObjects as? [URL] ?? []).filter { $0.pathExtension == "swift" && !$0.path.contains("/Debug/") }
     }
 
-    @Test("Text on the black island is never dimmer than 55 % white (4.5:1 contrast)")
+    @Test("Text on the black island is never dimmer than 50 % white (about 5.3:1; 45 % would be 4.4:1, under 4.5:1)")
     func noDimText() throws {
         let pattern = try Regex(#"foregroundStyle\(\.white\.opacity\(0\.(\d+)\)\)"#)
         var offenders: [String] = []
@@ -24,7 +24,7 @@ struct AccessibilityLintTests {
             let text = try String(contentsOf: file, encoding: .utf8)
             for match in text.matches(of: pattern) {
                 guard let digits = match.output[1].substring, let value = Double("0." + digits) else { continue }
-                if value < 0.55 { offenders.append("\(file.lastPathComponent): white.opacity(\(value))") }
+                if value < 0.5 { offenders.append("\(file.lastPathComponent): white.opacity(\(value))") }
             }
         }
         #expect(offenders.isEmpty, "Too dim for small text on black: \(offenders)")

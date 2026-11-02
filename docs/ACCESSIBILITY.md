@@ -27,7 +27,7 @@ Audited 2 Nov 2026 from the source, against Apple's Human Interface Guidelines (
 ### **[MEDIUM]** Captions too dim on black - FIXED
 
 - **Current behaviour**: four captions at 40 to 45 % white on black (about 3.7:1 to 4.4:1), under the 4.5:1 that small text needs.
-- **Fix**: raised to 60 % (about 7:1). `AccessibilityLintTests` fails if any `foregroundStyle(.white.opacity(x))` goes below 55 %.
+- **Fix**: raised to 60 % (about 7:1). `AccessibilityLintTests` fails if any `foregroundStyle(.white.opacity(x))` goes below 50 % (50 % white on black is about 5.3:1; 45 % is 4.4:1).
 
 ### **[MEDIUM]** Increase Contrast only adds the island's outline - NOT FIXED
 

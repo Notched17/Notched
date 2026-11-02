@@ -40,7 +40,7 @@
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Notched controls Music and Spotify and reads what's playing when you turn on Now Playing.</string>
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>Notched listens to the audio that's playing so the visualiser can move with the music.</string>
+	<string>Notched turns individual apps up or down when you move an app's volume slider. The audio stays on your Mac.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Notched shows when your headphones and other Bluetooth devices connect.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>

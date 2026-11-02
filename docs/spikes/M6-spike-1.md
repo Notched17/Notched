@@ -1,6 +1,6 @@
-# M6 spike build 1: per-app volume (6.1), AirPods battery (6.2), Activity API check
+# M6 spike build 1: per-app volume (6.1), AirPods battery (6.2), Activity API check, lock-screen signals (6.3)
 
-About 40 minutes at the Mac. Every step is numbered; write what you hear or see in the **Notes** column (a word is enough), then send back the two results files and this sheet (see the end).
+About 45 minutes at the Mac. Every step is numbered; write what you hear or see in the **Notes** column (a word is enough), then send back the two results files and this sheet (see the end).
 
 The probes only run in the Debug build and only when you start them with the commands below. Turning the island's modules on or off doesn't matter for this sheet.
 
@@ -57,7 +57,24 @@ Which AirPods model do you have? ______
 | 3.4 | If you use the Claude Code hooks: does the island show "Claude is working…", and does an approval show **Allow / Deny**? | |
 | 3.5 | You can revoke the "test" client in the pane afterwards. | |
 
-## 4. Send back
+## 4. Lock-screen signals (6.3 research, about 5 min)
+
+This probe **puts nothing on the lock screen**. It only writes down which signals macOS sends when you lock, unlock, sleep and switch users, so the lock-screen design (ADR-0031) can rely on the right ones. Lock with **⌃⌘Q** (Control-Command-Q).
+
+| # | Do | Notes |
+|---|---|---|
+| 4.1 | `open -g "notched://debug/probe?name=lockevents&action=start"` | |
+| 4.2 | Lock (⌃⌘Q), wait 10 s, unlock with your password. | |
+| 4.3 | Lock, type a **wrong** password once, then the right one. | |
+| 4.4 | Lock, unlock with **Touch ID**. | |
+| 4.5 | Lock, leave it until the screen goes dark (about a minute), then press a key and unlock. | |
+| 4.6 | Close the lid for 30 s, open it, unlock. | |
+| 4.7 | Only if this Mac has a **second user account**: Control Centre ▸ your name ▸ *Login Window…*, then log back in. | Second account? yes / no |
+| 4.8 | If you use an external display, plug it in and do step 4.2 once more. | External display? yes / no |
+| 4.9 | `open -g "notched://debug/probe?name=lockevents&action=stop"` | |
+| 4.10 | Optional but useful: a phone photo of the lock screen as it normally looks (clock, your picture, password field). Save it as `docs/spikes/results/lockscreen.jpg`. | |
+
+## 5. Send back
 
 1. Copy the results files into the repo, commit and push:
    `mkdir -p docs/spikes/results && cp ~/Library/Logs/Notched/spike-*.txt docs/spikes/results/`

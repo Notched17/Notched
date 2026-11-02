@@ -146,3 +146,7 @@ If yes: Sparkle 2 (SPM), EdDSA appcast on GitHub Pages, stable and beta channels
 1. **Now (Opus xhigh):** the 6.1 and 6.2 spike probes and their test sheet (`docs/spikes/M6-spike-1.md`).
 2. **Housekeeping (Sonnet medium):** the cost estimate, ⌥⇧V, the listed-only alert rule, ROADMAP. It lands in the same build as the probes, so Charlie runs one build.
 3. Charlie runs the test sheet; then (Opus xhigh) ADR-0029/0030 go/no-go and the 6.3 Stage 1 safety design.
+
+### Progress (2 Nov 2026)
+- Spike build 1 compiles; all 1,128 tests pass on the Mac. Charlie runs `docs/spikes/M6-spike-1.md` later.
+- **6.3 Stage 1 written:** ADR-0031 (proposed). SkyLightWindow's technique is adapted into our own checked wrapper rather than used as a package: its window is full-screen and key, its level-400 Space stays shown after unlock, and its `dlsym` results aren't checked. A passive `lockevents` probe (no windows) is added to the spike sheet as §4, to confirm the lock signals the design relies on.

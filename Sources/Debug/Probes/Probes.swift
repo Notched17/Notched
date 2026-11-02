@@ -24,6 +24,8 @@ enum Probes {
             AudioTapProbe.handle(action: query("action") ?? "list", app: query("app"), gain: query("gain").flatMap(Double.init))
         case "battery-accessory":
             AccessoryBatteryProbe.handle(action: query("action") ?? "run", seconds: query("seconds").flatMap(Double.init))
+        case "lockevents":
+            LockEventsProbe.handle(action: query("action") ?? "start")
         default: probeLog.error("Unknown probe \(query("name") ?? "-", privacy: .public)")
         }
     }

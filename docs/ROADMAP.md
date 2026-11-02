@@ -162,12 +162,19 @@ Robustness: sleep/wake wasn't tried physically (the timer and ring re-check on w
 
 ## M6: Hard, fragile and polish
 
+**M6 status (2 Nov 2026): 🟨 in progress.** Plan: `docs/superpowers/specs/2026-11-02-m6-hard-parts-and-release-design.md`. Every hard item starts with a spike and a go/no-go.
+
+- **#17 per-app volume and #28 AirPods battery:** spike probes written and compiled (`AudioTapProbe`, `AccessoryBatteryProbe`); **waiting for Charlie's results** (`docs/spikes/M6-spike-1.md` §1 to §3). ADR-0029 and ADR-0030 follow.
+- **#59 lock-screen widgets, #13b lyrics:** safety design accepted (ADR-0031). Stage 2 test version (a grey label that removes itself after 60 s) written, compiled and unit-tested (rules engine, geometry); **waiting for the physical tests** (spike sheet §4, §5). Stage 3 (real widgets) only if they pass.
+- **#76 auto-updates:** wanted, set up later.
+- **6.5 release readiness, done so far:** accessibility audit and fixes (`docs/ACCESSIBILITY.md`), onboarding wording, clipboard image encoding off the main thread, README, PRIVACY, CONTRIBUTING, RELEASING (local builds only), notices audit, `scripts/soak.sh` and `scripts/perf-table.sh`. **Still to do, needs the Mac:** VoiceOver spot-check, performance table, the 8-hour soak, M4b/M6 screenshots, final review pass.
+
 | # | Feature | Spec | Approach and risk |
 |---|---|---|---|
-| 17 | Per-app volume mixer | Expanded audio tab: a slider per app currently playing audio. | Core Audio process taps + aggregate devices (macOS 14.4+). Hard. Build a spike first and write an ADR. |
-| 28 | AirPods / accessory battery | Show left, right and case battery on connect and in the expanded audio tab. | Private IOBluetooth properties via a wrapper, or BLE advertisement parsing with CoreBluetooth. Do **not** copy AirBattery (AGPL). Experimental, hidden if unavailable. |
-| 59 | Lock-screen widgets | On the lock screen: Now Playing (artwork, controls), time-friendly widgets (battery, next event). Off by default. | Lakr233/SkyLightWindow (MIT) `moveToSky()`. **Follow the lock-screen safety rules in CLAUDE.md.** |
-| 13b | Lyrics on the lock screen | The current lyric line below the lock-screen player. | Reuse #13 + #59. |
+| 17 | 🟨 Per-app volume mixer | Expanded audio tab: a slider per app currently playing audio. | Core Audio process taps + aggregate devices (macOS 14.4+). Hard. Build a spike first and write an ADR. **🟨 Spike probe built (2 Nov); go/no-go waits for the Mac test.** |
+| 28 | 🟨 AirPods / accessory battery | Show left, right and case battery on connect and in the expanded audio tab. | Private IOBluetooth properties via a wrapper, or BLE advertisement parsing with CoreBluetooth. Do **not** copy AirBattery (AGPL). Experimental, hidden if unavailable. **🟨 Spike probe built (2 Nov); go/no-go waits for the Mac test.** |
+| 59 | 🟨 Lock-screen widgets | On the lock screen: Now Playing (artwork, controls), time-friendly widgets (battery, next event). Off by default. | Lakr233/SkyLightWindow (MIT) `moveToSky()`. **Follow the lock-screen safety rules in CLAUDE.md.** **🟨 Safety design accepted (ADR-0031); Stage 2 test label built, waits for the physical test.** |
+| 13b | 🟨 Lyrics on the lock screen | The current lyric line below the lock-screen player. | Reuse #13 + #59. **Waits for #59.** |
 | 76 | ⏸ Auto-updates | Check GitHub Releases. Stable and beta channels. | Sparkle 2 with an EdDSA-signed appcast hosted on GitHub Pages. Only worth it once the app is shared publicly, so **ask Charlie** before setting up keys. **⏸ Wanted, set up later (Charlie, 2 Nov 2026); not part of M6.** |
 
 ---

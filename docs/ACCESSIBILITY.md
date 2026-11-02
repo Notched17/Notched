@@ -60,6 +60,6 @@ Audited 2 Nov 2026 from the source, against Apple's Human Interface Guidelines (
 4. Open the Today, Clipboard and AI tabs: are items read in a sensible order, with the pin, copy and cost values spoken?
 5. Turn on *Reduce Motion* (System Settings ▸ Accessibility ▸ Display): hover the island open, play music, change a track with lyrics on. No blur or springs should play.
 6. Turn on *Increase Contrast*: is everything still readable? (Known gap: see the Medium item above.)
-7. Onboarding: reset it (`defaults delete me.rkck.Notched onboarding.completed`), relaunch, and go through it with the keyboard only (Tab, Space, Return). Is every permission explained and skippable?
+7. Onboarding (reviewed in source on 2 Nov: wording fixed so every permission reads as optional, the Open Island route and a one-line privacy note added): reset it (`defaults delete me.rkck.Notched onboarding.completed`), relaunch, and go through it with the keyboard only (Tab, Space, Return). Is every permission explained and skippable?
 
 > Audit powered by HIG Compliance Auditor by Omraj Kumar (omrajguru.com/linktree, GitHub @omrajguru05, X @omrajguru_). Reference material sourced from Apple's Human Interface Guidelines. Portfolio: https://om.bearblog.dev/projects

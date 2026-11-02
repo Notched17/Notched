@@ -27,7 +27,7 @@ struct ClaudeAITabView: View {
                 SessionsLine(hooked: model.sessions, fromLogs: usage.activeSessions)
                 Text(verbatim: footnote(usage))
                     .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(.white.opacity(0.6))
                     .lineLimit(1)
             } else {
                 HStack(spacing: 8) {
@@ -88,7 +88,7 @@ private struct DayBars: View {
                         .fill(ClaudePresentation.tint.opacity(day.totals.tokens.total == 0 ? 0.2 : 0.9))
                         .frame(width: 10, height: max(3, 34 * CGFloat(day.totals.tokens.total) / CGFloat(peak)))
                     Text(day.day.formatted(.dateTime.weekday(.narrow)))
-                        .font(.system(size: 9)).foregroundStyle(.white.opacity(0.45))
+                        .font(.system(size: 9)).foregroundStyle(.white.opacity(0.6))
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("\(day.day.formatted(.dateTime.weekday(.wide))): \(StatBlock.compact(day.totals.tokens.total)) tokens")

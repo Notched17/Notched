@@ -10,6 +10,7 @@ import SwiftUI
 /// Album artwork in a continuous-corner square (or a circle in a bubble).
 /// A new track blurs in; missing artwork shows a quiet note glyph.
 struct MediaArtworkView: View {
+    @Environment(\.islandReduceMotion) private var reduceMotion
     let model: MediaModel
     var size: CGFloat
     var circular = false
@@ -32,7 +33,7 @@ struct MediaArtworkView: View {
                 }
             }
             .id(ArtworkIdentity(track: model.trackKey, hasArtwork: model.artwork != nil))
-            .transition(AnyTransition(.blurReplace).combined(with: .opacity))
+            .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .opacity))
         }
         .frame(width: size, height: size)
         .clipShape(shape)
@@ -216,6 +217,7 @@ struct MediaControlButton: View {
 }
 
 private struct MediaPressStyle: ButtonStyle {
+    @Environment(\.islandReduceMotion) private var reduceMotion
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .background {
@@ -224,6 +226,6 @@ private struct MediaPressStyle: ButtonStyle {
                     .padding(-2)
             }
             .scaleEffect(configuration.isPressed ? 0.9 : 1)
-            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+            .animation(reduceMotion ? Motion.reduced : .spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }

@@ -46,6 +46,8 @@ private struct SearchField: View {
                 Button("Clear Search", systemImage: "xmark.circle.fill") { text = "" }
                     .labelStyle(.iconOnly)
                     .buttonStyle(.plain)
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
                     .foregroundStyle(.secondary)
             }
         }

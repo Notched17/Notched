@@ -71,7 +71,7 @@ enum ActivityAPIPresentation {
                             if let subtitle = spec.subtitle {
                                 Text(verbatim: subtitle).font(IslandFont.subtitle).foregroundStyle(.white.opacity(0.7)).lineLimit(1)
                             }
-                            Text(verbatim: "from \(entry.clientName)").font(IslandFont.subtitle).foregroundStyle(.white.opacity(0.45)).lineLimit(1)
+                            Text(verbatim: "from \(entry.clientName)").font(IslandFont.subtitle).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
                         }
                     },
                     bottom: ExpandedRegion { ExpandedBottom(spec: spec, tint: tint) }

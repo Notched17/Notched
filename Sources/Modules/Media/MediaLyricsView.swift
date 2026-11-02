@@ -6,6 +6,7 @@ import SwiftUI
 /// ticker, beside the notch. While playing it redraws only when the line
 /// changes (`LyricLineSchedule`), and each new line blurs in.
 struct MediaLyricLine: View {
+    @Environment(\.islandReduceMotion) private var reduceMotion
     let model: MediaModel
     var compact = false
 
@@ -32,11 +33,11 @@ struct MediaLyricLine: View {
                 .truncationMode(.tail)
                 .minimumScaleFactor(compact ? 1 : 0.85)
                 .id(index ?? -1)
-                .transition(AnyTransition(.blurReplace).combined(with: .opacity))
+                .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .opacity))
         }
         .frame(maxWidth: compact ? IslandMetrics.compactRegionMaxWidth : .infinity, alignment: compact ? .leading : .center)
         // Below the island's own transaction override, so line changes animate.
-        .animation(.smooth(duration: 0.35), value: index)
+        .animation(reduceMotion ? Motion.reduced : .smooth(duration: 0.35), value: index)
         .accessibilityElement()
         .accessibilityLabel(text.isEmpty ? "Instrumental" : text)
     }

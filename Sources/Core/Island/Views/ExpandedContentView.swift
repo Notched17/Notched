@@ -24,7 +24,7 @@ struct ExpandedContentView: View {
                     }
                 }
                 .id(pageKey)
-                .transition(AnyTransition(.blurReplace).combined(with: .opacity))
+                .transition(model.accessibility.reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .opacity))
                 if model.showsTabBar {
                     // Page dots only mean something on the Island tab.
                     HStack(spacing: Spacing.m) {

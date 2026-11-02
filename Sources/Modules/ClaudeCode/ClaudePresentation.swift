@@ -44,7 +44,7 @@ enum ClaudePresentation {
                         Text(verbatim: headline(phase)).font(IslandFont.title).lineLimit(1)
                         Text(verbatim: snapshot.displayName).font(IslandFont.subtitle).foregroundStyle(.white.opacity(0.7)).lineLimit(1)
                         if let title = snapshot.title {
-                            Text(verbatim: title).font(IslandFont.subtitle).foregroundStyle(.white.opacity(0.45)).lineLimit(1)
+                            Text(verbatim: title).font(IslandFont.subtitle).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
                         }
                         if phase == .working, let since = snapshot.since {
                             Text(since, style: .timer).font(IslandFont.subtitle).monospacedDigit().foregroundStyle(.white.opacity(0.6))

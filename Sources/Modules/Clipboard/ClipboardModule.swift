@@ -37,6 +37,9 @@ final class ClipboardModule: IslandModule {
     private let saveDebounce = OneShotTimer()
     private let observers = NotificationTokens()
     private var pollToken: RefreshToken?
+    /// The latest picture still being encoded; the next one waits for it, so copies are recorded in order.
+    private var imageCapture: Task<Void, Never>?
+    private var inFlight = 0
     private var reducer = ClipboardReducer()
     private var isRunning = false
     private let log = Log.module("clipboard")
@@ -87,6 +90,9 @@ final class ClipboardModule: IslandModule {
 
     func stop() {
         guard isRunning else { return }
+        imageCapture?.cancel()
+        imageCapture = nil
+        inFlight = 0
         saveNow()
         writer.waitUntilIdle()
         isRunning = false
@@ -148,9 +154,40 @@ final class ClipboardModule: IslandModule {
         let types = pasteboard.typeIdentifiers
         let source = pasteboard.frontmostApp
         let skip = ClipboardPolicy.skipReason(types: types, sourceBundleID: source.bundleID, excludedApps: reducer.state.config.excludedApps)
+        // A picture: the bytes are read now (the pasteboard may change), the slow encoding runs in
+        // the background, and every capture waits behind one still in flight so entries are
+        // recorded in copy order.
+        if skip == nil, let raw = pasteboard.pendingImage() {
+            let store = store
+            chain {
+                let candidate = await Task.detached(priority: .utility) { ClipboardImageIngest.candidate(raw: raw, store: store) }.value
+                return ClipboardCapture(typeIdentifiers: types, sourceBundleID: source.bundleID, sourceName: source.name,
+                                        candidate: candidate, newID: UUID())
+            }
+            return
+        }
         let candidate = skip == nil ? pasteboard.readCandidate(store: store) : nil
-        send(.captured(ClipboardCapture(typeIdentifiers: types, sourceBundleID: source.bundleID, sourceName: source.name,
-                                        candidate: candidate, newID: UUID())))
+        let capture = ClipboardCapture(typeIdentifiers: types, sourceBundleID: source.bundleID, sourceName: source.name,
+                                       candidate: candidate, newID: UUID())
+        if inFlight > 0 {
+            chain { capture }
+        } else {
+            send(.captured(capture))
+        }
+    }
+
+    /// Runs `work` after every earlier chained capture, then records its result.
+    private func chain(_ work: @escaping @MainActor () async -> ClipboardCapture) {
+        let previous = imageCapture
+        inFlight += 1
+        imageCapture = Task { @MainActor [weak self] in
+            await previous?.value
+            let capture = await work()
+            guard let self else { return }
+            self.inFlight -= 1
+            guard !Task.isCancelled else { return }
+            self.send(.captured(capture))
+        }
     }
 
     private func saveNow() {

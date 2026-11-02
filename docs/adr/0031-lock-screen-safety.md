@@ -148,3 +148,41 @@ From `docs/spikes/results/spike-lockevents.txt` (MacBook Air M4 15", one 1920 ×
 `didActivateApplication` also fires about 0.15 s *before* every lock (the login window becoming active). It is harmless here: the reducer only reacts to it while a card is shown.
 
 Not covered by round 1, and still needed before the Stage 2 go/no-go: everything in the Stage 2 test list (§5), plus fast user switching and an external display if Charlie ever uses them.
+
+## Evidence: the Space calls on macOS 27.2 (spike round 2, 2 Nov 2026)
+
+From `docs/spikes/results/round2/spike-lockscreen.txt` and the `lockscreen-desktop-*.png` screenshots in the same folder.
+
+1. **First lock test: nothing showed.** The reducer confirmed the lock and went to `shown`. Then the wrapper read `SLSShowSpaces` as failing (`-1342177280`) and tore everything down before any window existed. The safety path worked as designed: it destroyed everything, cleared the shown flag and turned the feature off with a reason.
+2. **Why the call seemed to fail.** It didn't. Disassembly of SkyLight on 27.2 shows two paths for each Space call. In an AppKit app, SkyLight takes the bridged one, `SLSPerformAsynchronousBridgedWindowManagementOperation`. That path **returns no status**: `x0` is whatever an autorelease-pool pop left behind (`0xB0000000`, which is not a `CGError`). This applies to set level, show, hide, add windows and destroy. `SLSSpaceCreate` and `SLSCopySpacesForWindows` are synchronous and return real values.
+3. **The wrapper now ignores those return values** (declared `Void`) and checks by observation instead.
+4. **Desktop test (unlocked, no one at the keyboard needed).** A window at *desktop* level, which normally sits behind every app window, was shown for 5 s.
+   - **Control, no Space:** hidden behind the app windows. SkyLight lists it on Space 1.
+   - **In our level-400 Space, all four set-ups** (with and without `.canJoinAllSpaces`, added before or after ordering front): **shown in front of every app window.** SkyLight lists it on no Space at all. On 27.2 that query reports desktop Spaces only, so "no Spaces" is what a successful move looks like.
+   - Gone from the window list 0.5 s after tear-down, every time.
+5. **What this proves:** the Space mechanism works on macOS 27.2, and the order and join settings make no difference. **What it doesn't prove:** that level 400 is above the macOS 27 lock screen. The lock test (round 2 §3) answers that.
+6. **Stage 3 consequence.** No call reports failure any more, so the controller can't rely on errors. It records each card's state 0.5 s after showing it. Stage 3 should turn a card still on a desktop Space into a `.failure`, once the lock test shows the reading is reliable while locked.
+
+### The lock test after the fix (round 2, 2 Nov 2026)
+
+`spike-lockscreen.txt` from 07:51 onwards. The photo is `docs/spikes/results/round2/lockscreen-label-cropped.jpg`, cropped so that the "if lost" phone number, face and name are left out. The full photo stays out of the repo.
+
+| Stage 2 check | Result |
+|---|---|
+| 5.2: the label shows, and covers nothing | **Pass.** It shows under the clock within 0.5 s of the lock confirming. It is well clear of the user picture, the name, "Touch ID or Enter Password" and the "if lost" message, which start about 80 % of the way down the screen. |
+| 5.3: unlock removes it at once | **Pass, 3 of 3.** Every `screenIsUnlocked` led straight to `destroy`. |
+| 5.8: display sleep while locked | **Pass.** `screensSlept` led to destroy. On wake the lock was confirmed again and the card shown again. |
+| Placement reading while locked | 0.5 s after each show the card is on screen and **out of the desktop Spaces**, the same as on the desktop. This confirms the reading, so Stage 3 can act on it. |
+| 5.13: kill switch | **Pass** (run by Claude, unlocked). With `lockScreen.killSwitch` set, `arm` was refused. |
+| 5.4 (20 cycles), 5.5 (60 s limit), 5.6 (wrong password), 5.7 (Touch ID), 5.9 (lid), 5.10 (click on the card), 5.11 (VoiceOver), **5.12 (kill -9 while locked)** | **Not run yet.** |
+
+**Decision: provisional go for Stage 3.** Charlie asked for Stage 3 before the full test list. The mechanism works and the placement is safe, so Stage 3 is built **off by default, with every rule in §1–§4 and labelled untested**. #59 and #13b stay 🟨, and the setting carries an "experimental" note, until the rows above marked "not run" pass. Above all that means 5.12: if the lock screen ever fails to work after a crash, the decision is **no-go**, whatever has been built.
+
+### 7. Placement (Charlie, 2 Nov 2026)
+
+Charlie wants the card in the vertical middle by default, with a left, centre or right choice. This stays inside the safe band, which the photo checks:
+
+- **The band:** the card's top is never above 30 % from the top of the screen (under the clock), and its bottom is never below 55 % from the top, the existing `forbiddenBottomFraction` of 0.45 of the height measured from the bottom. On Charlie's screen the unlock controls start at about 80 %, so the band leaves a margin of a quarter of the screen. **The band is a hard rule in `LockScreenGeometry`, unit-tested. The settings choose positions inside it and never move its edges.**
+- **Vertical:** *Middle* (default) puts the card's centre at 50 % of the height, clamped into the band. *Under the clock* puts its top at 30 %, as in the Stage 2 label.
+- **Horizontal:** *Centre* (default), *Left* or *Right*. Left and right keep a margin of 6 % of the screen width from the edge. The card is never wider than 40 % of the screen.
+- No placement may return a frame outside the band or off the screen. `cardFrame` returns nil instead, and the card isn't shown.

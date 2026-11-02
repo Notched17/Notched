@@ -151,7 +151,7 @@ struct LRCLIBClient: LyricsFetching {
         var request = URLRequest(url: components.url!, timeoutInterval: 10)
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
         // LRCLIB asks clients to identify themselves.
-        request.setValue("Notched \(version) (https://github.com/charlieauchter/notched)", forHTTPHeaderField: "User-Agent")
+        request.setValue("Notched \(version) (https://github.com/Notched17/Notched)", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await Self.session.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         if status == 404 { return .notFound }

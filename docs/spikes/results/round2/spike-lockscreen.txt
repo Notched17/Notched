@@ -1,0 +1,32 @@
+[2026-11-02T07:29:53Z] === lockscreen probe, Mac16,13, macOS Version 27.2 (Build 26B123)
+[2026-11-02T07:29:53Z] status: SkyLight symbols found, kill switch off, lock state unlocked, other login accounts 0, shown flag false, armed false
+[2026-11-02T07:29:53Z] status: screen 0 {{0, 0}, {1920, 1243}} → card {{780, 750.10000000000002}, {360, 120}}
+[2026-11-02T07:33:55Z] [  0.02 s] configure(Notched.LockScreenReducer.Config(enabled: true, killSwitch: false, includeSecondaryScreens: false, allowWithOtherAccounts: false, otherAccountsExist: false, maximumLifetime: Optional(60.0), confirmDelay: 0.5, watchdogInterval: 2.0)) → armed
+[2026-11-02T07:33:55Z] [  0.02 s] launched(previousSessionCrashed: false, shownFlagWasSet: false) → armed
+[2026-11-02T07:33:55Z] armed: secondary displays false, other accounts exist false, show anyway false. Lock with ⌃⌘Q.
+[2026-11-02T07:34:03Z] [  7.83 s] appActivated → armed
+[2026-11-02T07:34:03Z] [  7.98 s] lockNotification → pending: [Notched.LockScreenReducer.Effect.checkLockState(after: 0.5)]
+[2026-11-02T07:34:04Z] [  8.48 s] lockState(Notched.LockState.locked) → shown: [Notched.LockScreenReducer.Effect.setShownFlag(true), Notched.LockScreenReducer.Effect.show(includeSecondaryScreens: false), Notched.LockScreenReducer.Effect.startWatchdog(every: 2.0), Notched.LockScreenReducer.Effect.scheduleLifetimeLimit(60.0)]
+[2026-11-02T07:34:04Z] [  8.48 s] failure("call(\"SLSShowSpaces\", -1342177280)") → off: [Notched.LockScreenReducer.Effect.destroy, Notched.LockScreenReducer.Effect.stopWatchdog, Notched.LockScreenReducer.Effect.cancelLifetimeLimit, Notched.LockScreenReducer.Effect.setShownFlag(false), Notched.LockScreenReducer.Effect.turnOff(Notched.LockScreenReducer.OffReason.failed("call(\"SLSShowSpaces\", -1342177280)"))]
+[2026-11-02T07:34:04Z] TURNED OFF: failed("call(\"SLSShowSpaces\", -1342177280)"). In the product the setting goes off and Settings says why. Arm again to continue.
+[2026-11-02T07:34:04Z] [  8.49 s] configure(Notched.LockScreenReducer.Config(enabled: false, killSwitch: false, includeSecondaryScreens: false, allowWithOtherAccounts: false, otherAccountsExist: false, maximumLifetime: nil, confirmDelay: 0.5, watchdogInterval: 2.0)) → off
+[2026-11-02T07:46:42Z] === lockscreen probe, Mac16,13, macOS Version 27.2 (Build 26B123)
+[2026-11-02T07:46:42Z] desktop test: Space 4630, level 400, join all Spaces on, add then order front; normal-level label over the menu bar at {{150, 1183}, {360, 60}} for 5 s
+[2026-11-02T07:46:43Z] desktop test after 0.6 s: on screen, layer 0, Spaces [], our Space 4630 NO
+[2026-11-02T07:46:48Z] desktop test 0.5 s after tear-down: not in the window list, layer -, Spaces [], our Space 0 NO
+[2026-11-02T07:48:18Z] === lockscreen probe, Mac16,13, macOS Version 27.2 (Build 26B123)
+[2026-11-02T07:48:18Z] desktop test: Space 0, CONTROL: no Space (should be hidden behind app windows); desktop-level label at {{150, 1083}, {360, 60}} for 5 s
+[2026-11-02T07:48:19Z] desktop test after 0.6 s: on screen, layer -2147483623, Spaces [1], our Space 0 NO
+[2026-11-02T07:48:24Z] desktop test 0.5 s after tear-down: not in the window list, layer -, Spaces [1], our Space 0 NO
+[2026-11-02T07:48:25Z] desktop test: Space 4633, level 400, join all Spaces on, add then order front; desktop-level label at {{150, 1083}, {360, 60}} for 5 s
+[2026-11-02T07:48:26Z] desktop test after 0.6 s: on screen, layer -2147483623, Spaces [], our Space 4633 NO
+[2026-11-02T07:48:31Z] desktop test 0.5 s after tear-down: not in the window list, layer -, Spaces [], our Space 0 NO
+[2026-11-02T07:48:32Z] desktop test: Space 4635, level 400, join all Spaces off, add then order front; desktop-level label at {{150, 1083}, {360, 60}} for 5 s
+[2026-11-02T07:48:32Z] desktop test after 0.6 s: on screen, layer -2147483623, Spaces [], our Space 4635 NO
+[2026-11-02T07:48:38Z] desktop test 0.5 s after tear-down: not in the window list, layer -, Spaces [], our Space 0 NO
+[2026-11-02T07:48:38Z] desktop test: Space 4637, level 400, join all Spaces on, order front then add; desktop-level label at {{150, 1083}, {360, 60}} for 5 s
+[2026-11-02T07:48:39Z] desktop test after 0.6 s: on screen, layer -2147483623, Spaces [], our Space 4637 NO
+[2026-11-02T07:48:44Z] desktop test 0.5 s after tear-down: not in the window list, layer -, Spaces [], our Space 0 NO
+[2026-11-02T07:48:45Z] desktop test: Space 4639, level 400, join all Spaces off, order front then add; desktop-level label at {{150, 1083}, {360, 60}} for 5 s
+[2026-11-02T07:48:46Z] desktop test after 0.6 s: on screen, layer -2147483623, Spaces [], our Space 4639 NO
+[2026-11-02T07:48:51Z] desktop test 0.5 s after tear-down: not in the window list, layer -, Spaces [], our Space 0 NO

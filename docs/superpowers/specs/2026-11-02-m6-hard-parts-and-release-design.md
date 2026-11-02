@@ -161,3 +161,9 @@ Done without the Mac: clipboard image encoding off the main thread; `scripts/soa
 - **6.2:** not run. **6.3:** lock signals confirmed (ADR-0031 Evidence); a lid-close ordering fix added to the reducer, with tests.
 - **API/#63:** banners, activities, delete and revoke work; the "ring only" was the correct bubble while music played. #63 shows "Claude is working…"; Allow/Deny untested; a clipped "Wai…" label goes on the polish list.
 - Round 2 sheet: `docs/spikes/M6-spike-2.md`.
+
+### Spike round 2, lock screen (2 Nov 2026, Opus xhigh)
+- The first lock test showed nothing. On macOS 27.2, SkyLight's Space calls go through an asynchronous bridge and return no status, and the wrapper took a leftover register value for an error. The wrapper is fixed: it ignores those return values and checks where the window is instead.
+- A desktop test with a control proved that the Space works. Then the lock test passed: the label sits under the clock, clear of the unlock controls, and is removed on unlock and display sleep. The kill switch works. ADR-0031 has the evidence and **a provisional go for Stage 3**, built off by default and labelled untested. 5.4–5.7 and 5.9–5.12 still need running; 5.12, the crash test, decides it.
+- Placement (ADR-0031 §7): vertical middle by default, or under the clock, with left, centre or right, all inside the fixed safe band.
+- Still open in round 2: §1 audio (1.1–1.3, 1.5–1.7; 1.4 passed by ear), §2 AirPods Max, §4 leftovers.

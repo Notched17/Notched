@@ -30,6 +30,8 @@ final class LockScreenController {
     private var lifetime: Task<Void, Never>?
     /// The pending lock read; a newer request replaces it.
     private var check: Task<Void, Never>?
+    /// The look at where the cards ended up (the Space calls give no status on macOS 27).
+    private var verify: Task<Void, Never>?
     private var queue: [Event] = []
     private var isSending = false
 
@@ -73,6 +75,8 @@ final class LockScreenController {
     private func perform(_ effect: Effect) {
         switch effect {
         case .destroy:
+            verify?.cancel()
+            verify = nil
             skyLight?.tearDown(closing: panels)
             panels = []
             skyLight = nil
@@ -137,6 +141,23 @@ final class LockScreenController {
             }
         } catch {
             send(.failure("\(error)"))
+            return
+        }
+        verifyPlacement()
+    }
+
+    /// On macOS 27 the Space calls are asynchronous and return no status, so
+    /// look half a second later and record where the window server put each
+    /// card. Trace only for now: Stage 2 round 2 checks that this reading
+    /// matches what is seen before anything acts on it (ADR-0031 Evidence).
+    private func verifyPlacement() {
+        verify?.cancel()
+        verify = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled, let self, let skyLight = self.skyLight else { return }
+            for (index, panel) in self.panels.enumerated() {
+                self.trace?("card \(index) after 0.5 s: \(skyLight.state(of: panel))")
+            }
         }
     }
 

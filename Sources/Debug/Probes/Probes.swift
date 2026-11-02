@@ -27,7 +27,12 @@ enum Probes {
         case "lockevents":
             LockEventsProbe.handle(action: query("action") ?? "start")
         case "lockscreen":
-            LockScreenProbe.handle(action: query("action") ?? "status", secondary: query("secondary") == "1", others: query("others") == "1")
+            var variant = LockScreenProbe.DesktopVariant()
+            variant.joinAllSpaces = query("join") != "0"
+            variant.addBeforeOrderingFront = query("order") != "front-first"
+            if let level = query("level").flatMap(Int32.init) { variant.level = level }
+            variant.control = query("control") == "1"
+            LockScreenProbe.handle(action: query("action") ?? "status", secondary: query("secondary") == "1", others: query("others") == "1", desktop: variant)
         default: probeLog.error("Unknown probe \(query("name") ?? "-", privacy: .public)")
         }
     }

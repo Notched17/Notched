@@ -13,26 +13,37 @@ import Foundation
 /// A private-API wrapper for one Space above the lock screen (#59, ADR-0031).
 ///
 /// `make()` returns nil, logged once, if SkyLight or any symbol is missing, and
-/// the feature then hides itself. Every call reports failure instead of
-/// crashing; the caller destroys everything on the first failure.
+/// the feature then hides itself. Nothing here crashes; the caller destroys
+/// everything on the first failure.
+///
+/// **macOS 27 (spike round 2):** in an AppKit app, SkyLight sends the Space
+/// calls through an asynchronous "window management bridge". Set level, show,
+/// hide, add windows and destroy then return **no status** (the register holds
+/// whatever an autorelease-pool pop left there; round 2 read `0xB0000000` and
+/// took it for an error). So those calls are declared `Void` and success is
+/// checked by observation instead (`state(of:)`): which Spaces the window
+/// server says the window is in, and whether it is on screen. Only
+/// `SLSSpaceCreate` and `SLSCopySpacesForWindows` are synchronous and return
+/// real values.
 @MainActor
 final class SkyLightLockScreen {
     enum Failure: Error, Equatable {
         case spaceNotCreated
-        case call(String, Int32)
         case windowHasNoNumber
     }
 
     /// Absolute Space levels, from SkyLight's private headers (as listed by SkyLightWindow).
     /// 300 is the lock screen; 400 is where notifications show above it.
-    static let levelAboveLockScreen: Int32 = 400
+    nonisolated static let levelAboveLockScreen: Int32 = 400
 
     private typealias MainConnectionID = @convention(c) () -> Int32
     private typealias SpaceCreate = @convention(c) (Int32, Int32, Int32) -> UInt64
-    private typealias SpaceSetAbsoluteLevel = @convention(c) (Int32, UInt64, Int32) -> Int32
-    private typealias ShowOrHideSpaces = @convention(c) (Int32, CFArray) -> Int32
-    private typealias SpaceAddWindows = @convention(c) (Int32, UInt64, CFArray, Int32) -> Int32
-    private typealias SpaceDestroy = @convention(c) (Int32, UInt64) -> Int32
+    private typealias SpaceSetAbsoluteLevel = @convention(c) (Int32, UInt64, Int32) -> Void
+    private typealias ShowOrHideSpaces = @convention(c) (Int32, CFArray) -> Void
+    private typealias SpaceAddWindows = @convention(c) (Int32, UInt64, CFArray, Int32) -> Void
+    private typealias SpaceDestroy = @convention(c) (Int32, UInt64) -> Void
+    /// (connection, selector 7 = every kind of Space, window ids) → +1 array of Space ids.
+    private typealias CopySpacesForWindows = @convention(c) (Int32, Int32, CFArray) -> Unmanaged<CFArray>?
 
     private struct Symbols {
         var connection: MainConnectionID
@@ -42,6 +53,31 @@ final class SkyLightLockScreen {
         var hide: ShowOrHideSpaces
         var addWindows: SpaceAddWindows
         var destroy: SpaceDestroy
+        var copySpaces: CopySpacesForWindows
+    }
+
+    /// What the window server says about one of our windows.
+    ///
+    /// On macOS 27 `SLSCopySpacesForWindows` lists the desktop Spaces only, not
+    /// ours: a window that moved into our Space reports **no Spaces at all**
+    /// (spike round 2: the desktop test showed such a window in front of every
+    /// app window, while the control, still on Space 1, stayed hidden).
+    struct WindowState: Equatable, CustomStringConvertible {
+        /// Nil when the window list has no entry for it (closed, or never made).
+        var onScreen: Bool?
+        var layer: Int?
+        /// Nil when SkyLight returned nothing.
+        var spaces: [UInt64]?
+        var space: UInt64
+
+        /// The window left the desktop Spaces, which is what moving into ours looks like.
+        var leftDesktopSpaces: Bool { spaces?.isEmpty ?? false }
+
+        var description: String {
+            let screen = onScreen.map { $0 ? "on screen" : "off screen" } ?? "not in the window list"
+            let list = spaces.map { $0.map(String.init).joined(separator: ", ") } ?? "unknown"
+            return "\(screen), layer \(layer.map(String.init) ?? "-"), desktop Spaces [\(list)], \(leftDesktopSpaces ? "moved out of the desktop Spaces (expected)" : "STILL on a desktop Space")"
+        }
     }
 
     private static let symbols: Symbols? = {
@@ -56,7 +92,8 @@ final class SkyLightLockScreen {
               let show = find("SLSShowSpaces"),
               let hide = find("SLSHideSpaces"),
               let addWindows = find("SLSSpaceAddWindowsAndRemoveFromSpaces"),
-              let destroy = find("SLSSpaceDestroy") else {
+              let destroy = find("SLSSpaceDestroy"),
+              let copySpaces = find("SLSCopySpacesForWindows") else {
             Log.privateAPI.error("SkyLight Space symbols are missing; lock-screen widgets are unavailable")
             return nil
         }
@@ -67,7 +104,8 @@ final class SkyLightLockScreen {
             show: unsafeBitCast(show, to: ShowOrHideSpaces.self),
             hide: unsafeBitCast(hide, to: ShowOrHideSpaces.self),
             addWindows: unsafeBitCast(addWindows, to: SpaceAddWindows.self),
-            destroy: unsafeBitCast(destroy, to: SpaceDestroy.self)
+            destroy: unsafeBitCast(destroy, to: SpaceDestroy.self),
+            copySpaces: unsafeBitCast(copySpaces, to: CopySpacesForWindows.self)
         )
     }()
 
@@ -87,25 +125,48 @@ final class SkyLightLockScreen {
         symbols.map(SkyLightLockScreen.init(symbols:))
     }
 
-    /// Creates the Space above the lock screen and shows it. Call only while locked.
-    func createSpace() throws {
+    /// The Space's id, 0 when there is none.
+    var spaceID: UInt64 { space }
+
+    /// Creates the Space above the lock screen and asks for it to be shown.
+    /// Call only while locked (the spike's desktop test is the one exception).
+    /// Level and show return no status on macOS 27; check with `state(of:)`.
+    func createSpace(level: Int32 = SkyLightLockScreen.levelAboveLockScreen) throws {
         guard space == 0 else { return }
         let id = symbols.create(connection, 1, 0)
         guard id != 0 else { throw Failure.spaceNotCreated }
         space = id
-        let level = symbols.setLevel(connection, id, Self.levelAboveLockScreen)
-        guard level == 0 else { throw Failure.call("SLSSpaceSetAbsoluteLevel", level) }
-        let shown = symbols.show(connection, [NSNumber(value: id)] as CFArray)
-        guard shown == 0 else { throw Failure.call("SLSShowSpaces", shown) }
+        symbols.setLevel(connection, id, level)
+        symbols.show(connection, [NSNumber(value: id)] as CFArray)
     }
 
-    /// Moves a window (already created, not yet ordered front) into the Space.
+    /// Asks for a window (already created) to move into the Space. Returns no
+    /// status on macOS 27; check with `state(of:)` after a moment.
     func add(_ window: NSWindow) throws {
         guard space != 0 else { throw Failure.spaceNotCreated }
         guard window.windowNumber > 0 else { throw Failure.windowHasNoNumber }
         // 7 is the flag every known caller passes (SkyLightWindow, yabai).
-        let result = symbols.addWindows(connection, space, [NSNumber(value: window.windowNumber)] as CFArray, 7)
-        guard result == 0 else { throw Failure.call("SLSSpaceAddWindowsAndRemoveFromSpaces", result) }
+        symbols.addWindows(connection, space, [NSNumber(value: window.windowNumber)] as CFArray, 7)
+    }
+
+    /// The window server's view of a window: its Spaces (SkyLight, synchronous)
+    /// and its on-screen flag and layer (the public window list).
+    func state(of window: NSWindow) -> WindowState {
+        state(windowNumber: window.windowNumber)
+    }
+
+    /// By number, so it can also confirm that a closed window is really gone.
+    func state(windowNumber: Int) -> WindowState {
+        var state = WindowState(space: space)
+        guard windowNumber > 0 else { return state }
+        if let info = (CGWindowListCopyWindowInfo([.optionIncludingWindow], CGWindowID(windowNumber)) as? [[String: Any]])?.first {
+            state.onScreen = (info[kCGWindowIsOnscreen as String] as? Bool) ?? false
+            state.layer = info[kCGWindowLayer as String] as? Int
+        }
+        if let array = symbols.copySpaces(connection, 7, [NSNumber(value: windowNumber)] as CFArray)?.takeRetainedValue() {
+            state.spaces = (array as? [NSNumber])?.map(\.uint64Value)
+        }
+        return state
     }
 
     /// Takes everything down, in the order ADR-0031 §2 sets: hide the Space (so

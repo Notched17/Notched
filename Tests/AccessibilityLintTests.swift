@@ -2,6 +2,7 @@
 
 import Foundation
 import Testing
+@testable import Notched
 
 /// Source-level guards from the M6 accessibility audit (docs/ACCESSIBILITY.md).
 /// They read the Swift files, so a regression is caught by `scripts/test.sh`.

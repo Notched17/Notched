@@ -44,6 +44,12 @@ targets:
     sources:
       - path: App
       - path: Sources
+        excludes:
+          - "**/claude-pricing.json"
+      # The Claude Code price table (#62), listed on its own so it is always in
+      # the app's Resources (a test checks it is there).
+      - path: Sources/Modules/ClaudeCode/claude-pricing.json
+        buildPhase: resources
       - path: LICENSE
         buildPhase: resources
       - path: THIRD_PARTY_NOTICES.md

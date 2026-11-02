@@ -41,7 +41,8 @@ struct ClaudeAITabView: View {
     }
 
     private func footnote(_ usage: ClaudeUsageSnapshot) -> String {
-        var parts = ["≈ estimated at API prices"]
+        // No price table at all: say so, rather than a $0.00 that looks like a real estimate.
+        var parts = [usage.pricingUpdated == nil ? "price table not found" : "≈ estimated at API prices"]
         if usage.week.unpricedTokens > 0 { parts.append("some models unpriced") }
         if usage.skippedLines > 0 { parts.append("\(usage.skippedLines) unreadable") }
         return parts.joined(separator: " · ")

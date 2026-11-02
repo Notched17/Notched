@@ -338,6 +338,8 @@ final class ActivityCoordinator {
     // MARK: Internals
 
     private func enqueueAlert(for id: ActivityID, _ request: AlertRequest, at date: Date) {
+        // A module the user turned "Show in Compact" off for stays quiet: no alert, no bounce (#71).
+        if let record = entries[id], isListedOnly(record) { return }
         guard configuration.alertExpansionEnabled else {
             bounceSerial += 1
             return
@@ -363,7 +365,8 @@ final class ActivityCoordinator {
         guard alert == nil, !isInteracting else { return }
         while !alertQueue.isEmpty {
             let next = alertQueue.removeFirst()
-            guard entries[next.activityID] != nil else { continue }
+            // Gone, or turned off for compact while it waited.
+            guard let record = entries[next.activityID], !isListedOnly(record) else { continue }
             alertSerial += 1
             alert = ActiveAlert(activityID: next.activityID, endsAt: date.addingTimeInterval(next.duration.timeInterval),
                                 sound: next.sound, serial: alertSerial)

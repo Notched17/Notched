@@ -13,7 +13,7 @@
 - **Limits.** Text over 100 KB and images over 5 MB (after shrinking to 2048 px) are not kept; cutting text would make copy-back wrong. Default 200 items; pins don't count and survive Clear. The prompt suggested 1 MB text; 100 KB keeps the worst-case index near 20 MB in memory.
 - **No auto-paste.** Click copies back and collapses the island; nothing posts key events.
 - **Own copy-backs are not recorded again**, by remembering the change count the write produced.
-- **Hotkey:** sindresorhus/KeyboardShortcuts (MIT, Carbon `RegisterEventHotKey`: public, no permission, no event tap). Default ⌘⇧V, which many apps use for Paste and Match Style, so it is changeable and can be turned off; the tab and a status-menu item always work.
+- **Hotkey:** sindresorhus/KeyboardShortcuts (MIT, Carbon `RegisterEventHotKey`: public, no permission, no event tap). Default **⌃⇧V** (changed from ⌘⇧V on 2 Nov 2026, because many apps use ⌘⇧V for Paste and Match Style; ⌥⇧V was rejected because it types a character on US/UK layouts). It is changeable and can be turned off; the tab and a status-menu item always work. KeyboardShortcuts saves the first default it sees, so a Mac that ran ⌘⇧V is moved to ⌃⇧V once (`ClipboardHotkey.migrateOldDefault`), only if the user never changed it.
 - **Opening on a tab** needed a new seam, `IslandCommands` (`showTab`, `collapse`) in `ModuleServices`, connected by `AppEnvironment`.
 
 ## Open until checked on the Mac

@@ -35,6 +35,7 @@ struct ClaudePricing: Equatable, Sendable {
         if let data = try? Data(contentsOf: overrideURL), let custom = decode(data) { return custom }
         if let url = bundle.url(forResource: "claude-pricing", withExtension: "json"),
            let data = try? Data(contentsOf: url), let table = decode(data) { return table }
+        Log.module("claude").error("The Claude price table is missing from the app; costs show as unavailable")
         return .empty
     }
 

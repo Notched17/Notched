@@ -123,9 +123,10 @@ struct ShowInCompactTests {
         return coordinator
     }
 
-    private func post(_ sut: ActivityCoordinator, _ id: String, module: ModuleID, kind: ActivityKind = .live, hideable: Bool = true, relevance: Double = 0) {
+    private func post(_ sut: ActivityCoordinator, _ id: String, module: ModuleID, kind: ActivityKind = .live, hideable: Bool = true,
+                      relevance: Double = 0, alert: Bool = false) {
         sut.post(LiveActivity(id: ActivityID(id), moduleID: module, kind: kind, title: id, relevance: relevance, isHideable: hideable,
-                              accessibilityLabel: id, presentation: .text(id)))
+                              accessibilityLabel: id, presentation: .text(id)), alert: alert ? AlertRequest() : nil)
     }
 
     @Test("Turning a module off for compact keeps its activity out of the notch and the bubbles, but still lists it")
@@ -163,6 +164,30 @@ struct ShowInCompactTests {
         let sut = coordinator(RankingPolicy.default.showingInCompact("calls", false))
         post(sut, "call", module: "calls", kind: .system, hideable: false)
         #expect(sut.primary?.id == "call")
+    }
+
+    @Test("A listed-only module doesn't alert or bounce the island")
+    func listedOnlyStaysQuiet() {
+        let sut = coordinator(RankingPolicy.default.showingInCompact("calendar", false))
+        post(sut, "next", module: "calendar", alert: true)
+        #expect(sut.alert == nil)
+        #expect(sut.bounceSerial == 0)
+        // The same alert from a module that is shown in compact does expand the island.
+        post(sut, "timer", module: "timers", alert: true)
+        #expect(sut.alert?.activityID == "timer")
+    }
+
+    @Test("An alert already waiting is dropped when its module is turned off for compact")
+    func waitingAlertDropped() {
+        let sut = coordinator()
+        post(sut, "a", module: "timers", alert: true)
+        post(sut, "b", module: "calendar", alert: true)
+        #expect(sut.alert?.activityID == "a")   // b waits behind a
+        var configuration = sut.configuration
+        configuration.ranking = RankingPolicy.default.showingInCompact("calendar", false)
+        sut.configuration = configuration
+        sut.userTookOverAlert()                  // a is done; b would have been next
+        #expect(sut.alert == nil)
     }
 
     @Test("A listed-only activity can't be made the primary one")

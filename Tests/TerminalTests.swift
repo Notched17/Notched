@@ -205,6 +205,25 @@ struct TerminalLogicTests {
         #expect(!process.isRunning)
     }
 
+    @Test("An exited child that hasn't been reaped yet counts as gone")
+    func zombieIsNotAlive() throws {
+        // posix_spawn, not Process, so nothing reaps the child behind the test's back.
+        var pid: pid_t = 0
+        let args = ["/bin/sh", "-c", "exit 0"]
+        var argv: [UnsafeMutablePointer<CChar>?] = args.map { strdup($0) } + [nil]
+        defer { argv.forEach { free($0) } }
+        #expect(posix_spawn(&pid, "/bin/sh", nil, nil, &argv, environ) == 0)
+        defer { var status: Int32 = 0; waitpid(pid, &status, 0) }
+        let deadline = Date().addingTimeInterval(2)
+        while !TerminalProcessKiller.isZombie(pid), Date() < deadline { usleep(10_000) }
+        #expect(TerminalProcessKiller.isZombie(pid))
+        #expect(!TerminalProcessKiller.isAlive(pid))
+        // And ending it returns at once instead of waiting out the grace period.
+        let start = Date()
+        TerminalProcessKiller.terminate(pid: pid, grace: 1)
+        #expect(Date().timeIntervalSince(start) < 0.5)
+    }
+
     @Test("It never signals pid 0, 1 or a negative pid")
     func killerRefusesBadPIDs() {
         TerminalProcessKiller.terminate(pid: 0)

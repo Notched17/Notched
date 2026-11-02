@@ -20,6 +20,7 @@ enum ClipboardPolicy {
     /// Apps whose copies are skipped until the user changes the list.
     static let defaultExcludedApps: [String] = [
         "com.apple.keychainaccess",
+        "com.apple.Passwords",
         "com.1password.1password",
         "com.agilebits.onepassword7",
         "com.agilebits.onepassword-osx",

@@ -171,10 +171,13 @@ enum TerminalProcessKiller {
         return !isZombie(pid)
     }
 
+    /// Asks the kernel for the process the way `ps` does (`sysctl`), which still
+    /// lists a zombie; libproc's `proc_pidinfo` does not report one.
     static func isZombie(_ pid: pid_t) -> Bool {
-        var info = proc_bsdinfo()
-        let size = Int32(MemoryLayout<proc_bsdinfo>.size)
-        guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size else { return false }
-        return info.pbi_status == 5   // SZOMB in <sys/proc.h>
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        guard sysctl(&mib, UInt32(mib.count), &info, &size, nil, 0) == 0, size > 0 else { return false }
+        return Int32(info.kp_proc.p_stat) == SZOMB
     }
 }

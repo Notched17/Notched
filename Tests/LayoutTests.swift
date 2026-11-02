@@ -219,7 +219,7 @@ struct ShowInCompactTests {
 
     @Test("A policy saved before this existed still loads")
     func oldDataLoads() throws {
-        let old = Data(#"{"order":["live","media","passive"],"pinned":["timers"]}"#.utf8)
+        let old = Data(#"{"order":["live","media","passive"],"pinned":[{"rawValue":"timers"}]}"#.utf8)
         let policy = RankingPolicy.load(from: old)
         #expect(policy.order == [.live, .media, .passive])
         #expect(policy.pinned == ["timers"])

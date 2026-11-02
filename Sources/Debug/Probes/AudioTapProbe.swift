@@ -180,11 +180,11 @@ final class AudioTapSession {
         outputName = AudioDevices.describe(output)
 
         // 1. The tap: a stereo mix of the app's processes, muting them while we read it.
-        let description = CATapDescription(stereoMixdownOfProcesses: processObjects.map { NSNumber(value: $0) })
+        let description = CATapDescription(stereoMixdownOfProcesses: processObjects)
         tapUUID = UUID()
         description.uuid = tapUUID
         description.name = "Notched spike tap (\(app))"
-        description.muteBehavior = .mutedWhenTapped
+        description.muteBehavior = CATapMuteBehavior.mutedWhenTapped
         var tap = AudioObjectID(kAudioObjectUnknown)
         var status = AudioHardwareCreateProcessTap(description, &tap)
         guard status == noErr else { return fail("AudioHardwareCreateProcessTap", status, reason) }
@@ -243,19 +243,19 @@ final class AudioTapSession {
 
     func writeReport() {
         report.line("\(app): output \(outputName), gain \(gain.value), builds \(builds); \(countersSummary)")
-        if aggregateID != kAudioObjectUnknown { report.line("\(app): aggregate \(AudioDevices.latencySummary(aggregateID))") }
+        if aggregateID != AudioObjectID(kAudioObjectUnknown) { report.line("\(app): aggregate \(AudioDevices.latencySummary(aggregateID))") }
     }
 
     func tearDown(reason: String?) {
         overloadListener = nil
-        if aggregateID != kAudioObjectUnknown {
+        if aggregateID != AudioObjectID(kAudioObjectUnknown) {
             if let ioProcID {
                 AudioDeviceStop(aggregateID, ioProcID)
                 AudioDeviceDestroyIOProcID(aggregateID, ioProcID)
             }
             AudioHardwareDestroyAggregateDevice(aggregateID)
         }
-        if tapID != kAudioObjectUnknown { AudioHardwareDestroyProcessTap(tapID) }
+        if tapID != AudioObjectID(kAudioObjectUnknown) { AudioHardwareDestroyProcessTap(tapID) }
         ioProcID = nil
         aggregateID = AudioObjectID(kAudioObjectUnknown)
         tapID = AudioObjectID(kAudioObjectUnknown)

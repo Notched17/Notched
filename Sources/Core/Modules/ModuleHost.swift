@@ -83,7 +83,6 @@ final class ModuleHost {
         stableTimer.schedule(at: now().addingTimeInterval(LaunchGuard.stableAfter))
     }
 
-    /// Stops every module, newest first, and records a clean quit.
     /// The tabs modules offer at this moment (also the debug demo's).
     var liveTabs: [LayoutCatalogue.TabInfo] {
         coordinator.moduleTabs.map { tab in
@@ -92,6 +91,7 @@ final class ModuleHost {
         }
     }
 
+    /// Stops every module, newest first, and records a clean quit.
     func shutDown() {
         stableTimer.schedule(at: nil)
         stopAll()

@@ -167,6 +167,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## Techniques and public research (patterns only; no code copied)
+
+- **dannystewart/volumeHUD** (MIT, https://github.com/dannystewart/volumeHUD): the *pattern* for the HUD key tap (an active tap on system-defined events, re-enabled after a timeout, the key swallowed only once the change took effect). `Sources/Services/Input/MediaKeyTap.swift` is a fresh implementation around the safety design in `docs/superpowers/specs/2026-10-29-m3b-hud-tap-safety-design.md`.
+- **koekeishiya/yabai** (MIT, https://github.com/koekeishiya/yabai): the documented shapes of SkyLight's Space functions (64-bit Space ids, the `SLSSpaceAddWindowsAndRemoveFromSpaces` flag value), read as reference for `SkyLightLockScreen.swift`. No code taken.
+- **Apple's proximity-pairing advertisement layout**, as documented publicly in Celosia and Cunche, "Discontinued Privacy: Personal Data Leaks in Apple Bluetooth-Low-Energy Continuity Protocols" (PETS 2020), and the furiousMAC continuity notes (https://github.com/furiousMAC/continuity): used only by the research probe `AccessoryBatteryProbe` (debug builds), which decodes the battery nibbles itself. No code taken.
+- **ccusage**: the idea that one Claude Code response is written on several log lines and must be deduplicated by message and request id. No code taken (see M4a above).
+- **Open-Meteo** (https://open-meteo.com): the weather and geocoding service, used under its CC BY 4.0 data licence; the attribution link is shown in Settings ▸ Weather.
+- **LRCLIB** (https://lrclib.net): the synced-lyrics service Notched queries when you turn lyrics on; the service is free and keyless, and the cached results stay on your Mac.
+- **AirBattery** (AGPL), **SuperIsland** (no licence) and **Droppy** (Commons Clause): none of their code is in Notched, by rule (CLAUDE.md).
+
 ## M6: original code
 
 The per-app volume probe (Core Audio process taps, used as Apple documents them), the accessory battery probe (IOBluetooth properties read by key; Apple's proximity-pairing advertisement decoded from the publicly documented layout; `system_profiler`) and the TCC preflight wrapper are original. AirBattery (AGPL) was not read.

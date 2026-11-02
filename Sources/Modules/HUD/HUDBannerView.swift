@@ -82,7 +82,7 @@ struct HUDTrailingView: View {
                 Image(systemName: deviceSymbol)
                     .font(.system(size: 13, weight: .semibold))
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.white.opacity(0.7))
+                    .dimmedText(0.7)
                     .contentTransition(.symbolEffect(.replace))
             }
         }

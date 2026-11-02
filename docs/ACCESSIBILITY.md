@@ -29,10 +29,10 @@ Audited 2 Nov 2026 from the source, against Apple's Human Interface Guidelines (
 - **Current behaviour**: four captions at 40 to 45 % white on black (about 3.7:1 to 4.4:1), under the 4.5:1 that small text needs.
 - **Fix**: raised to 60 % (about 7:1). `AccessibilityLintTests` fails if any `foregroundStyle(.white.opacity(x))` goes below 50 % (50 % white on black is about 5.3:1; 45 % is 4.4:1).
 
-### **[MEDIUM]** Increase Contrast only adds the island's outline - NOT FIXED
+### **[MEDIUM]** Increase Contrast only adds the island's outline - FIXED (needs a look on the Mac)
 
-- **Current behaviour**: semantic styles (`.secondary`, `.primary`) adapt to Increase Contrast on their own, but about 100 hard-coded `.white.opacity(0.55 ... 0.9)` text colours do not.
-- **Recommended fix**: a small token set (`IslandText.primary/secondary/tertiary`) that switches opacity with `model.accessibility.increaseContrast`, then replace the hard-coded values. It touches many views, so it should be done with screenshots of each tab in both modes.
+- **Was**: the hard-coded `.foregroundStyle(.white.opacity(x))` text colours ignored Increase Contrast.
+- **Fix**: `.dimmedText(x)` (`Sources/DesignSystem/DimmedText.swift`) uses the same opacity normally and at least 85 % white when Increase Contrast is on. All 17 text sites use it, and `AccessibilityLintTests` fails if a hard-coded one comes back. Decorative fills and strokes are unchanged. Spot-check item 6 below still applies.
 
 ### **[LOW]** Small click targets - FIXED
 
@@ -59,7 +59,7 @@ Audited 2 Nov 2026 from the source, against Apple's Human Interface Guidelines (
 3. Settings ▸ Modules ▸ Layout: move a tab up and down; are the buttons read as "Move AI up", and the switch as "Show AI"?
 4. Open the Today, Clipboard and AI tabs: are items read in a sensible order, with the pin, copy and cost values spoken?
 5. Turn on *Reduce Motion* (System Settings ▸ Accessibility ▸ Display): hover the island open, play music, change a track with lyrics on. No blur or springs should play.
-6. Turn on *Increase Contrast*: is everything still readable? (Known gap: see the Medium item above.)
+6. Turn on *Increase Contrast*: is everything still readable? (Dim text should turn near-white.)
 7. Onboarding (reviewed in source on 2 Nov: wording fixed so every permission reads as optional, the Open Island route and a one-line privacy note added): reset it (`defaults delete me.rkck.Notched onboarding.completed`), relaunch, and go through it with the keyboard only (Tab, Space, Return). Is every permission explained and skippable?
 
 > Audit powered by HIG Compliance Auditor by Omraj Kumar (omrajguru.com/linktree, GitHub @omrajguru05, X @omrajguru_). Reference material sourced from Apple's Human Interface Guidelines. Portfolio: https://om.bearblog.dev/projects

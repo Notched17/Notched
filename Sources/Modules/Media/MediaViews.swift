@@ -28,7 +28,7 @@ struct MediaArtworkView: View {
                         Rectangle().fill(.white.opacity(0.14))
                         Image(systemName: "music.note")
                             .font(.system(size: size * 0.46, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.7))
+                            .dimmedText(0.7)
                     }
                 }
             }

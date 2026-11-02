@@ -69,9 +69,9 @@ enum ActivityAPIPresentation {
                         VStack(alignment: .trailing, spacing: 2) {
                             Text(verbatim: spec.title).font(IslandFont.title).lineLimit(1)
                             if let subtitle = spec.subtitle {
-                                Text(verbatim: subtitle).font(IslandFont.subtitle).foregroundStyle(.white.opacity(0.7)).lineLimit(1)
+                                Text(verbatim: subtitle).font(IslandFont.subtitle).dimmedText(0.7).lineLimit(1)
                             }
-                            Text(verbatim: "from \(entry.clientName)").font(IslandFont.subtitle).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
+                            Text(verbatim: "from \(entry.clientName)").font(IslandFont.subtitle).dimmedText(0.6).lineLimit(1)
                         }
                     },
                     bottom: ExpandedRegion { ExpandedBottom(spec: spec, tint: tint) }

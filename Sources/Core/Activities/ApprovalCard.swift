@@ -83,14 +83,14 @@ enum ApprovalCard {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(verbatim: model.title).font(IslandFont.title).lineLimit(1)
                     if let context = model.context {
-                        Text(verbatim: context).font(IslandFont.subtitle).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
+                        Text(verbatim: context).font(IslandFont.subtitle).dimmedText(0.6).lineLimit(1)
                     }
                 }
             },
             center: ExpandedRegion {
                 Text(verbatim: model.detail)
                     .font(.system(size: 12, weight: .regular, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.85))
+                    .dimmedText(0.85)
                     .lineLimit(2)
                     .truncationMode(.middle)
                     .multilineTextAlignment(.leading)

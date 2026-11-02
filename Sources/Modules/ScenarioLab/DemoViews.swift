@@ -20,7 +20,7 @@ struct DemoArtwork: View {
             .overlay {
                 Image(systemName: "music.note")
                     .font(.system(size: size * 0.42, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .dimmedText(0.9)
             }
             .frame(width: size, height: size)
             .clipShape(RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))

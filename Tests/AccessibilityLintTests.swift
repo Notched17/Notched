@@ -30,6 +30,25 @@ struct AccessibilityLintTests {
         #expect(offenders.isEmpty, "Too dim for small text on black: \(offenders)")
     }
 
+    @Test("No hard-coded white-opacity text: use dimmedText, which honours Increase Contrast")
+    func textUsesDimmedText() throws {
+        var offenders: [String] = []
+        for file in Self.swiftFiles() where file.lastPathComponent != "DimmedText.swift" {
+            let text = try String(contentsOf: file, encoding: .utf8)
+            for line in text.split(separator: "\n") where line.contains("foregroundStyle(.white.opacity(") {
+                offenders.append("\(file.lastPathComponent): \(line.trimmingCharacters(in: .whitespaces))")
+            }
+        }
+        #expect(offenders.isEmpty, "Use .dimmedText(_:): \(offenders)")
+    }
+
+    @Test("Increase Contrast lifts dim text to at least 85 % and never lowers it")
+    func increasedContrastLifts() {
+        #expect(DimmedText.resolved(0.5, increased: false) == 0.5)
+        #expect(DimmedText.resolved(0.5, increased: true) == 0.85)
+        #expect(DimmedText.resolved(0.9, increased: true) == 0.9)
+    }
+
     @Test("Every blurReplace transition falls back to a plain fade under Reduce Motion")
     func blurTransitionsRespectReduceMotion() throws {
         var offenders: [String] = []

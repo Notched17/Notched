@@ -42,12 +42,15 @@ enum ClaudePresentation {
                 trailing: ExpandedRegion {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(verbatim: headline(phase)).font(IslandFont.title).lineLimit(1)
-                        Text(verbatim: snapshot.displayName).font(IslandFont.subtitle).foregroundStyle(.white.opacity(0.7)).lineLimit(1)
+                        Text(verbatim: snapshot.displayName).font(IslandFont.subtitle).dimmedText(0.7).lineLimit(1)
                         if let title = snapshot.title {
-                            Text(verbatim: title).font(IslandFont.subtitle).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
+                            Text(verbatim: title).font(IslandFont.subtitle).dimmedText(0.6).lineLimit(1)
+                        }
+                        if phase == .waitingForInput {
+                            Text(verbatim: "Answer in the terminal").font(IslandFont.subtitle).dimmedText(0.7).lineLimit(1)
                         }
                         if phase == .working, let since = snapshot.since {
-                            Text(since, style: .timer).font(IslandFont.subtitle).monospacedDigit().foregroundStyle(.white.opacity(0.6))
+                            Text(since, style: .timer).font(IslandFont.subtitle).monospacedDigit().dimmedText(0.6)
                         }
                     }
                 }
@@ -82,7 +85,7 @@ enum ClaudePresentation {
     private static func compactText(_ snapshot: ClaudeSessionsReducer.Snapshot) -> String {
         switch snapshot.phase {
         case .waitingForApproval: "Allow?"
-        case .waitingForInput: "Waiting"
+        case .waitingForInput: "Reply"
         case .finished: "Done"
         default: snapshot.displayName
         }

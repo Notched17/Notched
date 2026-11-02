@@ -69,6 +69,7 @@ final class MediaModule: IslandModule {
         model.onArtworkChange = { [weak self] in self?.refresh(force: true) }
         outputs.acquire()
         holdsOutputs = true
+        context.services.nowPlaying.publish(model)
         observeSettings()
         observeService()
         service.start()
@@ -81,6 +82,7 @@ final class MediaModule: IslandModule {
         likeTask?.cancel()
         applyLyricsSetting(false)
         service.stop()
+        context.services.nowPlaying.withdraw()
         model.outputs = nil
         if holdsOutputs {
             holdsOutputs = false

@@ -32,6 +32,9 @@ enum Probes {
             variant.addBeforeOrderingFront = query("order") != "front-first"
             if let level = query("level").flatMap(Int32.init) { variant.level = level }
             variant.control = query("control") == "1"
+            variant.lyrics = query("lyrics") == "1"
+            variant.cardStyle = query("style").flatMap(LockScreenCardStyle.init(rawValue:))
+            variant.cardSize = query("size").flatMap(LockScreenGeometry.Size.init(rawValue:))
             LockScreenProbe.handle(action: query("action") ?? "status", secondary: query("secondary") == "1", others: query("others") == "1", desktop: variant)
         default: probeLog.error("Unknown probe \(query("name") ?? "-", privacy: .public)")
         }

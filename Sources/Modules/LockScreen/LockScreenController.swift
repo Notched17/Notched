@@ -20,6 +20,11 @@ final class LockScreenController {
     var onTurnOff: @MainActor (LockScreenReducer.OffReason) -> Void = { _ in }
     /// Every event and effect, for the spike's report.
     var trace: (@MainActor (String) -> Void)?
+    /// Where the card goes on each screen; read each time it is shown.
+    var placement: @MainActor () -> LockScreenGeometry.Placement = { LockScreenGeometry.Placement() }
+    /// The current settings. Read on every lock, so a kill switch set from
+    /// another Mac (`defaults write`) takes effect at the next lock (ADR-0031 §1).
+    var currentConfig: (@MainActor () -> LockScreenReducer.Config)?
 
     private var reducer = LockScreenReducer()
     private let observers = NotificationTokens()
@@ -129,7 +134,7 @@ final class LockScreenController {
         do {
             try skyLight.createSpace()
             for (index, screen) in screens.enumerated() {
-                guard let frame = LockScreenGeometry.cardFrame(in: screen.frame) else {
+                guard let frame = LockScreenGeometry.cardFrame(in: screen.frame, placement: placement()) else {
                     trace?("no safe frame on screen \(index) \(NSStringFromRect(screen.frame)); nothing shown there")
                     continue
                 }
@@ -166,7 +171,11 @@ final class LockScreenController {
     private func startObserving() {
         isObserving = true
         let distributed = DistributedNotificationCenter.default()
-        observers.observe(Notification.Name("com.apple.screenIsLocked"), in: distributed) { [weak self] in self?.send(.lockNotification) }
+        observers.observe(Notification.Name("com.apple.screenIsLocked"), in: distributed) { [weak self] in
+            guard let self else { return }
+            if let config = self.currentConfig?() { self.apply(config) }
+            self.send(.lockNotification)
+        }
         observers.observe(Notification.Name("com.apple.screenIsUnlocked"), in: distributed) { [weak self] in self?.send(.unlockNotification) }
         let workspace = NSWorkspace.shared.notificationCenter
         observers.observe(NSWorkspace.sessionDidResignActiveNotification, in: workspace) { [weak self] in self?.send(.sessionResigned) }

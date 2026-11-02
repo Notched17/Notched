@@ -45,7 +45,7 @@ See [`docs/PRIVACY.md`](docs/PRIVACY.md). In short: nothing is collected or sent
 ## Known limits
 
 - **No Maps turn-by-turn.** Mac Maps has no live navigation and no API lets another app read an iPhone's Live Activities.
-- **No lock-screen widgets yet.** Research is under way (ADR-0031); it will be off by default with several kill switches, or dropped.
+- **Lock-screen card is experimental.** A small card with what's playing, the battery and your next event, off by default, with several kill switches (ADR-0031). It uses a private macOS feature, so a macOS update can stop it working; it then turns itself off.
 - **Per-app volume and AirPods battery are experiments.** They ship only if they prove safe and reliable.
 - **Not on the Mac App Store, and not notarised.** You build it yourself (below), signed with your own Apple Development certificate.
 - **Built and used on macOS 27.2, Apple Silicon**, with a MacBook Air M4. The target is macOS 26.0 or later. Other Macs and displays have had little testing.

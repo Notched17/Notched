@@ -34,6 +34,7 @@ enum LockScreenProbe {
         case "status": status(report)
         case "arm": arm(report, secondary: secondary, others: others)
         case "desktop": desktop(report, variant)
+        case "card": card(report, variant)
         case "disarm":
             disarm()
             report.line("disarmed")
@@ -89,6 +90,11 @@ enum LockScreenProbe {
         var level = SkyLightLockScreen.levelAboveLockScreen
         /// The control run: no Space at all, so the label should stay hidden behind app windows.
         var control = false
+        /// The card preview: show the lyric line too.
+        var lyrics = false
+        /// The card preview: override the saved style and size (`&style=glass&size=large`).
+        var cardStyle: LockScreenCardStyle?
+        var cardSize: LockScreenGeometry.Size?
     }
 
     /// **Unlocked only.** The same Space, holding a window at *desktop level*
@@ -151,6 +157,49 @@ enum LockScreenProbe {
             desktopRun = nil
             try? await Task.sleep(for: .milliseconds(500))
             report.line("desktop test 0.5 s after tear-down: \(skyLight.state(windowNumber: number))")
+        }
+    }
+
+    private static var cardPreview: LockScreenPanel?
+
+    /// **Unlocked only, no SkyLight.** The real card with sample data in an
+    /// ordinary panel at its lock-screen position, for 6 s, so it can be
+    /// checked by eye: `open -g "notched://debug/probe?name=lockscreen&action=card"`.
+    /// Uses the saved settings (position, switches).
+    private static func card(_ report: ProbeReport, _ variant: DesktopVariant) {
+        guard LockStateReader.current() == .unlocked else {
+            report.line("card preview refused: only while unlocked")
+            return
+        }
+        guard cardPreview == nil, let screen = NSScreen.screens.first else { return }
+        let settings = LockScreenSettings()
+        var options = settings.options
+        options.showLyrics = options.showLyrics || variant.lyrics
+        if let style = variant.cardStyle { options.style = style }
+        var placement = settings.placement
+        if let size = variant.cardSize { placement.size = size }
+        let model = MediaModel()
+        model.update(NowPlayingSnapshot(
+            title: "Sample Song Title", artist: "Sample Artist", album: "Sample Album",
+            timeline: PlaybackTimeline(elapsed: 10, timestamp: Date(), rate: 1, duration: 200),
+            isPlaying: true, sourceBundleID: "com.apple.Music", artwork: nil))
+        model.lyrics = SyncedLyrics(lines: [.init(time: 0, text: "A sample lyric line, sung right now")])
+        let shelf = NowPlayingShelf()
+        shelf.publish(model)
+        guard let frame = LockScreenGeometry.cardFrame(in: screen.frame, placement: placement) else {
+            report.line("card preview: no frame fits this screen")
+            return
+        }
+        let panel = LockScreenPanel(frame: frame, content: AnyView(LockScreenCardView(options: options, nowPlaying: shelf, info: LockScreenInfo())))
+        panel.level = .floating
+        panel.orderFrontRegardless()
+        cardPreview = panel
+        report.line("card preview at \(NSStringFromRect(frame)) for 6 s, placement \(placement), options \(options)")
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(6))
+            panel.orderOut(nil)
+            panel.close()
+            cardPreview = nil
         }
     }
 

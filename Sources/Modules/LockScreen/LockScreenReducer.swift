@@ -217,7 +217,30 @@ struct LockScreenReducer: Sendable {
 /// Where the card goes on one screen (ADR-0031 §3). Pure, so the rule that
 /// keeps it away from the password field is tested for every screen size.
 enum LockScreenGeometry {
-    static let maxSize = CGSize(width: 360, height: 120)
+    /// The size the card is designed at, and the one tested on the real lock
+    /// screen (Medium). Small and Large are scales of it.
+    static let baseSize = CGSize(width: 360, height: 120)
+    /// The most the card may ever be: the Large size. Still inside the band
+    /// below, which is the rule that protects the password area.
+    static let maxSize = Size.large.dimensions
+
+    /// How big the card is. Only a scale of the base size; the band, the width
+    /// cap and the final check below apply to every size.
+    enum Size: String, CaseIterable, Sendable {
+        case small, medium, large
+
+        var scale: CGFloat {
+            switch self {
+            case .small: 0.8
+            case .medium: 1
+            case .large: 1.3
+            }
+        }
+
+        var dimensions: CGSize {
+            CGSize(width: LockScreenGeometry.baseSize.width * scale, height: LockScreenGeometry.baseSize.height * scale)
+        }
+    }
     /// The card's top edge sits this far down from the top of the screen.
     static let topFraction: CGFloat = 0.30
     /// Nothing may reach into the bottom of the screen, where the avatar,
@@ -225,17 +248,67 @@ enum LockScreenGeometry {
     static let forbiddenBottomFraction: CGFloat = 0.45
     static let maxWidthFraction: CGFloat = 0.40
 
+    /// Where on the screen the card sits, inside the band the rules allow
+    /// (ADR-0031 §3 and §7). The choices only pick a position inside the band;
+    /// nothing here can move the band's edges.
+    struct Placement: Equatable, Sendable {
+        enum Vertical: String, CaseIterable, Sendable {
+            /// Top at 30 % of the screen height: just under the clock.
+            case underClock
+            /// Centred on the screen's middle, kept inside the band.
+            case middle
+        }
+
+        enum Horizontal: String, CaseIterable, Sendable {
+            case left, center, right
+        }
+
+        var vertical: Vertical = .underClock
+        var horizontal: Horizontal = .center
+        var size: Size = .medium
+
+        init(vertical: Vertical = .underClock, horizontal: Horizontal = .center, size: Size = .medium) {
+            self.vertical = vertical
+            self.horizontal = horizontal
+            self.size = size
+        }
+    }
+
+    /// Left and right keep this far from the screen's edge (a fraction of its width).
+    static let sideMarginFraction: CGFloat = 0.06
+
     /// The card's frame in AppKit screen coordinates (origin at the bottom
     /// left), or nil if no frame fits the rules on this screen.
-    static func cardFrame(in screen: CGRect, preferred: CGSize = maxSize) -> CGRect? {
+    static func cardFrame(in screen: CGRect, preferred: CGSize? = nil, placement: Placement = Placement()) -> CGRect? {
         guard screen.width > 0, screen.height > 0 else { return nil }
-        let width = min(preferred.width, maxSize.width, screen.width * maxWidthFraction)
-        let top = screen.maxY - screen.height * topFraction
+        let wanted = preferred ?? placement.size.dimensions
+        let width = min(wanted.width, maxSize.width, screen.width * maxWidthFraction)
+        let limitTop = screen.maxY - screen.height * topFraction
         let floor = screen.minY + screen.height * forbiddenBottomFraction
-        let height = min(preferred.height, maxSize.height, top - floor)
+        let height = min(wanted.height, maxSize.height, limitTop - floor)
         guard width >= 120, height >= 40 else { return nil }
-        let frame = CGRect(x: screen.midX - width / 2, y: top - height, width: width, height: height)
-        return frame.minY >= floor && screen.contains(frame) ? frame : nil
+
+        let top: CGFloat
+        switch placement.vertical {
+        case .underClock:
+            top = limitTop
+        case .middle:
+            // Centred on the screen's middle, then pulled into the band.
+            top = min(max(screen.midY + height / 2, floor + height), limitTop)
+        }
+
+        let margin = screen.width * sideMarginFraction
+        let x: CGFloat
+        switch placement.horizontal {
+        case .left: x = screen.minX + margin
+        case .center: x = screen.midX - width / 2
+        case .right: x = screen.maxX - margin - width
+        }
+
+        let frame = CGRect(x: x, y: top - height, width: width, height: height)
+        // The last check is the rule itself: whatever was asked for, a frame
+        // outside the band or off the screen is never returned.
+        return frame.minY >= floor && frame.maxY <= limitTop + 0.001 && screen.contains(frame) ? frame : nil
     }
 }
 

@@ -111,3 +111,9 @@ struct IslandTabContent: View {
             .onDisappear { tab.onVisibilityChange?(false) }
     }
 }
+
+extension EnvironmentValues {
+    /// A tab's title and key figure are drawn in the row beside the camera
+    /// housing, so its body leaves them out.
+    @Entry var tabHeaderIsBesideNotch = false
+}

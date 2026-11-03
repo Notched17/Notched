@@ -189,7 +189,9 @@ final class ClaudeCodeModule: IslandModule {
         return [IslandTab(
             id: Self.tabID, moduleID: Self.descriptor.id, title: "AI", symbol: "sparkles",
             accessibilityLabel: "Claude Code usage", order: 10,
-            onVisibilityChange: { [weak self] visible in self?.tabVisibilityChanged(visible) }
+            onVisibilityChange: { [weak self] visible in self?.tabVisibilityChanged(visible) },
+            headerLeading: IslandRegion { ClaudeUsageHeaderLeading() },
+            headerTrailing: IslandRegion { ClaudeUsageHeaderTrailing(model: model) }
         ) { ClaudeAITabView(model: model) }]
     }
 

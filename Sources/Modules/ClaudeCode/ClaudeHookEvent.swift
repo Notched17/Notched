@@ -32,6 +32,8 @@ struct ClaudeHookEvent: Equatable, Sendable {
     var title: String?
     var toolName: String?
     var detail: String?
+    /// The changed lines of an Edit, for the approval card.
+    var changes: [LineDiff.Line] = []
     var suggestion: AlwaysAllowSuggestion?
 
     static let maxBodyBytes = HTTPRequestParser.hookBodyBytes
@@ -68,7 +70,9 @@ struct ClaudeHookEvent: Equatable, Sendable {
         if kind == .permissionRequest {
             let tool = ActivityPayload.sanitize((json["tool_name"] as? String) ?? "Tool", limit: 80)
             event.toolName = tool
-            event.detail = ToolRequestSummary.detail(toolName: tool, input: (json["tool_input"] as? [String: Any]) ?? [:], cwd: cwd, home: home)
+            let input = (json["tool_input"] as? [String: Any]) ?? [:]
+            event.detail = ToolRequestSummary.detail(toolName: tool, input: input, cwd: cwd, home: home)
+            event.changes = ToolRequestSummary.changes(toolName: tool, input: input)
             event.suggestion = alwaysAllow(from: json["permission_suggestions"])
         }
         return event

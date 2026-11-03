@@ -85,47 +85,99 @@ struct MediaMinimalView: View {
     }
 }
 
-/// Title, then artist with the source app's icon, under the camera housing.
+/// Title, then artist and album.
 struct MediaTitleBlock: View {
     let model: MediaModel
 
     var body: some View {
         let snapshot = model.snapshot
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 1) {
             Text(snapshot?.title ?? "")
-                .font(IslandFont.title)
+                .font(.system(size: 17, weight: .semibold))
                 .lineLimit(1)
-            HStack(spacing: 5) {
-                if let icon = model.sourceIcon {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .frame(width: 14, height: 14)
-                        .accessibilityHidden(true)
-                }
-                Text(snapshot?.artist ?? model.sourceName ?? "")
-                    .font(IslandFont.subtitle)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+            Text(subtitle(snapshot))
+                .font(.system(size: 12))
+                .dimmedText(0.7)
+                .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    private func subtitle(_ snapshot: NowPlayingSnapshot?) -> String {
+        let parts = [snapshot?.artist, snapshot?.album].compactMap { $0 }.filter { !$0.isEmpty }
+        return parts.isEmpty ? (model.sourceName ?? "") : parts.joined(separator: " · ")
+    }
 }
 
-/// Scrubber, transport controls and (later) the current lyric line.
-struct MediaExpandedBottom: View {
+/// The app playing it, beside the camera housing: its icon and name. Opens the app.
+struct MediaSourceLabel: View {
     let model: MediaModel
 
     var body: some View {
-        VStack(spacing: Spacing.xs) {
-            if let snapshot = model.snapshot {
-                MediaScrubber(timeline: snapshot.timeline, tint: .white) { model.actions.send(.seek($0)) }
+        Button { model.actions.openSource() } label: {
+            HStack(spacing: 6) {
+                if let icon = model.sourceIcon {
+                    Image(nsImage: icon).resizable().frame(width: 16, height: 16).accessibilityHidden(true)
+                }
+                Text(model.sourceName ?? "Now Playing")
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
             }
-            MediaControlsRow(model: model)
-            if model.lyrics != nil {
-                MediaLyricLine(model: model)
-                    .padding(.top, Spacing.xxs)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Open \(model.sourceName ?? "the app")")
+        .accessibilityLabel("Open \(model.sourceName ?? "the app")")
+    }
+}
+
+/// Where it is playing and the waveform, beside the camera housing's right side.
+struct MediaOutputBadge: View {
+    let model: MediaModel
+    var showsBars: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let output = model.outputs?.current {
+                Image(systemName: output.symbol)
+                    .font(.system(size: 13))
+                    .dimmedText(0.7)
+                    .accessibilityLabel("Playing on \(output.name)")
             }
+            if showsBars { MediaBarsView(model: model, height: 14, barCount: 4, barWidth: 3) }
+        }
+    }
+}
+
+/// The artwork beside the title, scrubber and controls, tinted from the cover.
+struct MediaExpandedBody: View {
+    let model: MediaModel
+    static let artworkSize: CGFloat = 82
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Button { model.actions.openSource() } label: {
+                MediaArtworkView(model: model, size: Self.artworkSize)
+                    .shadow(color: model.tint.opacity(0.35), radius: 14, y: 6)
+            }
+            .buttonStyle(.plain)
+            .help("Open \(model.sourceName ?? "the app")")
+            VStack(alignment: .leading, spacing: 0) {
+                MediaTitleBlock(model: model)
+                Spacer(minLength: 2)
+                if let snapshot = model.snapshot {
+                    MediaScrubber(timeline: snapshot.timeline, tint: .white) { model.actions.send(.seek($0)) }
+                }
+                MediaControlsRow(model: model)
+            }
+            .frame(height: Self.artworkSize)
+        }
+        // A soft wash of the cover's colour behind the artwork, fading out to the right.
+        .background(alignment: .leading) {
+            RadialGradient(colors: [model.tint.opacity(0.28), .clear], center: .leading, startRadius: 0, endRadius: 240)
+                .padding(-40)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
     }
 }
@@ -154,8 +206,7 @@ struct MediaControlsRow: View {
                     }
                 }
                 MediaControlButton(symbol: "backward.fill", label: "Previous", size: 18) { model.actions.send(.previous) }
-                MediaControlButton(symbol: model.isPlaying ? "pause.fill" : "play.fill", label: model.isPlaying ? "Pause" : "Play",
-                                   size: 24) { model.actions.send(.togglePlayPause) }
+                MediaPlayButton(isPlaying: model.isPlaying) { model.actions.send(.togglePlayPause) }
                 MediaControlButton(symbol: "forward.fill", label: "Next", size: 18) { model.actions.send(.next) }
                 if skips, let snapshot = model.snapshot {
                     MediaControlButton(symbol: "goforward.15", label: "Forward 15 Seconds", size: 17) {
@@ -189,6 +240,27 @@ struct MediaControlsRow: View {
         if snapshot.supportsSkip15 { return forward ? .skipForward15 : .skipBackward15 }
         let target = snapshot.timeline.elapsed(at: date) + (forward ? 15 : -15)
         return .seek(min(max(target, 0), snapshot.timeline.duration ?? .infinity))
+    }
+}
+
+/// Play or pause: a white circle with a black glyph, the one filled control.
+struct MediaPlayButton: View {
+    let isPlaying: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(.black)
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 32, height: 32)
+                .background(.white, in: .circle)
+                .contentShape(Circle())
+        }
+        .buttonStyle(MediaPressStyle())
+        .help(isPlaying ? "Pause" : "Play")
+        .accessibilityLabel(isPlaying ? "Pause" : "Play")
     }
 }
 

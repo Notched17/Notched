@@ -305,16 +305,10 @@ enum MediaPresentation {
             compactTrailing: trailing,
             minimal: IslandRegion { MediaMinimalView(model: model) },
             expanded: ExpandedPresentation(
-                leading: ExpandedRegion {
-                    // Inset from the screen's top edge, so the artwork's corners show.
-                    Button { model.actions.openSource() } label: { MediaArtworkView(model: model, size: 52) }
-                        .buttonStyle(.plain)
-                        .help("Open \(model.sourceName ?? "the app")")
-                        .padding(.top, 6)
-                },
-                trailing: showsBars ? ExpandedRegion { MediaBarsView(model: model, height: 20, barCount: 5, barWidth: 3) } : nil,
-                center: ExpandedRegion { MediaTitleBlock(model: model) },
-                bottom: ExpandedRegion { MediaExpandedBottom(model: model) }
+                leading: ExpandedRegion { MediaSourceLabel(model: model) },
+                trailing: ExpandedRegion { MediaOutputBadge(model: model, showsBars: showsBars) },
+                center: ExpandedRegion { MediaExpandedBody(model: model) },
+                bottom: model.lyrics != nil ? ExpandedRegion { MediaLyricLine(model: model) } : nil
             )
         )
     }

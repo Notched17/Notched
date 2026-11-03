@@ -33,6 +33,46 @@ enum ToolRequestSummary {
         return fit(SecretRedactor.redact(raw))
     }
 
+    /// How many lines of a change the card shows.
+    static let maxChangeLines = 5
+    static let maxChangeLineLength = 60
+
+    /// The changed lines of an Edit (or the first edit of a MultiEdit), for the
+    /// approval card: redacted, control characters out, clipped, at most
+    /// `maxChangeLines` (the rest becomes "…"). Empty for any other tool.
+    static func changes(toolName: String, input: [String: Any]) -> [LineDiff.Line] {
+        var old: String?
+        var new: String?
+        switch toolName {
+        case "Edit":
+            old = input["old_string"] as? String
+            new = input["new_string"] as? String
+        case "MultiEdit":
+            let first = (input["edits"] as? [[String: Any]])?.first
+            old = first?["old_string"] as? String
+            new = first?["new_string"] as? String
+        default:
+            return []
+        }
+        guard let old, let new, old != new else { return [] }
+        let lines = LineDiff.diff(old: SecretRedactor.redact(old), new: SecretRedactor.redact(new), context: 1)
+        var result = lines.prefix(maxChangeLines).enumerated().map { index, line in
+            LineDiff.Line(id: index, kind: line.kind, text: clip(line.text))
+        }
+        if lines.count > maxChangeLines { result.append(LineDiff.Line(id: result.count, kind: .gap, text: "…")) }
+        return result
+    }
+
+    /// One display line: tabs become two spaces, other control characters go, long lines are clipped.
+    static func clip(_ line: String) -> String {
+        let cleaned = String(String.UnicodeScalarView(line.unicodeScalars.flatMap { scalar -> [Unicode.Scalar] in
+            if scalar == "\t" { return [" ", " "] }
+            return scalar.properties.generalCategory == .control ? [] : [scalar]
+        }))
+        guard cleaned.count > maxChangeLineLength else { return cleaned }
+        return String(cleaned.prefix(maxChangeLineLength - 1)) + "…"
+    }
+
     /// Display text: control characters out, one line, middle-truncated.
     static func fit(_ text: String) -> String {
         let flat = ActivityPayload.sanitize(text, limit: 2000)

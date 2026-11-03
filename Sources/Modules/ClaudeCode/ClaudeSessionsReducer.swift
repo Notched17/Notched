@@ -29,6 +29,8 @@ struct ClaudeSessionsReducer: Sendable {
         var toolName: String
         var detail: String
         var suggestion: AlwaysAllowSuggestion?
+        /// The changed lines of an Edit.
+        var changes: [LineDiff.Line] = []
     }
 
     enum Answer: Equatable, Sendable {
@@ -152,7 +154,7 @@ struct ClaudeSessionsReducer: Sendable {
         case .permissionRequest:
             guard let approvalID else { break }
             if sessions[id]?.workStartedAt == nil { sessions[id]?.workStartedAt = now }
-            let approval = Approval(id: approvalID, toolName: hook.toolName ?? "Tool", detail: hook.detail ?? "", suggestion: hook.suggestion)
+            let approval = Approval(id: approvalID, toolName: hook.toolName ?? "Tool", detail: hook.detail ?? "", suggestion: hook.suggestion, changes: hook.changes)
             let wasShowing = sessions[id]?.approvals.isEmpty == false
             sessions[id]?.approvals.append(approval)
             sessions[id]?.phase = .waitingForApproval

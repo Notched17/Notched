@@ -158,16 +158,23 @@ struct MediaExpandedBody: View {
         HStack(alignment: .top, spacing: 14) {
             Button { model.actions.openSource() } label: {
                 MediaArtworkView(model: model, size: Self.artworkSize)
-                    // The cover's colour glows out of all four sides, centred on it
-                    // (a blurred disc nearly twice its size), not just underneath.
+                    // The cover's colour spreads out of all four sides, soft and wide, as on
+                    // Spotify: a faint wide wash under a slightly stronger, tighter one,
+                    // both centred on the cover and fading to nothing well past its edge.
                     .background {
                         if model.artwork != nil {
-                            Circle()
-                                .fill(model.tint.opacity(0.5))
-                                .frame(width: Self.artworkSize * 1.9, height: Self.artworkSize * 1.9)
-                                .blur(radius: 26)
-                                .allowsHitTesting(false)
-                                .accessibilityHidden(true)
+                            ZStack {
+                                Circle()
+                                    .fill(model.tint.opacity(0.2))
+                                    .frame(width: Self.artworkSize * 3.4, height: Self.artworkSize * 3.4)
+                                    .blur(radius: 46)
+                                Circle()
+                                    .fill(model.tint.opacity(0.26))
+                                    .frame(width: Self.artworkSize * 2.2, height: Self.artworkSize * 2.2)
+                                    .blur(radius: 34)
+                            }
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
                         }
                     }
             }

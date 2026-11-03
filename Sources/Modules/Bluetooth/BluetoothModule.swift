@@ -120,17 +120,43 @@ final class BluetoothModule: IslandModule {
             case .banner(let banner):
                 if case .disconnected = banner, !settings.announceDisconnects { continue }
                 guard !quiet.isQuiet(at: Date()) else { continue }
-                context.activities.show(Self.banner(banner))
+                if case .connected(let device) = banner, settings.showBattery {
+                    showConnected(device)
+                } else {
+                    context.activities.show(Self.banner(banner))
+                }
             }
         }
     }
 
-    static func banner(_ banner: BluetoothReducer.Banner) -> TransientBanner {
+    /// A connect banner with the battery level (#28, ADR-0030): one read of
+    /// macOS's own Bluetooth report, off the main thread, made now that the
+    /// device is there and never on a timer. No level (not reported, slow,
+    /// failed) gives the plain banner.
+    private func showConnected(_ device: BluetoothDevice) {
+        Task { @MainActor [weak self] in
+            let report = await AccessoryBatteryReader.read()
+            guard let self, isRunning else { return }
+            let level = AccessoryBatteryParser.battery(for: device, in: report)?.headline
+            context.activities.show(Self.banner(.connected(device), batteryLevel: level))
+        }
+    }
+
+    static func banner(_ banner: BluetoothReducer.Banner, batteryLevel: Int? = nil) -> TransientBanner {
         switch banner {
         case .connected(let device):
-            .standard(id: "bluetooth.\(device.key)", moduleID: descriptor.id, content: BannerContent(
-                symbol: device.symbol, value: BluetoothDevice.displayName(device.name)
-            ), accessibilityLabel: "\(device.name) connected")
+            if let batteryLevel {
+                // iPhone's AirPods layout: the glyph, then the level with a battery.
+                .standard(id: "bluetooth.\(device.key)", moduleID: descriptor.id, content: BannerContent(
+                    symbol: device.symbol, value: "\(batteryLevel)%",
+                    accessory: .battery(level: batteryLevel, isCharging: false,
+                                        tint: BatteryPresentation.tint(level: batteryLevel, charging: false))
+                ), accessibilityLabel: "\(device.name) connected, battery \(batteryLevel) percent")
+            } else {
+                .standard(id: "bluetooth.\(device.key)", moduleID: descriptor.id, content: BannerContent(
+                    symbol: device.symbol, value: BluetoothDevice.displayName(device.name)
+                ), accessibilityLabel: "\(device.name) connected")
+            }
         case .disconnected(let device):
             .standard(id: "bluetooth.\(device.key)", moduleID: descriptor.id, content: BannerContent(
                 symbol: device.symbol, value: BluetoothDevice.displayName(device.name), isDimmed: true
@@ -148,8 +174,9 @@ struct BluetoothSettingsPane: View {
             Section {
                 Toggle("Keyboards, mice and trackpads", isOn: $settings.includeAccessories)
                 Toggle("Show when a device disconnects", isOn: $settings.announceDisconnects)
+                Toggle("Show battery level on connect", isOn: $settings.showBattery)
             } footer: {
-                Text("Headphones and speakers always show. Notched reads which devices are connected from macOS itself, so it doesn't need Bluetooth permission.")
+                Text("Headphones and speakers always show. Notched reads which devices are connected, and their battery, from macOS itself, so it doesn't need Bluetooth permission. The battery is read once when a device connects.")
             }
         }
         .formStyle(.grouped)

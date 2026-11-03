@@ -48,12 +48,12 @@ The weakness is that almost every level was 100 %, so the readings never had to 
 
 ## How it will be built
 
-- **Event-driven, never polled.** The existing AirPods connect event (CoreAudio, ADR-0013) triggers one read off the main thread at +1 s. If no battery fields are there yet, it retries once at +3 s and then gives up. No timer, so a disabled feature costs nothing.
+- **Event-driven, never polled.** The existing AirPods connect event (CoreAudio, ADR-0013) triggers one read off the main thread at +1 s. **Built (3 Nov 2026) without the retry:** every recorded run had the values straight away, even right after a reconnect, so a missing level just gives the plain banner. A retry is the first thing to add if real use shows gaps. The read times out after 3 s. No timer, so a disabled feature costs nothing.
 - **A pure parser**, unit-tested on recorded JSON:
   - It reads only `device_connected` entries from Apple (vendor 0x004C), matched to the connected output by product id and name.
   - It takes only `device_batteryLevelLeft/Right/Case/Main` ("NN%" strings). A missing field means unknown.
   - It never reads, stores or logs `device_serialNumber*` or the address.
-- **What shows:** the connect banner gets the iPhone-style layout, name on the left and level on the right ("AirPods Max" | "100%"). For buds, it shows the lower of left and right, and the expanded audio tab or Bluetooth row shows L, R and case. No charging bolt, because C has no charging state.
+- **What shows (built: banner only):** the connect banner gets the iPhone-style layout, the device's glyph on the left and the level with a battery on the right (the name is dropped to fit the width; it stays in the VoiceOver label). The L/R/case row below is not built, because the Audio tab (#17) is undecided. The original plan was: name on the left and level on the right ("AirPods Max" | "100%"). For buds, it shows the lower of left and right, and the expanded audio tab or Bluetooth row shows L, R and case. No charging bolt, because C has no charging state.
 - **Fails quietly:** if `system_profiler` is missing, fails, times out after 3 s, or its JSON changes, the battery value is simply left out and the failure is logged once.
 - **The setting:** "Show AirPods battery" in the Bluetooth module, **on by default**, because it needs no permission and does nothing until AirPods connect (the module rule for defaults).
 

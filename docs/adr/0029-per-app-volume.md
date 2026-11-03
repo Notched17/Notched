@@ -37,3 +37,25 @@ Not tested in round 1: sleep/wake with a tap (1.12), connecting AirPods delibera
 ## Decision
 
 None yet. If round 2 shows audio returning after `kill -9`, a refused permission leaving apps audible (or reliably detectable), and the tap path costing under about 1 % with a clean baseline, this becomes **go**: the Audio tab from the plan, tapping an app only while its slider is below 100 %. Any of those failing makes it **no-go**, and #17 is dropped from the roadmap with this evidence.
+
+## Round 2 evidence (3 Nov 2026, Charlie's notes; decision still open)
+
+MacBook Air M4 15", macOS 27.2, Debug build, Spotify tapped at gain 0.3. These are Charlie's pasted notes: the probe's own `report` lines (IOProc busy time) and step 1.4's answer are not in this file yet, and `spike-audiotap.txt` has no round 2 entries.
+
+| Step | Result |
+|---|---|
+| 1.1 CPU, no taps (60 s) | Notched 2.350 % + perl 0.017 % = **2.367 %**; footprint 97 MB |
+| 1.2 CPU, one tap (60 s) | Notched 3.950 % + perl 0.000 % = **3.950 %**; footprint 97 MB |
+| 1.3 Recording indicator | **A purple dot in the menu bar while tapped.** Charlie couldn't click it to read it. So macOS does show an indicator: the Audio tab would have to say so. |
+| 1.5 Sleep (lid closed 30 s) | **Pass.** Still playing, still quieter, no stutter or crackle. |
+| 1.6 Permission refused | Prompt: *"“Notched” would like access to record your system audio. Notched turns individual apps up or down when you move an app's volume slider. The audio stays on your Mac."* After **Don't Allow, Spotify went silent.** This is failure mode 2 above, and it happened. |
+| 1.7 Untap | Spotify returned to normal. |
+
+Reading against the criteria written for this ADR (not a decision):
+
+- **CPU:** the tap path costs about **1.6 percentage points** over the no-tap baseline in a Debug build (3.95 − 2.37), above the ≤ 0.5 % budget. Part of that may be Debug; a Release build would show. The baseline itself (2.4 % with nothing tapped) is Notched's Debug idle cost, not the tap's.
+- **Refused permission:** the failure the ADR called unacceptable occurred: the app is silenced, and the product can't ask TCC beforehand (`TCCAccessPreflight` answers "unknown"). The decision therefore depends on whether a refusal can be detected reliably and the tap removed within about a second (the tap build or the first callback may report an error). The round 1 probe doesn't record that.
+- **Recording indicator:** present, to be disclosed.
+- **Crash test (1.4):** still to be written up from the report; see the open question in the project notes.
+
+This needs the Opus xhigh go/no-go step, with a small probe change first (log the tap-build result and the first callbacks' signal level right after a refusal).

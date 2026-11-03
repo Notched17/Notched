@@ -165,12 +165,12 @@ struct MediaExpandedBody: View {
                         if model.artwork != nil {
                             ZStack {
                                 Ellipse()
-                                    .fill(model.tint.opacity(0.23))
-                                    .frame(width: 480, height: Self.artworkSize * 2.6)
+                                    .fill(model.tint.opacity(0.265))
+                                    .frame(width: 640, height: Self.artworkSize * 2.6)
                                     .blur(radius: 50)
-                                    .offset(x: 170)
+                                    .offset(x: 250)
                                 Circle()
-                                    .fill(model.tint.opacity(0.30))
+                                    .fill(model.tint.opacity(0.345))
                                     .frame(width: Self.artworkSize * 2.2, height: Self.artworkSize * 2.2)
                                     .blur(radius: 34)
                             }

@@ -189,7 +189,7 @@ struct LayoutPane: View {
         } header: {
             Text("Expanded Tabs")
         } footer: {
-            Text("The island shows up to four tabs besides Island. A tab you turn off doesn't use one of the four, so you can choose which four you want. A tab only appears while the module that adds it is on.")
+            Text("The island shows every tab, side by side, in this order. Turn a tab off to leave it out. A tab only appears while the module that adds it is on.")
         }
     }
 

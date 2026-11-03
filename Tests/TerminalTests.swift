@@ -303,15 +303,17 @@ struct TallTabTests {
     func usual() {
         let (model, activities) = make()
         activities.setTabs([tab("a")], from: "m")
-        #expect(model.maxExpandedHeight == model.headerHeight + IslandMetrics.expandedMaxContentHeight)
+        // A tab starts below the camera housing's row, so its budget includes that row.
+        #expect(model.tabTopInset == model.headerHeight)
+        #expect(model.maxExpandedHeight == model.headerHeight + IslandMetrics.expandedMaxContentHeight + model.tabTopInset)
     }
 
     @Test("A tall tab raises the panel's size, but only that tab may use the extra height")
     func tall() {
         let (model, activities) = make()
         activities.setTabs([tab("a"), tab("t", tall: 310)], from: "m")
-        #expect(model.maxExpandedHeight == model.headerHeight + 310)
-        #expect(model.maxExpandedHeight(for: model.tabs.first { $0.id == "a" }) == model.headerHeight + IslandMetrics.expandedMaxContentHeight)
+        #expect(model.maxExpandedHeight == model.headerHeight + 310 + model.tabTopInset)
+        #expect(model.maxExpandedHeight(for: model.tabs.first { $0.id == "a" }) == model.headerHeight + IslandMetrics.expandedMaxContentHeight + model.tabTopInset)
 
         model.reportExpandedHeight(300, for: "tab.a")
         model.reportExpandedHeight(300, for: "tab.t")
@@ -319,7 +321,7 @@ struct TallTabTests {
         let normal = model.expandedHeight
         _ = model.selectTab("t")
         #expect(model.expandedHeight > normal)
-        #expect(model.expandedHeight <= model.headerHeight + 310)
+        #expect(model.expandedHeight <= model.headerHeight + 310 + model.tabTopInset)
     }
 
     @Test("Removing the tall tab brings the panel back to its usual size")

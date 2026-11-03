@@ -34,10 +34,10 @@ struct ExpandedTabsTests {
         #expect(result == [entry("ai", "a")])
     }
 
-    @Test("At most four module tabs are kept, the earliest ones")
-    func cap() {
-        let entries = (0..<7).map { entry("t\($0)", order: $0) }
-        #expect(ExpandedTabs.arrange(entries, moduleOrder: []).map(\.id) == ["t0", "t1", "t2", "t3"])
+    @Test("Every module tab is kept, in order: there is no cap")
+    func noCap() {
+        let entries = (0..<9).map { entry("t\($0)", order: $0) }
+        #expect(ExpandedTabs.arrange(entries, moduleOrder: []).map(\.id) == (0..<9).map { "t\($0)" })
     }
 
     @Test("The selection falls back to Island when its tab is gone")

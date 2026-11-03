@@ -78,7 +78,7 @@ final class ActivityCoordinator {
     /// Quick actions modules offer on Home, grouped by module in catalogue order.
     private(set) var homeActions: [HomeAction] = []
     /// Tabs modules add to the expanded island, in the order they were set;
-    /// `ExpandedTabs.arrange` orders and limits them.
+    /// `ExpandedTabs.arrange` orders them.
     private(set) var moduleTabs: [IslandTab] = []
     /// The module catalogue's order (set by `ModuleHost`), so Home's row
     /// doesn't depend on which module happened to start first.

@@ -17,6 +17,7 @@ struct ExpandedContentView: View {
                 Group {
                     if let tab = model.selectedModuleTab {
                         IslandTabContent(tab: tab)
+                            .padding(.top, model.tabTopInset)
                     } else if let record = model.expandedActivity {
                         ActivityExpandedView(record: record, housing: model.housingSize)
                     } else {

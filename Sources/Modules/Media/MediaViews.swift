@@ -158,7 +158,18 @@ struct MediaExpandedBody: View {
         HStack(alignment: .top, spacing: 14) {
             Button { model.actions.openSource() } label: {
                 MediaArtworkView(model: model, size: Self.artworkSize)
-                    .shadow(color: model.tint.opacity(0.35), radius: 14, y: 6)
+                    // The cover's colour glows out of all four sides, centred on it
+                    // (a blurred disc nearly twice its size), not just underneath.
+                    .background {
+                        if model.artwork != nil {
+                            Circle()
+                                .fill(model.tint.opacity(0.5))
+                                .frame(width: Self.artworkSize * 1.9, height: Self.artworkSize * 1.9)
+                                .blur(radius: 26)
+                                .allowsHitTesting(false)
+                                .accessibilityHidden(true)
+                        }
+                    }
             }
             .buttonStyle(.plain)
             .help("Open \(model.sourceName ?? "the app")")
@@ -171,13 +182,6 @@ struct MediaExpandedBody: View {
                 MediaControlsRow(model: model)
             }
             .frame(height: Self.artworkSize)
-        }
-        // A soft wash of the cover's colour behind the artwork, fading out to the right.
-        .background(alignment: .leading) {
-            RadialGradient(colors: [model.tint.opacity(0.28), .clear], center: .leading, startRadius: 0, endRadius: 240)
-                .padding(-40)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
         }
     }
 }

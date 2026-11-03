@@ -34,7 +34,8 @@ enum ClaudePresentation {
     }
 
     static func activity(_ snapshot: ClaudeSessionsReducer.Snapshot,
-                         answer: @escaping @MainActor (_ approvalID: String, ClaudeSessionsReducer.Answer) -> Void) -> LiveActivity {
+                         answer: @escaping @MainActor (_ approvalID: String, ClaudeSessionsReducer.Answer) -> Void,
+                         openTerminal: @escaping @MainActor () -> Void = {}) -> LiveActivity {
         let phase = snapshot.phase
         let isApproval = snapshot.approval != nil
         let label = isApproval
@@ -44,6 +45,8 @@ enum ClaudePresentation {
         if let approval = snapshot.approval {
             expanded = ApprovalCard.expanded(cardModel(snapshot, approval), tint: tint) { choice in
                 answer(approval.id, answerFor(choice))
+                // "Answer in Terminal" lets Claude Code ask there: bring that window forward.
+                if choice == "terminal" { openTerminal() }
             }
         } else {
             expanded = ExpandedPresentation(
@@ -70,6 +73,12 @@ enum ClaudePresentation {
                         }
                         if phase == .waitingForInput {
                             Text(verbatim: "Answer in the terminal").font(IslandFont.subtitle).dimmedText(0.7).lineLimit(1)
+                            Button(action: openTerminal) {
+                                Text("Open Terminal").font(.system(size: 14, weight: .semibold)).frame(maxWidth: .infinity, minHeight: 34)
+                            }
+                            .buttonStyle(.glass)
+                            .buttonBorderShape(.capsule)
+                            .padding(.top, 4)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)

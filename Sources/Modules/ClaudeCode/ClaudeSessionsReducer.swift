@@ -51,6 +51,7 @@ struct ClaudeSessionsReducer: Sendable {
         var lastEvent: Date
         var startOrder: Int
         var approvals: [Approval] = []
+        var terminalApp: String?
         var endAt: Date?
         var lastBanner: Date?
     }
@@ -67,6 +68,8 @@ struct ClaudeSessionsReducer: Sendable {
         var lastEvent: Date
         var approval: Approval?
         var moreApprovals: Int
+        /// The app the session runs in (a bundle id), when the hook said.
+        var terminalApp: String?
     }
 
     enum Banner: Equatable, Sendable {
@@ -102,7 +105,7 @@ struct ClaudeSessionsReducer: Sendable {
         let name = same.count > 1 ? "\(session.project) (\((same.firstIndex { $0.id == id } ?? 0) + 1))" : session.project
         return Snapshot(sessionID: id, project: session.project, displayName: name, title: session.title, phase: session.phase,
                         since: session.workStartedAt, lastEvent: session.lastEvent, approval: session.approvals.first,
-                        moreApprovals: max(0, session.approvals.count - 1))
+                        moreApprovals: max(0, session.approvals.count - 1), terminalApp: session.terminalApp)
     }
 
     mutating func reduce(_ event: Event, now: Date) -> [Effect] {
@@ -138,6 +141,7 @@ struct ClaudeSessionsReducer: Sendable {
         }
         sessions[id]?.lastEvent = now
         if let title = hook.title { sessions[id]?.title = title }
+        if let terminal = hook.terminalApp { sessions[id]?.terminalApp = terminal }
         var effects: [Effect] = []
 
         switch hook.kind {

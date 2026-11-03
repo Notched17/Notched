@@ -34,6 +34,8 @@ struct ClaudeHookEvent: Equatable, Sendable {
     var detail: String?
     /// The changed lines of an Edit, for the approval card.
     var changes: [LineDiff.Line] = []
+    /// The app Claude Code runs in, as the hook helper reported it (a bundle id), for "Open Terminal".
+    var terminalApp: String?
     var suggestion: AlwaysAllowSuggestion?
 
     static let maxBodyBytes = HTTPRequestParser.hookBodyBytes
@@ -63,6 +65,9 @@ struct ClaudeHookEvent: Equatable, Sendable {
         }
 
         var event = ClaudeHookEvent(kind: kind, sessionID: sessionID, cwd: cwd, project: project.isEmpty ? "Claude Code" : project)
+        if let terminal = json["notched_terminal"] as? String, ClaudeTerminal.isPlausibleBundleID(terminal) {
+            event.terminalApp = terminal
+        }
         if let title = json["session_title"] as? String {
             let cleaned = ActivityPayload.sanitize(title, limit: 60)
             event.title = cleaned.isEmpty ? nil : cleaned

@@ -30,7 +30,17 @@ struct ApprovalChangesTests {
     @Test("A MultiEdit shows its first edit")
     func multiEdit() {
         let input: [String: Any] = ["edits": [["old_string": "a", "new_string": "b"], ["old_string": "x", "new_string": "y"]]]
-        #expect(ToolRequestSummary.changes(toolName: "MultiEdit", input: input).map(\.text) == ["a", "b"])
+        // The card says there are more: nothing is silently left off.
+        #expect(ToolRequestSummary.changes(toolName: "MultiEdit", input: input).map(\.text) == ["a", "b", "+1 more edit not shown"])
+        let one: [String: Any] = ["edits": [["old_string": "a", "new_string": "b"]]]
+        #expect(ToolRequestSummary.changes(toolName: "MultiEdit", input: one).map(\.text) == ["a", "b"])
+    }
+
+    @Test("Hidden characters (bidirectional, zero-width, line separators) never reach the card")
+    func invisibleCharacters() {
+        let tricky = "a\u{202E}b\u{200B}c\u{2066}d\u{FEFF}e\u{2028}f\u{E0041}g"
+        let lines = ToolRequestSummary.changes(toolName: "Edit", input: ["old_string": "x", "new_string": tricky])
+        #expect(lines.last?.text == "abcdefg")
     }
 
     @Test("Other tools, missing text and no-op edits show nothing")

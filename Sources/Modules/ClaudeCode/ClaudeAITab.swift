@@ -78,10 +78,16 @@ enum ClaudeUsageDisplay {
 /// The row beside the camera housing: the tab's name on the left, today's cost on the right.
 struct ClaudeUsageHeaderLeading: View {
     var body: some View {
-        HStack(spacing: 6) {
+        // The word goes first when the region is narrow (Expanded size 85–100%).
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) {
+                BrandTile(symbol: "chart.bar.fill", tint: ClaudePresentation.tint, filled: true)
+                Text("Usage").font(.system(size: 13, weight: .semibold)).lineLimit(1)
+            }
             BrandTile(symbol: "chart.bar.fill", tint: ClaudePresentation.tint, filled: true)
-            Text("Usage").font(.system(size: 13, weight: .semibold))
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Usage")
     }
 }
 
@@ -90,12 +96,19 @@ struct ClaudeUsageHeaderTrailing: View {
 
     var body: some View {
         if let usage = model.usage {
-            HStack(spacing: 5) {
-                Text(verbatim: ClaudeUsageDisplay.money(usage.today.cost))
-                    .font(.system(size: 13, weight: .semibold, design: .rounded)).monospacedDigit()
-                Text("today").font(.system(size: 11)).dimmedText(0.7)
+            let cost = Text(verbatim: ClaudeUsageDisplay.money(usage.today.cost))
+                .font(.system(size: 13, weight: .semibold, design: .rounded)).monospacedDigit().lineLimit(1)
+            // "today" goes first when the region is narrow (Expanded size 85–100%).
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 5) {
+                    cost
+                    Text("today").font(.system(size: 11)).dimmedText(0.7).lineLimit(1)
+                }
+                // Last resort at the smallest Expanded size: the amount shrinks a little, never truncates.
+                cost.minimumScaleFactor(0.75)
             }
-            .accessibilityElement(children: .combine)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Today, \(ClaudeUsageDisplay.money(usage.today.cost))")
         }
     }
 }
@@ -154,8 +167,15 @@ private struct WeekCard: View {
     let usage: ClaudeUsageSnapshot
 
     /// "18M new · 712M cached": the cache is re-read on every turn, so it is far bigger and costs far less.
-    private func tokenSummary(_ tokens: TokenCounts) -> String {
-        "\(ClaudeUsageDisplay.compactTokens(ClaudeUsageDisplay.newTokens(tokens))) new · \(ClaudeUsageDisplay.compactTokens(tokens.cacheRead)) cached"
+    private func tokenSummary(_ tokens: TokenCounts, withCache: Bool) -> String {
+        let new = "\(ClaudeUsageDisplay.compactTokens(ClaudeUsageDisplay.newTokens(tokens))) new"
+        return withCache ? new + " · \(ClaudeUsageDisplay.compactTokens(tokens.cacheRead)) cached" : new
+    }
+
+    private func summary(withCache: Bool) -> some View {
+        Text(verbatim: tokenSummary(usage.week.tokens, withCache: withCache))
+            .font(.system(size: 11)).monospacedDigit().dimmedText(0.7)
+            .lineLimit(1)
     }
 
     var body: some View {
@@ -164,9 +184,11 @@ private struct WeekCard: View {
             HStack(alignment: .firstTextBaseline) {
                 Text("This week").font(.system(size: 11)).dimmedText(0.7)
                 Spacer(minLength: 4)
-                Text(verbatim: tokenSummary(usage.week.tokens))
-                    .font(.system(size: 11)).monospacedDigit().dimmedText(0.7)
-                    .lineLimit(1)
+                // The cached count goes first when the card is narrow (Expanded size 85%).
+                ViewThatFits(in: .horizontal) {
+                    summary(withCache: true)
+                    summary(withCache: false)
+                }
             }
             Text(verbatim: "≈ " + ClaudeUsageDisplay.money(usage.week.cost))
                 .font(.system(size: 26, weight: .semibold, design: .rounded))

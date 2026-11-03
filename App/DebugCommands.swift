@@ -13,6 +13,7 @@ import AppKit
 /// lab?demo=music|call|agent|download&do=start|end|stale|hide|unhide|primary,
 /// lab?banner=charging, lab?run=full, lab?do=end-all, lab?download=0.74,
 /// page?id=home|music|call|agent|download (expand to that page), tab?id=hello.demo|island (expand and pick a tab),
+/// scale?value=0.85...1.25 (sets the Appearance "Expanded size" factor; it is saved like the slider),
 /// setting?multiple=bubbles|sideBySide&click=open|expand&alerts=0|1&keyline=0|1, close-windows,
 /// media?on=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly&lyrics=0|1&ticker=0|1
 /// &visualizer=animated|still|off, page?id=media, settings?module=media, quit,
@@ -41,6 +42,10 @@ enum DebugCommands {
         case "expand": environment.islands.expandAll()
         case "collapse": environment.islands.collapseAll()
         case "pill": environment.settings.debugForcePill = on
+        case "scale":
+            if let value = query(url, "value").flatMap(Double.init) {
+                environment.settings.expandedScale = value  // clamped by the store to 0.85...1.25
+            }
         case "appearance":
             switch query(url, "mode") {
             case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
@@ -75,6 +80,8 @@ enum DebugCommands {
             // Closes Settings and onboarding without finishing onboarding (for clean measurements).
             for window in NSApp.windows where window.isVisible && window.styleMask.contains(.titled) { window.close() }
         case "page":
+            // A page is on the Island tab: leave whichever module tab was last shown.
+            for controller in environment.islands.controllers.values { controller.model.selectedTab = ExpandedTabs.islandID }
             if let panel = query(url, "panel") {
                 environment.islands.openHomeAction(panel)
                 return
@@ -90,8 +97,7 @@ enum DebugCommands {
         case "tab":
             // tab?id=<tab id> (island shows the Island tab): expands, then picks that tab.
             let tab = query(url, "id") ?? ExpandedTabs.islandID
-            environment.islands.expandAll(to: .home)
-            for controller in environment.islands.controllers.values { controller.model.selectTab(tab) }
+            environment.islands.showTab(tab, focus: false)
         case "module":
             if let id = query(url, "id").map({ ModuleID($0) }) {
                 if on { environment.settings.enabledModules.insert(id) } else { environment.settings.enabledModules.remove(id) }

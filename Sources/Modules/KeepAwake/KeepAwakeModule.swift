@@ -252,6 +252,8 @@ private struct KeepAwakeRemaining: View {
         .foregroundStyle(KeepAwakePresentation.tint)
         .multilineTextAlignment(.trailing)
         .lineLimit(1)
+        // At a small Expanded size the space beside the camera housing is tight: shrink, never "59…".
+        .minimumScaleFactor(0.6)
     }
 }
 

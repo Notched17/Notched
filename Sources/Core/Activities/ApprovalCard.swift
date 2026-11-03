@@ -85,11 +85,15 @@ enum ApprovalCard {
     static func expanded(_ model: ApprovalCardModel, tint: Color, choose: @escaping @MainActor (String) -> Void) -> ExpandedPresentation {
         ExpandedPresentation(
             leading: ExpandedRegion {
-                HStack(spacing: 6) {
-                    BrandTile(symbol: model.symbol, tint: tint, filled: true)
-                    if let brand = model.brand {
-                        Text(verbatim: brand).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                // The name goes first when the region is narrow (Expanded size 85%).
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) {
+                        BrandTile(symbol: model.symbol, tint: tint, filled: true)
+                        if let brand = model.brand {
+                            Text(verbatim: brand).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                        }
                     }
+                    BrandTile(symbol: model.symbol, tint: tint, filled: true)
                 }
             },
             trailing: ExpandedRegion {

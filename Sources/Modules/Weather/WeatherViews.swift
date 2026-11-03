@@ -103,40 +103,53 @@ struct WeatherExpandedBody: View {
     let unit: TemperatureUnit
 
     var body: some View {
-        let tint = WeatherLook.tint(code: snapshot.code, isDay: snapshot.isDay).color
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 14) {
-                HStack(spacing: 12) {
-                    Image(systemName: snapshot.condition.symbol(isDay: snapshot.isDay))
-                        .symbolRenderingMode(.multicolor)
-                        .font(.system(size: 42))
-                        .frame(width: 52)
-                        .background {
-                            Circle().fill(tint.opacity(0.30)).frame(width: 110, height: 110).blur(radius: 26)
-                                .allowsHitTesting(false)
-                        }
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(unit.text(fromCelsius: snapshot.celsius))
-                            .font(.system(size: 40, weight: .semibold, design: .rounded))
-                            .monospacedDigit()
-                            .contentTransition(.numericText())
-                            .lineLimit(1)
-                        Text(snapshot.condition.text)
-                            .font(.system(size: 13, weight: .medium))
-                            .dimmedText(0.85)
-                            .lineLimit(1)
-                    }
-                }
-                Spacer(minLength: 8)
-                HStack(spacing: 6) {
-                    ForEach(snapshot.hours.dropFirst().prefix(5)) { hour in
-                        WeatherHourColumn(hour: hour, unit: unit, large: true)
-                    }
-                }
+            // The temperature and conditions always win; the hours that don't fit are
+            // dropped (five down to two) rather than squeezing the temperature out, which
+            // is what a smaller Expanded size would otherwise do.
+            ViewThatFits(in: .horizontal) {
+                row(hours: 5)
+                row(hours: 4)
+                row(hours: 3)
+                row(hours: 2)
             }
             WeatherRangeBar(snapshot: snapshot, unit: unit)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func row(hours count: Int) -> some View {
+        let tint = WeatherLook.tint(code: snapshot.code, isDay: snapshot.isDay).color
+        return HStack(alignment: .center, spacing: 14) {
+            HStack(spacing: 12) {
+                Image(systemName: snapshot.condition.symbol(isDay: snapshot.isDay))
+                    .symbolRenderingMode(.multicolor)
+                    .font(.system(size: 42))
+                    .frame(width: 52)
+                    .background {
+                        Circle().fill(tint.opacity(0.30)).frame(width: 110, height: 110).blur(radius: 26)
+                            .allowsHitTesting(false)
+                    }
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(unit.text(fromCelsius: snapshot.celsius))
+                        .font(.system(size: 40, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                        .lineLimit(1)
+                    Text(snapshot.condition.text)
+                        .font(.system(size: 13, weight: .medium))
+                        .dimmedText(0.85)
+                        .lineLimit(1)
+                }
+                .fixedSize(horizontal: true, vertical: false)
+            }
+            Spacer(minLength: 8)
+            HStack(spacing: 6) {
+                ForEach(snapshot.hours.dropFirst().prefix(count)) { hour in
+                    WeatherHourColumn(hour: hour, unit: unit, large: true)
+                }
+            }
+        }
     }
 }

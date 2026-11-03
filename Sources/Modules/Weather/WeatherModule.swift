@@ -274,8 +274,12 @@ enum WeatherPresentation {
                 expanded: ExpandedPresentation(
                     // Beside the camera housing: where, and whether to expect rain.
                     leading: ExpandedRegion {
-                        HStack(spacing: 5) {
-                            Image(systemName: "location.fill").font(.system(size: 10, weight: .semibold)).dimmedText(0.7)
+                        // The pin goes first when the region is narrow (Expanded size 85–100%).
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "location.fill").font(.system(size: 10, weight: .semibold)).dimmedText(0.7)
+                                Text(verbatim: location.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                            }
                             Text(verbatim: location.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
                         }
                     },
@@ -344,7 +348,17 @@ struct WeatherSectionView: View {
 
     private func strip(_ snapshot: WeatherSnapshot, location: WeatherLocation, isOffline: Bool, isStale: Bool) -> some View {
         let unit = model.unit
-        let hours = Array(snapshot.hours.dropFirst().prefix(hasColumns ? 4 : 8))
+        let upcoming = Array(snapshot.hours.dropFirst())
+        // The temperature and conditions come first; the hours that don't fit are dropped
+        // (fewer at a small Expanded size).
+        let counts = hasColumns ? (4, 3, 2) : (8, 6, 4)
+        func hoursRow(_ count: Int) -> some View {
+            HStack(spacing: Spacing.s) {
+                ForEach(upcoming.prefix(count)) { hour in
+                    WeatherHourColumn(hour: hour, unit: unit)
+                }
+            }
+        }
         return HStack(alignment: .center, spacing: Spacing.m) {
             Image(systemName: snapshot.condition.symbol(isDay: snapshot.isDay))
                 .symbolRenderingMode(.multicolor)
@@ -368,6 +382,7 @@ struct WeatherSectionView: View {
                     .font(.system(size: 11))
                     .dimmedText(0.75)
                     .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                 Button { model.openPicker() } label: {
                     HStack(spacing: 2) {
                         Text(footnote(snapshot, location: location, isOffline: isOffline, isStale: isStale))
@@ -382,11 +397,12 @@ struct WeatherSectionView: View {
                 .accessibilityLabel("\(location.name). Change city")
             }
             Spacer(minLength: Spacing.s)
-            HStack(spacing: Spacing.s) {
-                ForEach(hours) { hour in
-                    WeatherHourColumn(hour: hour, unit: unit)
-                }
+            ViewThatFits(in: .horizontal) {
+                hoursRow(counts.0)
+                hoursRow(counts.1)
+                hoursRow(counts.2)
             }
+            .layoutPriority(-1)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

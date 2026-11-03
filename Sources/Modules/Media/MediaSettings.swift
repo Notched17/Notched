@@ -32,7 +32,6 @@ final class MediaSettings {
         static let backend = "media.backend"
         static let ignoredApps = "media.ignoredApps"
         static let lyricsEnabled = "media.lyricsEnabled"
-        static let lyricsTicker = "media.lyricsTicker"
         static let expandOnTrackChange = "media.expandOnTrackChange"
         static let staleAfterMinutes = "media.staleAfterMinutes"
         static let endAfterMinutes = "media.endAfterMinutes"
@@ -51,8 +50,6 @@ final class MediaSettings {
     var ignoredApps: Set<String> { didSet { defaults.set(ignoredApps.sorted(), forKey: Key.ignoredApps) } }
     /// Synced lyrics from LRCLIB. Off means no lyrics request is ever made (ADR-0009).
     var lyricsEnabled: Bool { didSet { defaults.set(lyricsEnabled, forKey: Key.lyricsEnabled) } }
-    /// Show the current lyric line on the compact island instead of the bars.
-    var lyricsTicker: Bool { didSet { defaults.set(lyricsTicker, forKey: Key.lyricsTicker) } }
     var expandOnTrackChange: Bool { didSet { defaults.set(expandOnTrackChange, forKey: Key.expandOnTrackChange) } }
     var staleAfterMinutes: Int { didSet { defaults.set(staleAfterMinutes, forKey: Key.staleAfterMinutes) } }
     var endAfterMinutes: Int { didSet { defaults.set(endAfterMinutes, forKey: Key.endAfterMinutes) } }
@@ -65,7 +62,6 @@ final class MediaSettings {
         backend = defaults.string(forKey: Key.backend).flatMap(BackendPreference.init(rawValue:)) ?? .auto
         ignoredApps = Set(defaults.array(forKey: Key.ignoredApps) as? [String] ?? [])
         lyricsEnabled = defaults.object(forKey: Key.lyricsEnabled) as? Bool ?? false
-        lyricsTicker = defaults.object(forKey: Key.lyricsTicker) as? Bool ?? false
         expandOnTrackChange = defaults.object(forKey: Key.expandOnTrackChange) as? Bool ?? false
         staleAfterMinutes = defaults.object(forKey: Key.staleAfterMinutes) as? Int ?? 2
         endAfterMinutes = defaults.object(forKey: Key.endAfterMinutes) as? Int ?? 10

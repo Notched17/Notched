@@ -25,8 +25,8 @@ final class MediaModel {
     var showsGlow = true
     /// Synced lyrics for this track, while lyrics are on (#13).
     var lyrics: SyncedLyrics?
-    /// Show the current lyric line beside the notch instead of the bars.
-    var lyricsTicker = false
+    /// The lyrics tab (a card under the island) is open. Set by `LyricsPanelController`.
+    var isLyricsPanelOpen = false
     @ObservationIgnored var actions = MediaActions()
     /// The Mac's audio outputs, for the output button (#16). Set while the module runs.
     @ObservationIgnored var outputs: AudioOutputService?
@@ -124,4 +124,6 @@ struct MediaActions {
     var send: (MediaCommand) -> Void = { _ in }
     var toggleLike: () -> Void = {}
     var openSource: () -> Void = {}
+    /// Opens the lyrics tab, or closes it when it is open.
+    var toggleLyrics: () -> Void = {}
 }

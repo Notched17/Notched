@@ -42,8 +42,6 @@ struct MediaSettingsPane: View {
 
             Section {
                 Toggle("Show synced lyrics", isOn: $settings.lyricsEnabled)
-                Toggle("Show the current line beside the notch", isOn: $settings.lyricsTicker)
-                    .disabled(!settings.lyricsEnabled)
             } header: {
                 Text("Lyrics")
             } footer: {

@@ -137,7 +137,21 @@ struct MediaOutputBadge: View {
     var showsBars: Bool
 
     var body: some View {
+        // The waveform goes first when the room beside the notch is tight (Expanded size 85%).
+        ViewThatFits(in: .horizontal) {
+            row(showsBars: showsBars)
+            row(showsBars: false)
+        }
+    }
+
+    private func row(showsBars: Bool) -> some View {
         HStack(spacing: 6) {
+            // Opens the lyrics tab; stays while the tab is open, so it can be closed from here too.
+            if model.lyrics != nil || model.isLyricsPanelOpen {
+                MediaControlButton(symbol: model.isLyricsPanelOpen ? "quote.bubble.fill" : "quote.bubble",
+                                   label: model.isLyricsPanelOpen ? "Close Lyrics" : "Show Lyrics", size: 12,
+                                   tint: .white.opacity(model.isLyricsPanelOpen ? 1 : 0.75)) { model.actions.toggleLyrics() }
+            }
             if let output = model.outputs?.current {
                 Image(systemName: output.symbol)
                     .font(.system(size: 13))

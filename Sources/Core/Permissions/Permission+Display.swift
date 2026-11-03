@@ -12,6 +12,7 @@ extension Permission {
         case .bluetooth: "Bluetooth"
         case .location: "Location"
         case .downloadsFolder: "Downloads Folder"
+        case .audioCapture: "System Audio Recording"
         }
     }
 
@@ -26,6 +27,7 @@ extension Permission {
         case .bluetooth: "dot.radiowaves.left.and.right"
         case .location: "location"
         case .downloadsFolder: "arrow.down.circle"
+        case .audioCapture: "waveform"
         }
     }
 
@@ -41,6 +43,7 @@ extension Permission {
         case .bluetooth: "Show when headphones connect."
         case .location: "Show local weather."
         case .downloadsFolder: "Show download progress."
+        case .audioCapture: "Turn individual apps up or down. Asked the first time you move an app's slider."
         }
     }
 }

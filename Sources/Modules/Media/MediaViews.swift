@@ -167,8 +167,15 @@ struct MediaExpandedBody: View {
                                 Ellipse()
                                     .fill(model.tint.opacity(0.265))
                                     .frame(width: 640, height: Self.artworkSize * 2.6)
-                                    .blur(radius: 50)
+                                    .blur(radius: 60)
                                     .offset(x: 250)
+                                // A bridge between the glow at the cover and the wide wash, so
+                                // the colour runs on to the right without a step in it.
+                                Ellipse()
+                                    .fill(model.tint.opacity(0.22))
+                                    .frame(width: 340, height: Self.artworkSize * 2.3)
+                                    .blur(radius: 48)
+                                    .offset(x: 105)
                                 Circle()
                                     .fill(model.tint.opacity(0.345))
                                     .frame(width: Self.artworkSize * 2.2, height: Self.artworkSize * 2.2)

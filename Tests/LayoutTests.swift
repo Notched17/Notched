@@ -89,19 +89,19 @@ struct TabLayoutTests {
         #expect(result.map(\.id) == ["terminal", "clipboard", "ai", "today"])
     }
 
-    @Test("A hidden tab doesn't take one of the four places, so a fifth can come in")
-    func hiddenFreesAPlace() {
+    @Test("A hidden tab is left out; all the others show")
+    func hiddenIsLeftOut() {
         let entries = [entry("a", order: 1), entry("b", order: 2), entry("c", order: 3), entry("d", order: 4), entry("e", order: 5)]
-        #expect(ExpandedTabs.arrange(entries, moduleOrder: []).map(\.id) == ["a", "b", "c", "d"])
+        #expect(ExpandedTabs.arrange(entries, moduleOrder: []).map(\.id) == ["a", "b", "c", "d", "e"])
         let layout = TabLayout(order: [], hidden: ["a"])
         #expect(ExpandedTabs.arrange(entries, moduleOrder: [], layout: layout).map(\.id) == ["b", "c", "d", "e"])
     }
 
-    @Test("Putting a tab first rescues it from the limit")
-    func firstRescues() {
+    @Test("Putting a tab first moves it to the front, and nothing is dropped")
+    func firstMoves() {
         let entries = [entry("a", order: 1), entry("b", order: 2), entry("c", order: 3), entry("d", order: 4), entry("terminal", order: 30)]
         let result = ExpandedTabs.arrange(entries, moduleOrder: [], layout: TabLayout(order: ["terminal"]))
-        #expect(result.map(\.id) == ["terminal", "a", "b", "c"])
+        #expect(result.map(\.id) == ["terminal", "a", "b", "c", "d"])
     }
 
     @Test("Without a layout the order is exactly what it was before")
@@ -123,9 +123,10 @@ struct ShowInCompactTests {
         return coordinator
     }
 
-    private func post(_ sut: ActivityCoordinator, _ id: String, module: ModuleID, kind: ActivityKind = .live, hideable: Bool = true, relevance: Double = 0) {
+    private func post(_ sut: ActivityCoordinator, _ id: String, module: ModuleID, kind: ActivityKind = .live, hideable: Bool = true,
+                      relevance: Double = 0, alert: Bool = false) {
         sut.post(LiveActivity(id: ActivityID(id), moduleID: module, kind: kind, title: id, relevance: relevance, isHideable: hideable,
-                              accessibilityLabel: id, presentation: .text(id)))
+                              accessibilityLabel: id, presentation: .text(id)), alert: alert ? AlertRequest() : nil)
     }
 
     @Test("Turning a module off for compact keeps its activity out of the notch and the bubbles, but still lists it")
@@ -165,6 +166,30 @@ struct ShowInCompactTests {
         #expect(sut.primary?.id == "call")
     }
 
+    @Test("A listed-only module doesn't alert or bounce the island")
+    func listedOnlyStaysQuiet() {
+        let sut = coordinator(RankingPolicy.default.showingInCompact("calendar", false))
+        post(sut, "next", module: "calendar", alert: true)
+        #expect(sut.alert == nil)
+        #expect(sut.bounceSerial == 0)
+        // The same alert from a module that is shown in compact does expand the island.
+        post(sut, "timer", module: "timers", alert: true)
+        #expect(sut.alert?.activityID == "timer")
+    }
+
+    @Test("An alert already waiting is dropped when its module is turned off for compact")
+    func waitingAlertDropped() {
+        let sut = coordinator()
+        post(sut, "a", module: "timers", alert: true)
+        post(sut, "b", module: "calendar", alert: true)
+        #expect(sut.alert?.activityID == "a")   // b waits behind a
+        var configuration = sut.configuration
+        configuration.ranking = RankingPolicy.default.showingInCompact("calendar", false)
+        sut.configuration = configuration
+        sut.userTookOverAlert()                  // a is done; b would have been next
+        #expect(sut.alert == nil)
+    }
+
     @Test("A listed-only activity can't be made the primary one")
     func cannotPromote() {
         let sut = coordinator(RankingPolicy.default.showingInCompact("calendar", false))
@@ -194,7 +219,7 @@ struct ShowInCompactTests {
 
     @Test("A policy saved before this existed still loads")
     func oldDataLoads() throws {
-        let old = Data(#"{"order":["live","media","passive"],"pinned":["timers"]}"#.utf8)
+        let old = Data(#"{"order":["live","media","passive"],"pinned":[{"rawValue":"timers"}]}"#.utf8)
         let policy = RankingPolicy.load(from: old)
         #expect(policy.order == [.live, .media, .passive])
         #expect(policy.pinned == ["timers"])
@@ -253,10 +278,10 @@ struct LayoutCatalogueTests {
         let model = IslandViewModel(geometry: NotchGeometry.resolve(NotchGeometryTests.air15), accessibility: AccessibilityOptions(), activities: activities)
         func tab(_ id: String, order: Int) -> IslandTab { IslandTab(id: id, moduleID: "m", title: id, symbol: "star", order: order) { Text(id) } }
         activities.setTabs((1...5).map { tab("t\($0)", order: $0) }, from: "m")
-        #expect(model.tabs.map(\.id) == ["t1", "t2", "t3", "t4"])
+        #expect(model.tabs.map(\.id) == ["t1", "t2", "t3", "t4", "t5"])
         var configuration = activities.configuration
         configuration.tabLayout = TabLayout(order: ["t5"], hidden: ["t1"])
         activities.configuration = configuration
-        #expect(model.tabs.map(\.id) == ["t5", "t2", "t3", "t4"])
+        #expect(model.tabs.map(\.id) == ["t5", "t2", "t3", "t4"])   // t1 is hidden; nothing else is dropped
     }
 }

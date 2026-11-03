@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import AppKit
 import Foundation
 import Testing
 @testable import Notched
@@ -13,6 +14,8 @@ final class FakeClipboardPasteboard: ClipboardPasteboard {
     var frontmostApp: (bundleID: String?, name: String?) = ("com.apple.Safari", "Safari")
     var contents: ClipboardCandidate?
     private(set) var reads = 0
+    /// Set to make the next copy a picture, whose encoding happens in the background.
+    var pendingImageData: Data?
     private(set) var written: [ClipboardEntry] = []
     var writeSucceeds = true
 
@@ -28,6 +31,8 @@ final class FakeClipboardPasteboard: ClipboardPasteboard {
         reads += 1
         return contents
     }
+
+    func pendingImage() -> Data? { pendingImageData }
 
     func write(_ entry: ClipboardEntry, store: ClipboardStore) -> Bool {
         guard writeSucceeds else { return false }
@@ -90,6 +95,38 @@ struct ClipboardModuleTests {
         rig.pasteboard.copy("new")
         poll(rig)
         #expect(rig.module.model.entries.map(\.text) == ["new"])
+        rig.module.stop()
+    }
+
+    @Test("A copied picture is encoded in the background and recorded in order")
+    func pictureIsEncodedInTheBackground() async throws {
+        let rig = makeRig()
+        defer { try? FileManager.default.removeItem(at: rig.store.directory) }
+        rig.module.start()
+        let rep = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 40, pixelsHigh: 30, bitsPerSample: 8, samplesPerPixel: 4,
+                                                hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        rig.pasteboard.pendingImageData = rep.representation(using: .png, properties: [:])
+        rig.pasteboard.copy("", types: ["public.png"])
+        poll(rig)
+        // Nothing is recorded yet, and the main-thread read path wasn't used: the picture is still being encoded.
+        #expect(rig.module.model.entries.isEmpty)
+        #expect(rig.pasteboard.reads == 0)
+        // A text copy right behind it must still be recorded after the picture.
+        rig.pasteboard.pendingImageData = nil
+        rig.pasteboard.copy("after the picture")
+        poll(rig)
+        var waited = 0
+        while rig.module.model.entries.count < 2, waited < 100 {
+            try await Task.sleep(for: .milliseconds(50))
+            waited += 1
+        }
+        // Copy order is kept: the text was copied after the picture, so it is the newest entry.
+        let entries = rig.module.model.entries
+        #expect(entries.count == 2)
+        #expect(entries.map(\.kind) == [.text, .image])
+        let image = try #require(entries.first { $0.kind == .image })
+        #expect(rig.store.hasImage(hash: image.contentHash))
+        #expect(image.text == "Image 40 × 30")
         rig.module.stop()
     }
 

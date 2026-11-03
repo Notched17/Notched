@@ -90,7 +90,7 @@ struct CompactContentView: View {
             model.reportWidth(width, for: key)
         }
         .id(content.key)
-        .transition(AnyTransition(.blurReplace).combined(with: .opacity))
+        .transition(model.accessibility.reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .opacity))
     }
 }
 

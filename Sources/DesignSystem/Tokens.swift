@@ -63,7 +63,11 @@ enum IslandMetrics {
     /// The expanded island's content below the housing row, from Apple's
     /// Live Activity dimensions (84–160 pt tall overall).
     static let expandedMinContentHeight: CGFloat = 46
-    static let expandedMaxContentHeight: CGFloat = 160
+    static let expandedMaxContentHeight: CGFloat = 168
+    /// Air between the camera housing's bottom edge and a page's body (Now
+    /// Playing, the Today tab), so nothing looks tucked under the notch.
+    /// Counted in the height budget above.
+    static let expandedNotchGap: CGFloat = 6
     /// Space between the expanded content and the island's bottom edge.
     static let expandedBottomInset: CGFloat = 16
     /// Panel padding around the expanded island so its shadow isn't clipped.

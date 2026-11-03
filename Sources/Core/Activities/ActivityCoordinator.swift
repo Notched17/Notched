@@ -78,7 +78,7 @@ final class ActivityCoordinator {
     /// Quick actions modules offer on Home, grouped by module in catalogue order.
     private(set) var homeActions: [HomeAction] = []
     /// Tabs modules add to the expanded island, in the order they were set;
-    /// `ExpandedTabs.arrange` orders and limits them.
+    /// `ExpandedTabs.arrange` orders them.
     private(set) var moduleTabs: [IslandTab] = []
     /// The module catalogue's order (set by `ModuleHost`), so Home's row
     /// doesn't depend on which module happened to start first.
@@ -338,6 +338,8 @@ final class ActivityCoordinator {
     // MARK: Internals
 
     private func enqueueAlert(for id: ActivityID, _ request: AlertRequest, at date: Date) {
+        // A module the user turned "Show in Compact" off for stays quiet: no alert, no bounce (#71).
+        if let record = entries[id], isListedOnly(record) { return }
         guard configuration.alertExpansionEnabled else {
             bounceSerial += 1
             return
@@ -363,7 +365,8 @@ final class ActivityCoordinator {
         guard alert == nil, !isInteracting else { return }
         while !alertQueue.isEmpty {
             let next = alertQueue.removeFirst()
-            guard entries[next.activityID] != nil else { continue }
+            // Gone, or turned off for compact while it waited.
+            guard let record = entries[next.activityID], !isListedOnly(record) else { continue }
             alertSerial += 1
             alert = ActiveAlert(activityID: next.activityID, endsAt: date.addingTimeInterval(next.duration.timeInterval),
                                 sound: next.sound, serial: alertSerial)

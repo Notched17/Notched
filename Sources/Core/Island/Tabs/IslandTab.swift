@@ -30,10 +30,17 @@ struct IslandTab: Identifiable {
     var maxContentHeight: CGFloat?
     /// For a capturing tab: the user pinned the island open.
     var keepsIslandOpen: (@MainActor () -> Bool)?
+    /// Content for the row beside the camera housing: a title on the left, a
+    /// key figure on the right. Drawn only on a notched display, where that row
+    /// would otherwise be empty; the tab's body shows it itself without one
+    /// (see `\.tabHeaderIsBesideNotch`).
+    var headerLeading: IslandRegion?
+    var headerTrailing: IslandRegion?
 
     init(id: String, moduleID: ModuleID, title: String, symbol: String, accessibilityLabel: String? = nil,
          order: Int = 0, onVisibilityChange: (@MainActor (Bool) -> Void)? = nil,
          capturesKeyboard: Bool = false, maxContentHeight: CGFloat? = nil, keepsIslandOpen: (@MainActor () -> Bool)? = nil,
+         headerLeading: IslandRegion? = nil, headerTrailing: IslandRegion? = nil,
          @ViewBuilder content: @escaping () -> some View) {
         self.id = id
         self.moduleID = moduleID
@@ -45,6 +52,8 @@ struct IslandTab: Identifiable {
         self.capturesKeyboard = capturesKeyboard
         self.maxContentHeight = maxContentHeight
         self.keepsIslandOpen = keepsIslandOpen
+        self.headerLeading = headerLeading
+        self.headerTrailing = headerTrailing
         self.content = IslandRegion(content)
     }
 

@@ -110,7 +110,7 @@ struct ChooseModulesStep: View {
                 ContentUnavailableView(
                     "More Modules Are Coming",
                     systemImage: "sparkles",
-                    description: Text("This first version is the island itself. Now Playing, battery, calendar and more arrive soon.")
+                    description: Text("No modules are available on this Mac.")
                 )
             } else {
                 Form {
@@ -144,7 +144,7 @@ struct PermissionsStep: View {
                 OnboardingHeader(
                     symbol: "hand.raised.fill",
                     title: "Permissions",
-                    message: "Your modules need these to work. macOS will ask you to confirm each one."
+                    message: "Each one is optional. Allow it now, or later when a module asks. A module works as far as it can without it, and macOS asks you to confirm each one."
                 )
                 Form {
                     ForEach(needed) { permission in
@@ -177,7 +177,7 @@ struct DoneStep: View {
             OnboardingHeader(
                 symbol: "checkmark.circle.fill",
                 title: "You're All Set",
-                message: "Rest the pointer on the notch to open the island. Settings live in the menu bar."
+                message: "Rest the pointer on the notch to open the island, or choose Open Island from the menu bar icon (you can also set a shortcut in Settings). Settings live in the menu bar too."
             )
             Form {
                 Toggle("Open Notched at login", isOn: $openAtLogin)
@@ -185,6 +185,10 @@ struct DoneStep: View {
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
             .frame(maxHeight: 90)
+            Text("Notched collects nothing. Lyrics and Weather use the internet only if you turn them on.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
             Spacer()
         }
     }

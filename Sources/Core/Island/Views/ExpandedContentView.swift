@@ -16,7 +16,22 @@ struct ExpandedContentView: View {
             VStack(spacing: Spacing.s) {
                 Group {
                     if let tab = model.selectedModuleTab {
+                        let hasHeader = tab.headerLeading != nil || tab.headerTrailing != nil
                         IslandTabContent(tab: tab)
+                            .environment(\.tabHeaderIsBesideNotch, hasHeader && model.tabTopInset > 0)
+                            .padding(.top, model.tabTopInset)
+                            .overlay(alignment: .top) {
+                                if hasHeader, model.tabTopInset > 0 {
+                                    // Beside the camera housing, never under it.
+                                    HStack(spacing: 0) {
+                                        tab.headerLeading?.view().frame(maxWidth: .infinity, alignment: .leading)
+                                        Color.clear.frame(width: model.headerNotchGap)
+                                        tab.headerTrailing?.view().frame(maxWidth: .infinity, alignment: .trailing)
+                                    }
+                                    .foregroundStyle(.white)
+                                    .frame(height: model.headerHeight)
+                                }
+                            }
                     } else if let record = model.expandedActivity {
                         ActivityExpandedView(record: record, housing: model.housingSize)
                     } else {
@@ -24,7 +39,7 @@ struct ExpandedContentView: View {
                     }
                 }
                 .id(pageKey)
-                .transition(AnyTransition(.blurReplace).combined(with: .opacity))
+                .transition(model.accessibility.reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .opacity))
                 if model.showsTabBar {
                     // Page dots only mean something on the Island tab.
                     HStack(spacing: Spacing.m) {

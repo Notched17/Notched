@@ -32,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             openSettings: { windows.showSettings() },
             pauseIsland: { environment.settings.isPaused = true }
         )
+        IslandHotkey.install { environment.islands.showTab(ExpandedTabs.islandID, focus: true) }
         statusItemController = StatusItemController(environment: environment, windows: windows)
         environment.start()
         for url in pendingURLs { URLRouter.handle(url, environment: environment, windows: windows) }

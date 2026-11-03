@@ -189,13 +189,21 @@ final class IslandViewModel {
     /// it never resizes during interaction), so a taller tab (the Terminal)
     /// enlarges it when the tab is added, not when it is shown.
     var maxExpandedHeight: CGFloat {
-        headerHeight + max(IslandMetrics.expandedMaxContentHeight, tabs.compactMap(\.maxContentHeight).max() ?? 0)
+        headerHeight + max(IslandMetrics.expandedMaxContentHeight,
+                           tabs.map { ($0.maxContentHeight ?? IslandMetrics.expandedMaxContentHeight) + tabTopInset }.max() ?? 0)
     }
 
     /// The height limit of the island showing `tab` (the usual one unless it asks for more).
     func maxExpandedHeight(for tab: IslandTab?) -> CGFloat {
-        headerHeight + (tab?.maxContentHeight ?? IslandMetrics.expandedMaxContentHeight)
+        guard let tab else { return headerHeight + IslandMetrics.expandedMaxContentHeight }
+        return headerHeight + (tab.maxContentHeight ?? IslandMetrics.expandedMaxContentHeight) + tabTopInset
     }
+
+    /// A module tab starts below the camera housing's row on a notched display,
+    /// so nothing is hidden behind the notch (activities place their regions
+    /// beside it, and Home has the clock row there; tabs are plain content).
+    /// The tab's height budget grows by the same amount.
+    var tabTopInset: CGFloat { geometry.kind == .notch ? headerHeight : 0 }
 
     /// Measured content height of each expanded page, so a page that was shown
     /// before opens at the right size straight away.
@@ -464,6 +472,12 @@ final class IslandViewModel {
     var headerNotchGap: CGFloat {
         guard geometry.kind == .notch, let notch = geometry.hardwareNotch else { return 0 }
         return notch.width + 2 * Spacing.s
+    }
+
+    /// Whether a tab's top content may wrap around the camera housing right now.
+    var notchWrap: NotchWrap? {
+        NotchWrap.make(isNotch: geometry.kind == .notch, theme: theme, scale: expandedScale,
+                       headerHeight: headerHeight, notchGap: headerNotchGap)
     }
 
     /// Horizontal inset of expanded content from the island's edges.

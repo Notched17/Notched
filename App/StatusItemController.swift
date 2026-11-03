@@ -30,6 +30,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.delegate = self
         menu.autoenablesItems = false
 
+        // A way in for keyboard and VoiceOver users: the island otherwise opens on hover or a click.
+        menu.addItem(ClosureMenuItem(title: "Open Island") { [weak self] in self?.environment.islands.showTab(ExpandedTabs.islandID, focus: true) })
         menu.addItem(ClosureMenuItem(title: "Settings…", keyEquivalent: ",") { [weak self] in self?.windows.showSettings() })
         pauseItem.target = self
         menu.addItem(pauseItem)

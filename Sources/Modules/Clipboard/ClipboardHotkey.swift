@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import Foundation
 import KeyboardShortcuts
 
 extension KeyboardShortcuts.Name {
-    /// Opens clipboard history. ⌘⇧V by default; changeable in Settings.
-    static let clipboardHistory = Self("clipboardHistory", default: .init(.v, modifiers: [.command, .shift]))
+    /// Opens clipboard history. ⌃⇧V by default; changeable in Settings. (⌘⇧V,
+    /// the first default, is Paste and Match Style in many apps.)
+    static let clipboardHistory = Self("clipboardHistory", default: ClipboardHotkey.defaultShortcut)
 }
 
 /// The one place that talks to KeyboardShortcuts (sindresorhus, MIT), which
@@ -16,11 +18,28 @@ extension KeyboardShortcuts.Name {
 /// The log lines (no clipboard content) show how far a key press got.
 @MainActor
 enum ClipboardHotkey {
+    nonisolated static let defaultShortcut = KeyboardShortcuts.Shortcut(.v, modifiers: [.control, .shift])
+    nonisolated static let firstDefault = KeyboardShortcuts.Shortcut(.v, modifiers: [.command, .shift])
+    static let migrationKey = "clipboard.hotkeyMovedFromCommandShiftV"
+
+    /// The library stores the default it was first given, so changing the default
+    /// doesn't reach a Mac that already ran the old one. A shortcut still on the
+    /// old default (never changed by the user) moves to the new one, once.
+    /// Anything else the user picked is left alone.
+    static func migrateOldDefault(defaults: UserDefaults = .standard) {
+        guard !defaults.bool(forKey: migrationKey) else { return }
+        defaults.set(true, forKey: migrationKey)
+        if KeyboardShortcuts.getShortcut(for: .clipboardHistory) == firstDefault {
+            KeyboardShortcuts.setShortcut(defaultShortcut, for: .clipboardHistory)
+        }
+    }
+
     private static var action: (@MainActor () -> Void)?
     private static var isHandlerRegistered = false
     private static let log = Log.module("clipboard")
 
     static func install(_ action: @escaping @MainActor () -> Void) {
+        migrateOldDefault()
         self.action = action
         if !isHandlerRegistered {
             isHandlerRegistered = true

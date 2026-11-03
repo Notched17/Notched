@@ -28,16 +28,15 @@ enum ExpandedKeyCommand: Equatable, Sendable {
 enum ExpandedTabs {
     /// The built-in tab. Module tabs can't use this id.
     static let islandID = "island"
-    /// Module tabs beyond this don't fit the island's width.
-    static let maxModuleTabs = 4
 
     /// The module tabs in display order: by `order`, then the module
     /// catalogue's order, then id. A repeated id keeps the first; the
-    /// reserved id is dropped; only `maxModuleTabs` are kept.
+    /// reserved id is dropped. Every tab is kept: the bar shows them side by
+    /// side (and scrolls if a future set ever outgrows the island).
     static func arrange(_ entries: [TabEntry], moduleOrder: [String], layout: TabLayout = .default) -> [TabEntry] {
         let rank = { (id: String) in moduleOrder.firstIndex(of: id) ?? Int.max }
-        // The user's layout first: hidden tabs go (and so don't take one of the four places),
-        // listed tabs come in their order, the rest by their own order.
+        // The user's layout first: hidden tabs go, listed tabs come in their
+        // order, the rest by their own order.
         let sorted = entries
             .filter { $0.id != islandID && !layout.isHidden($0.id) }
             .sorted { (lhs, rhs) in
@@ -48,7 +47,6 @@ enum ExpandedTabs {
         var result: [TabEntry] = []
         for entry in sorted where seen.insert(entry.id).inserted {
             result.append(entry)
-            if result.count == maxModuleTabs { break }
         }
         return result
     }

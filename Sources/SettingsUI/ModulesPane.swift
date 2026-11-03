@@ -11,6 +11,8 @@ struct ModulesPane: View {
     let registry: ModuleRegistry
     let permissions: PermissionCenter
     let accessibility: AccessibilityOptions
+    /// Lock Screen is the one module that asks first (ADR-0031 §1).
+    @State private var confirmingLockScreen = false
 
     var body: some View {
         NavigationStack(path: $navigation.modulePath) {
@@ -60,8 +62,7 @@ struct ModulesPane: View {
                 }
                 Section {
                     ForEach(modules) { module in
-                        ModuleRow(module: module, isOn: ModuleToggle.binding(for: module, settings: settings, permissions: permissions,
-                                                                             registry: registry))
+                        ModuleRow(module: module, isOn: binding(for: module))
                             // Nothing runs in safe mode; Resume Modules above is the way out.
                             .disabled(registry.isSafeMode)
                             .contextMenu { pinMenu(for: module) }
@@ -102,6 +103,29 @@ struct ModulesPane: View {
             }
         }
         .formStyle(.grouped)
+        .confirmationDialog("Show a card on the lock screen?", isPresented: $confirmingLockScreen, titleVisibility: .visible) {
+            Button("Turn On") {
+                settings.lockScreen.lastOffReason = nil
+                if let module = modules.first(where: { $0.id == LockScreenModule.descriptor.id }) {
+                    ModuleToggle.binding(for: module, settings: settings, permissions: permissions, registry: registry).wrappedValue = true
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This is experimental and uses a private macOS feature, so a macOS update can stop it working. It never takes the keyboard, so you can always type your password, and it turns itself off if anything goes wrong. If the lock screen ever looks wrong, type your password as usual, then switch it off from the menu bar item or its options.")
+        }
+    }
+
+    /// The usual switch, except that turning Lock Screen on asks first.
+    private func binding(for module: ModuleDescriptor) -> Binding<Bool> {
+        let usual = ModuleToggle.binding(for: module, settings: settings, permissions: permissions, registry: registry)
+        guard module.id == LockScreenModule.descriptor.id else { return usual }
+        return Binding(
+            get: { usual.wrappedValue },
+            set: { isOn in
+                if isOn { confirmingLockScreen = true } else { usual.wrappedValue = false }
+            }
+        )
     }
 
     /// Right-click a module to pin it above the rest (see Priority).

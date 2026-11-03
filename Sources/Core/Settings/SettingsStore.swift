@@ -166,6 +166,7 @@ final class SettingsStore {
     let reminders: RemindersSettings
     let weather: WeatherSettings
     let terminal: TerminalSettings
+    let lockScreen: LockScreenSettings
 
     var enabledModules: Set<ModuleID> {
         didSet { defaults.set(enabledModules.map(\.rawValue).sorted(), forKey: Key.enabledModules) }
@@ -210,6 +211,7 @@ final class SettingsStore {
         reminders = RemindersSettings(defaults: defaults)
         weather = WeatherSettings(defaults: defaults)
         terminal = TerminalSettings(defaults: defaults)
+        lockScreen = LockScreenSettings(defaults: defaults)
         expandOnHover = defaults.object(forKey: Key.expandOnHover) as? Bool ?? true
         hapticsEnabled = defaults.object(forKey: Key.hapticsEnabled) as? Bool ?? true
         notchTheme = defaults.string(forKey: Key.notchTheme).flatMap(IslandTheme.init(rawValue:)) ?? .notchBlack

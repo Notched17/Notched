@@ -9,6 +9,7 @@ import SwiftUI
 /// The position is worked out from the timeline. It redraws twice a second,
 /// and only while the island is expanded and the media is playing.
 struct MediaScrubber: View {
+    @Environment(\.islandReduceMotion) private var reduceMotion
     let timeline: PlaybackTimeline
     var tint: Color = .white
     let onSeek: (TimeInterval) -> Void
@@ -57,7 +58,7 @@ struct MediaScrubber: View {
                         lastSeek = (target, Date())
                         if let time = timeline.time(forFraction: target) { onSeek(time) }
                     })
-                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: active)
+                .animation(reduceMotion ? Motion.reduced : .spring(response: 0.3, dampingFraction: 0.8), value: active)
             }
             .frame(height: 16)
             .onHover { isHovering = $0 }

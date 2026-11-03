@@ -10,6 +10,7 @@ import SwiftUI
 /// Album artwork in a continuous-corner square (or a circle in a bubble).
 /// A new track blurs in; missing artwork shows a quiet note glyph.
 struct MediaArtworkView: View {
+    @Environment(\.islandReduceMotion) private var reduceMotion
     let model: MediaModel
     var size: CGFloat
     var circular = false
@@ -27,12 +28,12 @@ struct MediaArtworkView: View {
                         Rectangle().fill(.white.opacity(0.14))
                         Image(systemName: "music.note")
                             .font(.system(size: size * 0.46, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.7))
+                            .dimmedText(0.7)
                     }
                 }
             }
             .id(ArtworkIdentity(track: model.trackKey, hasArtwork: model.artwork != nil))
-            .transition(AnyTransition(.blurReplace).combined(with: .opacity))
+            .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .opacity))
         }
         .frame(width: size, height: size)
         .clipShape(shape)
@@ -84,48 +85,135 @@ struct MediaMinimalView: View {
     }
 }
 
-/// Title, then artist with the source app's icon, under the camera housing.
+/// Title, then artist and album.
 struct MediaTitleBlock: View {
     let model: MediaModel
 
     var body: some View {
         let snapshot = model.snapshot
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 1) {
             Text(snapshot?.title ?? "")
-                .font(IslandFont.title)
+                .font(.system(size: 17, weight: .semibold))
                 .lineLimit(1)
-            HStack(spacing: 5) {
-                if let icon = model.sourceIcon {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .frame(width: 14, height: 14)
-                        .accessibilityHidden(true)
-                }
-                Text(snapshot?.artist ?? model.sourceName ?? "")
-                    .font(IslandFont.subtitle)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+            Text(subtitle(snapshot))
+                .font(.system(size: 12))
+                .dimmedText(0.7)
+                .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    private func subtitle(_ snapshot: NowPlayingSnapshot?) -> String {
+        let parts = [snapshot?.artist, snapshot?.album].compactMap { $0 }.filter { !$0.isEmpty }
+        return parts.isEmpty ? (model.sourceName ?? "") : parts.joined(separator: " · ")
+    }
 }
 
-/// Scrubber, transport controls and (later) the current lyric line.
-struct MediaExpandedBottom: View {
+/// The app playing it, beside the camera housing: its icon and name. Opens the app.
+struct MediaSourceLabel: View {
     let model: MediaModel
 
     var body: some View {
-        VStack(spacing: Spacing.xs) {
-            if let snapshot = model.snapshot {
-                MediaScrubber(timeline: snapshot.timeline, tint: .white) { model.actions.send(.seek($0)) }
+        Button { model.actions.openSource() } label: {
+            HStack(spacing: 6) {
+                if let icon = model.sourceIcon {
+                    Image(nsImage: icon).resizable().frame(width: 16, height: 16).accessibilityHidden(true)
+                }
+                Text(model.sourceName ?? "Now Playing")
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
             }
-            MediaControlsRow(model: model)
-            if model.lyrics != nil {
-                MediaLyricLine(model: model)
-                    .padding(.top, Spacing.xxs)
-            }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .help("Open \(model.sourceName ?? "the app")")
+        .accessibilityLabel("Open \(model.sourceName ?? "the app")")
+    }
+}
+
+/// Where it is playing and the waveform, beside the camera housing's right side.
+struct MediaOutputBadge: View {
+    let model: MediaModel
+    var showsBars: Bool
+
+    var body: some View {
+        // The waveform goes first when the room beside the notch is tight (Expanded size 85%).
+        ViewThatFits(in: .horizontal) {
+            row(showsBars: showsBars)
+            row(showsBars: false)
+        }
+    }
+
+    private func row(showsBars: Bool) -> some View {
+        HStack(spacing: 6) {
+            // Opens the lyrics tab; stays while the tab is open, so it can be closed from here too.
+            if model.lyrics != nil || model.isLyricsPanelOpen {
+                MediaControlButton(symbol: model.isLyricsPanelOpen ? "quote.bubble.fill" : "quote.bubble",
+                                   label: model.isLyricsPanelOpen ? "Close Lyrics" : "Show Lyrics", size: 12,
+                                   tint: .white.opacity(model.isLyricsPanelOpen ? 1 : 0.75)) { model.actions.toggleLyrics() }
+            }
+            if let output = model.outputs?.current {
+                Image(systemName: output.symbol)
+                    .font(.system(size: 13))
+                    .dimmedText(0.7)
+                    .accessibilityLabel("Playing on \(output.name)")
+            }
+            if showsBars { MediaBarsView(model: model, height: 14, barCount: 4, barWidth: 3) }
+        }
+    }
+}
+
+/// The artwork beside the title, scrubber and controls, tinted from the cover.
+struct MediaExpandedBody: View {
+    let model: MediaModel
+    static let artworkSize: CGFloat = 82
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Button { model.actions.openSource() } label: {
+                MediaArtworkView(model: model, size: Self.artworkSize)
+                    // The cover's colour spreads out of all four sides, soft and wide, as on
+                    // Spotify: a stronger, tighter glow centred on the cover, and a faint
+                    // wide wash that carries on to the right, past the camera housing.
+                    .background {
+                        if model.artwork != nil, model.showsGlow {
+                            ZStack {
+                                Ellipse()
+                                    .fill(model.tint.opacity(0.265))
+                                    .frame(width: 640, height: Self.artworkSize * 2.6)
+                                    .blur(radius: 60)
+                                    .offset(x: 250)
+                                // A bridge between the glow at the cover and the wide wash, so
+                                // the colour runs on to the right without a step in it.
+                                Ellipse()
+                                    .fill(model.tint.opacity(0.22))
+                                    .frame(width: 340, height: Self.artworkSize * 2.3)
+                                    .blur(radius: 48)
+                                    .offset(x: 105)
+                                Circle()
+                                    .fill(model.tint.opacity(0.345))
+                                    .frame(width: Self.artworkSize * 2.2, height: Self.artworkSize * 2.2)
+                                    .blur(radius: 34)
+                            }
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                        }
+                    }
+            }
+            .buttonStyle(.plain)
+            .help("Open \(model.sourceName ?? "the app")")
+            VStack(alignment: .leading, spacing: 0) {
+                MediaTitleBlock(model: model)
+                Spacer(minLength: 2)
+                if let snapshot = model.snapshot {
+                    MediaScrubber(timeline: snapshot.timeline, tint: .white) { model.actions.send(.seek($0)) }
+                }
+                MediaControlsRow(model: model)
+            }
+            .frame(height: Self.artworkSize)
+        }
+        // The cover's glow lights the notch's edge, so the title needs a little air below it.
+        .padding(.top, IslandMetrics.expandedNotchGap)
     }
 }
 
@@ -153,8 +241,7 @@ struct MediaControlsRow: View {
                     }
                 }
                 MediaControlButton(symbol: "backward.fill", label: "Previous", size: 18) { model.actions.send(.previous) }
-                MediaControlButton(symbol: model.isPlaying ? "pause.fill" : "play.fill", label: model.isPlaying ? "Pause" : "Play",
-                                   size: 24) { model.actions.send(.togglePlayPause) }
+                MediaPlayButton(isPlaying: model.isPlaying) { model.actions.send(.togglePlayPause) }
                 MediaControlButton(symbol: "forward.fill", label: "Next", size: 18) { model.actions.send(.next) }
                 if skips, let snapshot = model.snapshot {
                     MediaControlButton(symbol: "goforward.15", label: "Forward 15 Seconds", size: 17) {
@@ -191,6 +278,27 @@ struct MediaControlsRow: View {
     }
 }
 
+/// Play or pause: a white circle with a black glyph, the one filled control.
+struct MediaPlayButton: View {
+    let isPlaying: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(.black)
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 32, height: 32)
+                .background(.white, in: .circle)
+                .contentShape(Circle())
+        }
+        .buttonStyle(MediaPressStyle())
+        .help(isPlaying ? "Pause" : "Play")
+        .accessibilityLabel(isPlaying ? "Pause" : "Play")
+    }
+}
+
 /// A borderless transport control. Pressing it shows a soft circle, as on
 /// the iPhone Live Activity.
 struct MediaControlButton: View {
@@ -216,6 +324,7 @@ struct MediaControlButton: View {
 }
 
 private struct MediaPressStyle: ButtonStyle {
+    @Environment(\.islandReduceMotion) private var reduceMotion
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .background {
@@ -224,6 +333,6 @@ private struct MediaPressStyle: ButtonStyle {
                     .padding(-2)
             }
             .scaleEffect(configuration.isPressed ? 0.9 : 1)
-            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+            .animation(reduceMotion ? Motion.reduced : .spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }

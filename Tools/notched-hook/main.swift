@@ -9,7 +9,7 @@ import Foundation
 // timeout, a bad reply) it prints nothing and exits 0, which makes Claude
 // Code carry on and ask in its own prompt. Foundation only.
 
-let helperVersion = 1
+let helperVersion = 2
 let environment = ProcessInfo.processInfo.environment
 let debug = environment["NOTCHED_HOOK_DEBUG"] == "1"
 
@@ -43,10 +43,29 @@ guard let tokenData = try? Data(contentsOf: support.appendingPathComponent("clau
       !token.isEmpty else { giveUp("no token") }
 
 guard let url = URL(string: "http://127.0.0.1:\(port)/v1/claude/hook") else { giveUp("bad url") }
+
+/// The app Claude Code runs in, so Notched's "Open Terminal" can bring it forward: the hook inherits
+/// the shell's environment, where macOS sets `__CFBundleIdentifier` for apps started from a bundle.
+func terminalBundleID() -> String? {
+    func plausible(_ id: String) -> Bool {
+        (3...120).contains(id.count) && id.contains(".")
+            && id.unicodeScalars.allSatisfy { $0.isASCII && (CharacterSet.alphanumerics.contains($0) || ".-_".unicodeScalars.contains($0)) }
+    }
+    if let id = environment["__CFBundleIdentifier"], plausible(id) { return id }
+    let byProgram = ["Apple_Terminal": "com.apple.Terminal", "iTerm.app": "com.googlecode.iterm2", "ghostty": "com.mitchellh.ghostty",
+                     "WezTerm": "com.github.wez.wezterm", "vscode": "com.microsoft.VSCode", "WarpTerminal": "dev.warp.Warp-Stable"]
+    return environment["TERM_PROGRAM"].flatMap { byProgram[$0] }
+}
+var body = input
+if input.count < maxInput - 512, let terminal = terminalBundleID() {
+    var withTerminal = payload
+    withTerminal["notched_terminal"] = terminal
+    if let data = try? JSONSerialization.data(withJSONObject: withTerminal) { body = data }
+}
 let waitsForAnswer = eventName == "PermissionRequest"
 var request = URLRequest(url: url)
 request.httpMethod = "POST"
-request.httpBody = input
+request.httpBody = body
 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization")
 // Whatever answers on the port must prove it knows the token (see APIToken.proof), so an impostor

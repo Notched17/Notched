@@ -13,8 +13,9 @@ import AppKit
 /// lab?demo=music|call|agent|download&do=start|end|stale|hide|unhide|primary,
 /// lab?banner=charging, lab?run=full, lab?do=end-all, lab?download=0.74,
 /// page?id=home|music|call|agent|download (expand to that page), tab?id=hello.demo|island (expand and pick a tab),
+/// scale?value=0.85...1.25 (sets the Appearance "Expanded size" factor; it is saved like the slider),
 /// setting?multiple=bubbles|sideBySide&click=open|expand&alerts=0|1&keyline=0|1, close-windows,
-/// media?on=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly&lyrics=0|1&ticker=0|1
+/// media?on=0|1&glow=0|1&fakeLyrics=0|1&lyricsPanel=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly&lyrics=0|1
 /// &visualizer=animated|still|off, page?id=media, settings?module=media, quit,
 /// module?id=<module>&on=0|1, crash-at-start?on=0|1 (Hello crashes while starting),
 /// sensors?camera=1&apps=Zoom,Voice%20Memos&unnamed=1&callapps=us.zoom.xos&claims=Zoom|0 (a simulated camera and microphone reading),
@@ -41,6 +42,10 @@ enum DebugCommands {
         case "expand": environment.islands.expandAll()
         case "collapse": environment.islands.collapseAll()
         case "pill": environment.settings.debugForcePill = on
+        case "scale":
+            if let value = query(url, "value").flatMap(Double.init) {
+                environment.settings.expandedScale = value  // clamped by the store to 0.85...1.25
+            }
         case "appearance":
             switch query(url, "mode") {
             case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
@@ -75,6 +80,8 @@ enum DebugCommands {
             // Closes Settings and onboarding without finishing onboarding (for clean measurements).
             for window in NSApp.windows where window.isVisible && window.styleMask.contains(.titled) { window.close() }
         case "page":
+            // A page is on the Island tab: leave whichever module tab was last shown.
+            for controller in environment.islands.controllers.values { controller.model.selectedTab = ExpandedTabs.islandID }
             if let panel = query(url, "panel") {
                 environment.islands.openHomeAction(panel)
                 return
@@ -90,8 +97,7 @@ enum DebugCommands {
         case "tab":
             // tab?id=<tab id> (island shows the Island tab): expands, then picks that tab.
             let tab = query(url, "id") ?? ExpandedTabs.islandID
-            environment.islands.expandAll(to: .home)
-            for controller in environment.islands.controllers.values { controller.model.selectTab(tab) }
+            environment.islands.showTab(tab, focus: false)
         case "module":
             if let id = query(url, "id").map({ ModuleID($0) }) {
                 if on { environment.settings.enabledModules.insert(id) } else { environment.settings.enabledModules.remove(id) }
@@ -151,8 +157,8 @@ enum DebugCommands {
             environment.modules.reconcile(enabled: environment.settings.enabledModules)
         }
         if let backend = query(url, "backend").flatMap(BackendPreference.init(rawValue:)) { environment.settings.media.backend = backend }
+        if let glow = query(url, "glow") { environment.settings.media.showGlow = glow == "1" }
         if let lyrics = query(url, "lyrics") { environment.settings.media.lyricsEnabled = lyrics == "1" }
-        if let ticker = query(url, "ticker") { environment.settings.media.lyricsTicker = ticker == "1" }
         if let style = query(url, "visualizer").flatMap(VisualizerStyle.init(rawValue:)) { environment.settings.media.visualizer = style }
         guard let module = environment.modules.module(MediaModule.descriptor.id) as? MediaModule else { return }
         if let adapter = query(url, "adapter") { module.service.simulateAdapterFailure = adapter == "fail" }
@@ -160,6 +166,8 @@ enum DebugCommands {
             // Popped up from a later turn of the run loop, so this URL handler returns first.
             Task { OutputMenu.show(outputs, cancelAfter: .seconds(seconds)) }
         }
+        if let fake = query(url, "fakeLyrics") { module.debugShowFakeLyrics(fake == "1") }
+        if let panel = query(url, "lyricsPanel") { module.debugSetLyricsPanel(open: panel == "1") }
         switch query(url, "lifecycle") {
         case "fast": module.debugLifecycle = MediaLifecycle(staleAfter: 10, endAfter: 30)
         case "default": module.debugLifecycle = nil

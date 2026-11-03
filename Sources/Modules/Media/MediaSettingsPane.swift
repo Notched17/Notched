@@ -30,6 +30,7 @@ struct MediaSettingsPane: View {
                 Picker("Visualiser", selection: $settings.visualizer) {
                     ForEach(VisualizerStyle.allCases) { Text($0.title).tag($0) }
                 }
+                Toggle("Glow behind the cover", isOn: $settings.showGlow)
                 Toggle("Briefly expand when the track changes", isOn: $settings.expandOnTrackChange)
                 Picker("Dim after pausing for", selection: $settings.staleAfterMinutes) {
                     ForEach(MediaSettings.staleAfterChoices, id: \.self) { Text(Self.minutes($0)).tag($0) }
@@ -41,8 +42,6 @@ struct MediaSettingsPane: View {
 
             Section {
                 Toggle("Show synced lyrics", isOn: $settings.lyricsEnabled)
-                Toggle("Show the current line beside the notch", isOn: $settings.lyricsTicker)
-                    .disabled(!settings.lyricsEnabled)
             } header: {
                 Text("Lyrics")
             } footer: {

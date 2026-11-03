@@ -64,21 +64,29 @@ struct HookInstaller {
         return .success(text)
     }
 
-    func status(approvalWait: Int) -> ClaudeSettingsMerger.Status {
+    func status(approvalWait: Int, activity: Bool = false) -> ClaudeSettingsMerger.Status {
         guard case .success(let text) = readSettings() else { return .notInstalled }
-        return ClaudeSettingsMerger.status(of: text, command: cliURL.path, approvalWait: approvalWait)
+        let status = ClaudeSettingsMerger.status(of: text, command: cliURL.path, approvalWait: approvalWait, activity: activity)
+        // The settings are right but the helper is an older build: it needs updating too.
+        return status == .installed && !cliIsCurrent ? .outdated : status
     }
 
     var cliIsInstalled: Bool { FileManager.default.isExecutableFile(atPath: cliURL.path) }
 
+    /// The installed helper is the one bundled with this Notched (or there is no bundled one to compare with).
+    var cliIsCurrent: Bool {
+        guard let bundledCLI, let bundled = try? Data(contentsOf: bundledCLI) else { return true }
+        return (try? Data(contentsOf: cliURL)) == bundled
+    }
+
     // MARK: Planning
 
-    func planInstall(approvalWait: Int) -> Result<Plan, InstallError> {
+    func planInstall(approvalWait: Int, activity: Bool = false) -> Result<Plan, InstallError> {
         guard case .success(let text) = readSettings() else {
             if case .failure(let error) = readSettings() { return .failure(error) }
             return .failure(.message("Couldn't read settings.json."))
         }
-        switch ClaudeSettingsMerger.install(into: text, command: cliURL.path, approvalWait: approvalWait) {
+        switch ClaudeSettingsMerger.install(into: text, command: cliURL.path, approvalWait: approvalWait, activity: activity) {
         case .failure(let error): return .failure(.message(error.message))
         case .success(let merged):
             return .success(Plan(kind: .install, oldText: text, newData: Data(merged.utf8),

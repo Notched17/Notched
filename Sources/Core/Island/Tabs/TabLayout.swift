@@ -6,8 +6,7 @@ import SwiftUI   // Array.move(fromOffsets:toOffset:), the way onMove reports a 
 /// The user's choice of expanded tabs (#71): which show, and in what order.
 /// Pure and saved as JSON.
 ///
-/// Hidden tabs don't count toward the bar's limit of four module tabs, which
-/// is what lets the user choose which four to have. A tab that isn't listed in
+/// Hidden tabs are left out of the bar. A tab that isn't listed in
 /// `order` (a module added later) goes after the listed ones in its default order.
 struct TabLayout: Equatable, Codable, Sendable {
     static let `default` = TabLayout()

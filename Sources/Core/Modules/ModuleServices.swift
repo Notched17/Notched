@@ -19,10 +19,14 @@ struct ModuleServices {
     let islandCommands: IslandCommands
     /// The shared Today tab: calendar, reminders and weather add sections to it.
     let today: TodayHub
+    /// What Now Playing is showing, for modules that mirror it (the lock-screen card).
+    let nowPlaying: NowPlayingShelf
 
     init(audioOutputs: AudioOutputService = AudioOutputService(), sensors: SensorUsageService = SensorUsageService(),
          permissions: PermissionCenter? = nil, presence: IslandPresence? = nil, api: APIGateway = APIGateway(),
-         islandCommands: IslandCommands = IslandCommands(), today: TodayHub = TodayHub()) {
+         islandCommands: IslandCommands = IslandCommands(), today: TodayHub = TodayHub(),
+         nowPlaying: NowPlayingShelf = NowPlayingShelf()) {
+        self.nowPlaying = nowPlaying
         self.api = api
         self.islandCommands = islandCommands
         self.today = today

@@ -149,6 +149,7 @@ private struct TimerTime: View {
         .foregroundStyle(TimersPresentation.tint)
         .multilineTextAlignment(.trailing)
         .lineLimit(1)
+        .minimumScaleFactor(0.6)  // Shrinks rather than truncating at a small Expanded size.
     }
 }
 
@@ -170,6 +171,7 @@ private struct StopwatchTime: View {
         .monospacedDigit()
         .foregroundStyle(TimersPresentation.tint)
         .lineLimit(1)
+        .minimumScaleFactor(0.6)
     }
 }
 

@@ -30,3 +30,7 @@ The expanded island paged between activities and Home. M4a adds an "AI" view (Cl
 
 - `ExpandedTabsTests` and `IslandTabHostTests` pin ordering, the cap, selection fallback, key mapping, and the alert override.
 - The pager still has no `accessibilityAdjustableAction`; the page dots are a plain label, as before. Not a regression, and not fixed here.
+
+## Amendment (3 Nov 2026): no tab cap
+
+The limit of four module tabs is gone. Charlie checked that the expanded island has room for many more segments, so every enabled tab now shows, side by side (`ExpandedTabs.arrange` keeps them all). The bar is a `ViewThatFits`: if a set of tabs ever outgrows the island, it scrolls sideways instead of overflowing. Hiding a tab in the layout editor still leaves it out. The ADR-0028 note about hidden tabs freeing one of four places no longer applies.

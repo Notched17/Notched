@@ -35,6 +35,8 @@ final class MediaModule: IslandModule {
     /// Exists only while lyrics are on, so nothing can look lyrics up otherwise (ADR-0009).
     private var lyricsStore: LyricsStore?
     private var lyricsTask: Task<Void, Never>?
+    /// The lyrics tab, while it is open. Created on first use, closed when the module stops.
+    private var lyricsPanel: LyricsPanelController?
     #if DEBUG
     /// Seconds instead of minutes, to check the paused lifecycle quickly.
     var debugLifecycle: MediaLifecycle?
@@ -57,7 +59,8 @@ final class MediaModule: IslandModule {
         model.actions = MediaActions(
             send: { [weak self] command in self?.service.send(command) },
             toggleLike: { [weak self] in self?.toggleLike() },
-            openSource: { [weak self] in self?.openSource() }
+            openSource: { [weak self] in self?.openSource() },
+            toggleLyrics: { [weak self] in self?.toggleLyricsPanel() }
         )
         endTimer.action = { [weak self] in self?.refresh() }
         frontmostBundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
@@ -69,6 +72,7 @@ final class MediaModule: IslandModule {
         model.onArtworkChange = { [weak self] in self?.refresh(force: true) }
         outputs.acquire()
         holdsOutputs = true
+        context.services.nowPlaying.publish(model)
         observeSettings()
         observeService()
         service.start()
@@ -76,11 +80,14 @@ final class MediaModule: IslandModule {
 
     func stop() {
         isRunning = false
+        lyricsPanel?.close(animated: false)
+        lyricsPanel = nil
         observers.invalidate()
         endTimer.schedule(at: nil)
         likeTask?.cancel()
         applyLyricsSetting(false)
         service.stop()
+        context.services.nowPlaying.withdraw()
         model.outputs = nil
         if holdsOutputs {
             holdsOutputs = false
@@ -112,7 +119,7 @@ final class MediaModule: IslandModule {
             service.preference = settings.backend
             service.ignoredApps = settings.ignoredApps
             model.visualizer = settings.visualizer
-            model.lyricsTicker = settings.lyricsTicker
+            model.showsGlow = settings.showGlow
             _ = settings.staleAfterMinutes
             _ = settings.endAfterMinutes
             return settings.lyricsEnabled
@@ -249,14 +256,39 @@ final class MediaModule: IslandModule {
             let lyrics = await store.lyrics(for: snapshot)
             guard !Task.isCancelled, let self, self.model.trackKey == track else { return }
             self.model.lyrics = lyrics.flatMap { $0.lines.isEmpty ? nil : $0 }
-            // The compact side may switch between the bars and the ticker.
-            if self.settings.lyricsTicker, self.reducer.state.isPosted, let current = self.service.snapshot {
-                self.post(current, alert: nil)
-            }
         }
     }
 
     // MARK: Actions
+
+    /// The lyrics tab: a card under the island that stays until it is closed (#13).
+    func toggleLyricsPanel() {
+        if lyricsPanel == nil { lyricsPanel = LyricsPanelController(model: model) }
+        lyricsPanel?.toggle()
+    }
+
+    #if DEBUG
+    /// Screenshots: opens or closes the lyrics tab.
+    func debugSetLyricsPanel(open: Bool) {
+        if lyricsPanel == nil { lyricsPanel = LyricsPanelController(model: model) }
+        if open != (lyricsPanel?.isOpen ?? false) { lyricsPanel?.toggle() }
+    }
+
+    /// Screenshots: gives the current track made-up lyrics (long and short lines, one every few
+    /// seconds from now), without a lookup, so the lyric views can be checked on any track.
+    func debugShowFakeLyrics(_ on: Bool) {
+        guard on, let current = service.snapshot else { model.lyrics = nil; return }
+        var time = current.timeline.elapsed(at: .now) - 0.5
+        let texts = ["Waiting in a car, waiting for a ride in the dark", "Short one", "The night city grows, look at the horizon glow",
+                     "Oh", "I bag it like groceries, keep some cash flowing over me", "♪",
+                     "Every light a promise, every road a dream", "And the radio plays on", "Until the morning comes around again",
+                     "Hold on", "We were only getting started"]
+        model.lyrics = SyncedLyrics(lines: texts.map { text in
+            defer { time += 5 }
+            return SyncedLyrics.Line(time: time, text: text)
+        })
+    }
+    #endif
 
     private func openSource() {
         guard let bundleID = service.snapshot?.sourceBundleID,
@@ -290,10 +322,7 @@ final class MediaModule: IslandModule {
 enum MediaPresentation {
     static func make(model: MediaModel) -> ActivityPresentation {
         let showsBars = model.visualizer != .off
-        let ticker = model.lyricsTicker && model.lyrics != nil
-        let trailing: IslandRegion? = if ticker {
-            IslandRegion { MediaLyricLine(model: model, compact: true) }
-        } else if showsBars {
+        let trailing: IslandRegion? = if showsBars {
             IslandRegion { MediaBarsView(model: model, height: 14) }
         } else {
             nil
@@ -303,16 +332,10 @@ enum MediaPresentation {
             compactTrailing: trailing,
             minimal: IslandRegion { MediaMinimalView(model: model) },
             expanded: ExpandedPresentation(
-                leading: ExpandedRegion {
-                    // Inset from the screen's top edge, so the artwork's corners show.
-                    Button { model.actions.openSource() } label: { MediaArtworkView(model: model, size: 52) }
-                        .buttonStyle(.plain)
-                        .help("Open \(model.sourceName ?? "the app")")
-                        .padding(.top, 6)
-                },
-                trailing: showsBars ? ExpandedRegion { MediaBarsView(model: model, height: 20, barCount: 5, barWidth: 3) } : nil,
-                center: ExpandedRegion { MediaTitleBlock(model: model) },
-                bottom: ExpandedRegion { MediaExpandedBottom(model: model) }
+                leading: ExpandedRegion { MediaSourceLabel(model: model) },
+                trailing: ExpandedRegion { MediaOutputBadge(model: model, showsBars: showsBars) },
+                center: ExpandedRegion { MediaExpandedBody(model: model) },
+                bottom: model.lyrics != nil ? ExpandedRegion { MediaLyricLine(model: model) } : nil
             )
         )
     }

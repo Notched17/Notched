@@ -128,6 +128,8 @@ final class ClaudeCodeModule: IslandModule {
         guard let event = ClaudeHookEvent.parse(api.request.body) else {
             return .error(400, "invalid_payload", "That isn't a Claude Code hook payload.")
         }
+        // A PreToolUse hook left over from when the setting was on does nothing while it is off.
+        if event.kind == .preToolUse, !settings.showActivity { return .noContent }
         guard event.kind == .permissionRequest else {
             apply(.hook(event, approvalID: nil), now: api.now)
             return .noContent
@@ -154,6 +156,13 @@ final class ClaudeCodeModule: IslandModule {
         return .noContent
     }
 
+    /// Brings the session's terminal forward (or Notched's own Terminal tab, if that is where it runs).
+    func openTerminal(reported: String?) {
+        ClaudeTerminal.open(reported: reported) { [weak self] in
+            self?.context.services.islandCommands.showTab(TerminalModule.tabID, true)
+        }
+    }
+
     func choose(approvalID: String, _ answer: ClaudeSessionsReducer.Answer) {
         apply(.answered(approvalID: approvalID, answer))
     }
@@ -163,7 +172,9 @@ final class ClaudeCodeModule: IslandModule {
         for effect in reducer.reduce(event, now: now) {
             switch effect {
             case .post(let snapshot, let alert):
-                let activity = ClaudePresentation.activity(snapshot) { [weak self] id, answer in self?.choose(approvalID: id, answer) }
+                let terminal = snapshot.terminalApp
+                let activity = ClaudePresentation.activity(snapshot, answer: { [weak self] id, answer in self?.choose(approvalID: id, answer) },
+                                                          openTerminal: { [weak self] in self?.openTerminal(reported: terminal) })
                 context.activities.post(activity, alert: alert ? AlertRequest(duration: .seconds(20), sound: "Glass") : nil)
             case .end(let sessionID, let immediate):
                 context.activities.end(ClaudePresentation.activityID(sessionID), dismissal: immediate ? .immediate : .default)
@@ -189,7 +200,10 @@ final class ClaudeCodeModule: IslandModule {
         return [IslandTab(
             id: Self.tabID, moduleID: Self.descriptor.id, title: "AI", symbol: "sparkles",
             accessibilityLabel: "Claude Code usage", order: 10,
-            onVisibilityChange: { [weak self] visible in self?.tabVisibilityChanged(visible) }
+            onVisibilityChange: { [weak self] visible in self?.tabVisibilityChanged(visible) },
+            maxContentHeight: 200,
+            headerLeading: IslandRegion { ClaudeUsageHeaderLeading() },
+            headerTrailing: IslandRegion { ClaudeUsageHeaderTrailing(model: model) }
         ) { ClaudeAITabView(model: model) }]
     }
 

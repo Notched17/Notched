@@ -197,6 +197,7 @@ private struct BatteryPercent: View {
 
 /// The level as a ring, like the iPhone's Batteries widget.
 private struct BatteryRing: View {
+    @Environment(\.islandReduceMotion) private var reduceMotion
     let model: BatteryModel
     let size: CGFloat
     let lineWidth: CGFloat
@@ -223,7 +224,7 @@ private struct BatteryRing: View {
             }
         }
         .frame(width: size, height: size)
-        .animation(.smooth, value: level)
+        .animation(reduceMotion ? Motion.reduced : .smooth, value: level)
     }
 }
 

@@ -50,6 +50,10 @@ final class TodayHub {
     static let pseudoModuleID = ModuleID("today")
 
     private(set) var sections: [TodaySection] = []
+    /// Sections that are being typed into (the Weather city search). While any
+    /// claims it, the tab captures the keyboard (ADR-0026): Esc, arrows and
+    /// ⌘C/⌘V/⌘A go to the field, and the island stays open while it has focus.
+    private(set) var keyboardClaims: Set<String> = []
     /// Connected by the app to the coordinator's `setTabs`; does nothing in tests.
     @ObservationIgnored var publishTabs: ([IslandTab]) -> Void = { _ in }
 
@@ -63,8 +67,16 @@ final class TodayHub {
     /// Takes away every section a module offered.
     func remove(moduleID: ModuleID) {
         let before = sections.count
+        let removed = Set(sections.filter { $0.moduleID == moduleID }.map(\.id))
         sections.removeAll { $0.moduleID == moduleID }
+        keyboardClaims.subtract(removed)
         if sections.count != before { publish() }
+    }
+
+    /// A section starts or stops being typed into.
+    func claimKeyboard(_ sectionID: String, _ on: Bool) {
+        let changed = on ? keyboardClaims.insert(sectionID).inserted : keyboardClaims.remove(sectionID) != nil
+        if changed, !sections.isEmpty { publish() }
     }
 
     func sections(in slot: TodaySlot) -> [TodaySection] {
@@ -78,7 +90,7 @@ final class TodayHub {
         let hub = self
         publishTabs([IslandTab(
             id: Self.tabID, moduleID: Self.pseudoModuleID, title: "Today", symbol: "calendar",
-            accessibilityLabel: "Today", order: 15
+            accessibilityLabel: "Today", order: 15, capturesKeyboard: !keyboardClaims.isEmpty
         ) { TodayTabView(hub: hub) }])
     }
 }
@@ -112,5 +124,7 @@ struct TodayTabView: View {
         .environment(\.todayRowLimit, layout.rowLimit)
         .environment(\.todayHasColumns, !layout.columns.isEmpty)
         .frame(maxWidth: .infinity, alignment: .topLeading)
+        // Not flush against the camera housing's bottom edge.
+        .padding(.top, IslandMetrics.expandedNotchGap)
     }
 }

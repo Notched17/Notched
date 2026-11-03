@@ -10,6 +10,7 @@ final class ClaudeCodeSettings {
     enum Key {
         static let status = "claudecode.status"
         static let usage = "claudecode.usage"
+        static let activity = "claudecode.activity"
         static let installRecord = "claudecode.hooks.record"
     }
 
@@ -19,6 +20,8 @@ final class ClaudeCodeSettings {
     var statusEnabled: Bool { didSet { defaults.set(statusEnabled, forKey: Key.status) } }
     /// Show the AI tab with token usage.
     var usageEnabled: Bool { didSet { defaults.set(usageEnabled, forKey: Key.usage) } }
+    /// Show what Claude is working on ("Editing session.ts"). Needs the PreToolUse hook, which is installed only while this is on.
+    var showActivity: Bool { didSet { defaults.set(showActivity, forKey: Key.activity) } }
     /// Where `notched-hook` finds its token. Readable only by the user. Tests point it elsewhere.
     @ObservationIgnored var tokenFileURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("Notched/claude-hook.token")
@@ -27,6 +30,7 @@ final class ClaudeCodeSettings {
         self.defaults = defaults
         statusEnabled = defaults.object(forKey: Key.status) as? Bool ?? true
         usageEnabled = defaults.object(forKey: Key.usage) as? Bool ?? true
+        showActivity = defaults.object(forKey: Key.activity) as? Bool ?? false
     }
 
     var installRecord: HookInstallRecord? {

@@ -28,9 +28,13 @@ struct ClaudeCodeSettingsPane: View {
                     Button("Remove Hooks…") { preview(.remove) }.disabled(status == .notInstalled)
                 }
                 Stepper("Wait for your answer: \(api.approvalWait) s", value: $api.approvalWait, in: LocalAPISettings.approvalWaitRange, step: 15)
+                Toggle("Show what Claude is working on", isOn: $settings.showActivity)
+                    .onChange(of: settings.showActivity) { refreshStatus() }
                 if let message { Text(verbatim: message).font(.callout).foregroundStyle(.red) }
             } footer: {
                 Text("Hooks make Claude Code tell Notched what it's doing, and ask it first when it needs permission. If Notched is closed or you don't answer in time, Claude Code asks in the terminal as usual. Notched edits ~/.claude/settings.json only after showing you the change, and keeps a backup.")
+                // Said outright, because it adds a hook that runs before every tool call.
+                Text("“Show what Claude is working on” adds one more hook (PreToolUse) that runs a small helper before each tool call, to show lines like “Editing session.ts” or “Running npm test”. Only a file's name, the first words of a command or a search pattern are used, with secrets masked, and they are visible on your screen. Update the hooks after changing this switch.")
             }
 
             Section {
@@ -60,16 +64,16 @@ struct ClaudeCodeSettingsPane: View {
     private var statusColor: Color { status == .installed ? .green : .secondary }
 
     private func refreshStatus() {
-        status = installer.status(approvalWait: api.approvalWait)
+        status = installer.status(approvalWait: api.approvalWait, activity: settings.showActivity)
     }
 
     private func preview(_ kind: HookInstaller.Plan.Kind) {
         message = nil
-        let result = kind == .install ? installer.planInstall(approvalWait: api.approvalWait) : installer.planRemove(record: settings.installRecord)
+        let result = kind == .install ? installer.planInstall(approvalWait: api.approvalWait, activity: settings.showActivity) : installer.planRemove(record: settings.installRecord)
         switch result {
         case .failure(let error): message = error.text
         case .success(let found):
-            if found.isNoOp && kind == .install && installer.cliIsInstalled { message = "Already installed; nothing to change."; return }
+            if found.isNoOp && kind == .install && installer.cliIsInstalled && installer.cliIsCurrent { message = "Already installed; nothing to change."; return }
             plan = found
         }
     }

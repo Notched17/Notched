@@ -29,6 +29,8 @@ struct ClaudeSessionsReducer: Sendable {
         var toolName: String
         var detail: String
         var suggestion: AlwaysAllowSuggestion?
+        /// The changed lines of an Edit.
+        var changes: [LineDiff.Line] = []
     }
 
     enum Answer: Equatable, Sendable {
@@ -49,6 +51,8 @@ struct ClaudeSessionsReducer: Sendable {
         var lastEvent: Date
         var startOrder: Int
         var approvals: [Approval] = []
+        var activity: ClaudeActivityLine?
+        var terminalApp: String?
         var endAt: Date?
         var lastBanner: Date?
     }
@@ -65,6 +69,10 @@ struct ClaudeSessionsReducer: Sendable {
         var lastEvent: Date
         var approval: Approval?
         var moreApprovals: Int
+        /// The app the session runs in (a bundle id), when the hook said.
+        var terminalApp: String?
+        /// What it is doing right now, while working (needs the PreToolUse hook).
+        var activity: ClaudeActivityLine?
     }
 
     enum Banner: Equatable, Sendable {
@@ -100,7 +108,8 @@ struct ClaudeSessionsReducer: Sendable {
         let name = same.count > 1 ? "\(session.project) (\((same.firstIndex { $0.id == id } ?? 0) + 1))" : session.project
         return Snapshot(sessionID: id, project: session.project, displayName: name, title: session.title, phase: session.phase,
                         since: session.workStartedAt, lastEvent: session.lastEvent, approval: session.approvals.first,
-                        moreApprovals: max(0, session.approvals.count - 1))
+                        moreApprovals: max(0, session.approvals.count - 1), terminalApp: session.terminalApp,
+                        activity: session.phase == .working ? session.activity : nil)
     }
 
     mutating func reduce(_ event: Event, now: Date) -> [Effect] {
@@ -136,6 +145,7 @@ struct ClaudeSessionsReducer: Sendable {
         }
         sessions[id]?.lastEvent = now
         if let title = hook.title { sessions[id]?.title = title }
+        if let terminal = hook.terminalApp { sessions[id]?.terminalApp = terminal }
         var effects: [Effect] = []
 
         switch hook.kind {
@@ -143,16 +153,28 @@ struct ClaudeSessionsReducer: Sendable {
             // A session sitting at its prompt isn't news; nothing to show yet.
             break
 
+        case .preToolUse:
+            // Claude is using a tool. While a permission card is up, that card owns the island.
+            guard sessions[id]?.approvals.isEmpty == true else { break }
+            let before = sessions[id].map { ($0.phase, $0.activity) }
+            if sessions[id]?.phase != .working { sessions[id]?.workStartedAt = now }
+            sessions[id]?.phase = .working
+            sessions[id]?.endAt = nil
+            sessions[id]?.activity = hook.activity
+            // Only a change is worth redrawing the island for.
+            if before?.0 != .working || before?.1 != hook.activity { effects.append(post(id, alert: false)) }
+
         case .userPromptSubmit:
             if sessions[id]?.phase != .working { sessions[id]?.workStartedAt = now }
             sessions[id]?.phase = .working
+            sessions[id]?.activity = nil
             sessions[id]?.endAt = nil
             effects.append(post(id, alert: false))
 
         case .permissionRequest:
             guard let approvalID else { break }
             if sessions[id]?.workStartedAt == nil { sessions[id]?.workStartedAt = now }
-            let approval = Approval(id: approvalID, toolName: hook.toolName ?? "Tool", detail: hook.detail ?? "", suggestion: hook.suggestion)
+            let approval = Approval(id: approvalID, toolName: hook.toolName ?? "Tool", detail: hook.detail ?? "", suggestion: hook.suggestion, changes: hook.changes)
             let wasShowing = sessions[id]?.approvals.isEmpty == false
             sessions[id]?.approvals.append(approval)
             sessions[id]?.phase = .waitingForApproval
@@ -162,6 +184,7 @@ struct ClaudeSessionsReducer: Sendable {
         case .notification(let type):
             if type == "idle_prompt", sessions[id]?.approvals.isEmpty == true {
                 sessions[id]?.phase = .waitingForInput
+                sessions[id]?.activity = nil
                 effects.append(post(id, alert: false))
             }
 
@@ -187,6 +210,7 @@ struct ClaudeSessionsReducer: Sendable {
         var effects: [Effect] = []
         let worked = session.workStartedAt.map { now.timeIntervalSince($0) } ?? 0
         session.workStartedAt = nil
+        session.activity = nil
         session.approvals.removeAll()
         let coolingDown = session.lastBanner.map { now.timeIntervalSince($0) < Self.bannerCooldown } ?? false
 

@@ -143,6 +143,17 @@ struct ClaudePricingTests {
         #expect(table.cost(of: tokens, model: "unknown") == nil)
     }
 
+    @Test("The price table is inside the built app, and loading it prices the current models")
+    func bundledTableLoads() throws {
+        // Bundle.main is the app (the tests are hosted in it). A missing resource
+        // is what made every cost read $0.00, so this looks in the app itself.
+        let nowhere = URL(fileURLWithPath: "/nonexistent/claude-pricing.json")
+        let table = ClaudePricing.load(bundle: .main, overrideURL: nowhere)
+        #expect(!table.models.isEmpty, "claude-pricing.json is not in the app's Resources")
+        #expect(table.updated != nil)
+        #expect(table.cost(of: TokenCounts(input: 1_000_000), model: "claude-sonnet-5-5") != nil)
+    }
+
     @Test("The bundled price file decodes, and a bad file is rejected")
     func decoding() throws {
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()

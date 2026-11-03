@@ -44,6 +44,12 @@ targets:
     sources:
       - path: App
       - path: Sources
+        excludes:
+          - "**/claude-pricing.json"
+      # The Claude Code price table (#62), listed on its own so it is always in
+      # the app's Resources (a test checks it is there).
+      - path: Sources/Modules/ClaudeCode/claude-pricing.json
+        buildPhase: resources
       - path: LICENSE
         buildPhase: resources
       - path: THIRD_PARTY_NOTICES.md
@@ -101,7 +107,7 @@ targets:
         NSLocationWhenInUseUsageDescription: "Notched reads your Wi-Fi network's name when you turn that on for Network, and later your approximate location for local weather. macOS shares Wi-Fi names only with apps allowed to use Location."
         NSLocationUsageDescription: "Notched reads your Wi-Fi network's name when you turn that on for Network, and later your approximate location for local weather. macOS shares Wi-Fi names only with apps allowed to use Location."
         NSDownloadsFolderUsageDescription: "Notched shows the progress of your downloads when you turn on Downloads."
-        NSAudioCaptureUsageDescription: "Notched listens to the audio that's playing so the visualiser can move with the music."
+        NSAudioCaptureUsageDescription: "Notched turns individual apps up or down when you move an app's volume slider. The audio stays on your Mac."
 
   # ungive/mediaremote-adapter (BSD-3-Clause), vendored unmodified in
   # Vendor/mediaremote-adapter. Built here instead of with its CMake file so

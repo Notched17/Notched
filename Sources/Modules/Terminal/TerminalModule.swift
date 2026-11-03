@@ -193,12 +193,16 @@ private struct Controls: View {
             Button(model.isPinned ? "Unpin" : "Keep Open", systemImage: model.isPinned ? "pin.fill" : "pin") { model.isPinned.toggle() }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.plain)
+                .frame(width: 22, height: 22)   // a comfortable click target
+                .contentShape(Rectangle())
                 .foregroundStyle(model.isPinned ? Color.orange : Color.secondary)
                 .help(model.isPinned ? "The island stays open until you press ⌘Esc" : "Keep the island open when the pointer leaves")
                 .accessibilityLabel(model.isPinned ? "Unpin the island" : "Keep the island open")
             Button("End Session", systemImage: "xmark.circle") { model.actions.endSession() }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.plain)
+                .frame(width: 22, height: 22)
+                .contentShape(Rectangle())
                 .foregroundStyle(.secondary)
                 .help("End this shell")
                 .accessibilityLabel("End the shell session")

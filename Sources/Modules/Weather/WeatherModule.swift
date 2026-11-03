@@ -63,12 +63,17 @@ final class WeatherModule: IslandModule {
         self.reachability = reachability
         self.cache = cache
         self.locationAllowed = locationAllowed
+        model.picker.searcher = { [api] text in try await api.search(city: text) }
     }
 
     func start() {
         guard !isRunning else { return }
         isRunning = true
-        model.actions = WeatherActions(refresh: { [weak self] in self?.send(.tick) })
+        model.actions = WeatherActions(
+            refresh: { [weak self] in self?.send(.tick) },
+            chooseCity: { [weak self] location in self?.choose(location) },
+            setTyping: { [weak self] on in self?.setTyping(on) }
+        )
         wake.action = { [weak self] in self?.tick() }
         observers.observe(NSWorkspace.didWakeNotification, in: NSWorkspace.shared.notificationCenter) { [weak self] in self?.tick() }
         observers.observe(.NSSystemClockDidChange) { [weak self] in self?.tick() }
@@ -90,11 +95,27 @@ final class WeatherModule: IslandModule {
         wake.schedule(at: nil)
         reachability.stop()
         observers.invalidate()
+        context.services.today.claimKeyboard(Self.sectionID, false)
         context.services.today.remove(moduleID: Self.descriptor.id)
         context.activities.endAll()
         model.actions = WeatherActions()
         model.reset()
         reducer = WeatherReducer()
+    }
+
+    /// A city picked in the island: that is the place from now on, even if
+    /// the mode was "my location".
+    private func choose(_ location: WeatherLocation) {
+        settings.city = location
+        settings.mode = .city
+        settingsChanged()
+    }
+
+    /// The city search opened or closed. While it is open the Today tab
+    /// captures the keyboard, and the island asks for focus so typing works.
+    private func setTyping(_ on: Bool) {
+        context.services.today.claimKeyboard(Self.sectionID, on)
+        if on { context.services.islandCommands.requestKeyFocus() }
     }
 
     /// The pane changed the place, the mode, the unit or the compact option.
@@ -181,6 +202,10 @@ final class WeatherModule: IslandModule {
 @MainActor
 struct WeatherActions {
     var refresh: () -> Void = {}
+    /// The user picked a city in the island.
+    var chooseCity: (WeatherLocation) -> Void = { _ in }
+    /// The city search opened (true) or closed: the Today tab claims the keyboard.
+    var setTyping: (Bool) -> Void = { _ in }
 }
 
 @MainActor
@@ -188,10 +213,33 @@ struct WeatherActions {
 final class WeatherModel {
     var display: WeatherDisplay = .noLocation
     var unit: TemperatureUnit = .celsius
+    /// The inline city search is showing in place of the strip.
+    var isChoosingCity = false
+    let picker = CitySearchModel()
     @ObservationIgnored var actions = WeatherActions()
 
     func reset() {
         display = .noLocation
+        isChoosingCity = false
+        picker.reset()
+    }
+
+    func openPicker() {
+        picker.reset()
+        isChoosingCity = true
+        actions.setTyping(true)
+    }
+
+    func closePicker() {
+        guard isChoosingCity else { return }
+        isChoosingCity = false
+        picker.reset()
+        actions.setTyping(false)
+    }
+
+    func choose(_ result: GeocodeResult) {
+        closePicker()
+        actions.chooseCity(result.location)
     }
 }
 
@@ -224,25 +272,26 @@ enum WeatherPresentation {
                     Text(temperature).font(IslandFont.minimal).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
                 },
                 expanded: ExpandedPresentation(
+                    // Beside the camera housing: where, and whether to expect rain.
                     leading: ExpandedRegion {
-                        IslandTile {
-                            Image(systemName: symbol).symbolRenderingMode(.multicolor).font(.system(size: 20, weight: .semibold))
+                        // The pin goes first when the region is narrow (Expanded size 85–100%).
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "location.fill").font(.system(size: 10, weight: .semibold)).dimmedText(0.7)
+                                Text(verbatim: location.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                            }
+                            Text(verbatim: location.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
                         }
-                        .padding(.top, 6)
                     },
-                    trailing: ExpandedRegion {
-                        Text(temperature).font(IslandFont.hero).monospacedDigit().lineLimit(1)
-                    },
-                    bottom: ExpandedRegion {
-                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                            Text(snapshot.condition.text).font(IslandFont.title).lineLimit(1)
-                            Text("H \(unit.text(fromCelsius: snapshot.highCelsius))  L \(unit.text(fromCelsius: snapshot.lowCelsius)) · \(location.name)")
-                                .font(IslandFont.subtitle)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                    trailing: WeatherLook.rainChance(in: Array(snapshot.hours.dropFirst().prefix(6))).map { chance in
+                        ExpandedRegion {
+                            Label("\(chance)%", systemImage: "umbrella.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Color.cyan)
+                                .accessibilityLabel("\(chance) percent chance of rain")
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+                    },
+                    center: ExpandedRegion { WeatherExpandedBody(snapshot: snapshot, unit: unit) }
                 )
             )
         )
@@ -255,18 +304,124 @@ enum WeatherPresentation {
 struct WeatherSectionView: View {
     let model: WeatherModel
     @Environment(\.todayHasColumns) private var hasColumns
+    /// A glass theme gives the strip its card; Notch Black has none, so the strip sits straight on the black.
+    @Environment(\.islandSurfaceIsGlass) private var surfaceIsGlass
+    /// On Notch Black at 110%+ the weather wraps around the camera housing instead of sitting in a strip below it.
+    @Environment(\.notchWrap) private var wrap
 
     var body: some View {
+        if model.isChoosingCity {
+            CityPickerView(model: model)
+        } else {
+            content
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         switch model.display {
         case .noLocation:
-            note("Choose a city in Settings ▸ Weather.")
+            HStack(spacing: Spacing.m) {
+                Label("No city chosen yet.", systemImage: "cloud.sun")
+                    .font(IslandFont.subtitle)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Button("Choose City") { model.openPicker() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12, weight: .semibold))
+                    .padding(.horizontal, Spacing.m)
+                    .frame(minHeight: 26)
+                    .background(.white.opacity(0.16), in: Capsule())
+                    .accessibilityHint("Search for a city to show its weather")
+            }
         case .loading:
             note("Loading weather…")
         case .unavailable:
             note("Weather isn't available right now.")
         case .ready(let snapshot, let location, let isOffline, let isStale):
-            strip(snapshot, location: location, isOffline: isOffline, isStale: isStale)
+            if let wrap {
+                wrapped(snapshot, location: location, isOffline: isOffline, isStale: isStale, wrap: wrap)
+            } else {
+                strip(snapshot, location: location, isOffline: isOffline, isStale: isStale)
+            }
         }
+    }
+
+    /// The city line: tapping it changes the city.
+    private func cityButton(_ snapshot: WeatherSnapshot, location: WeatherLocation, isOffline: Bool, isStale: Bool) -> some View {
+        Button { model.openPicker() } label: {
+            HStack(spacing: 2) {
+                Text(footnote(snapshot, location: location, isOffline: isOffline, isStale: isStale))
+                    .lineLimit(1)
+                Image(systemName: "chevron.right").font(.system(size: 7, weight: .bold))
+            }
+            .font(.system(size: 10))
+            .dimmedText(0.65)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(location.name). Change city")
+    }
+
+    /// Everything the strip shows, split around the camera housing: the conditions on the left,
+    /// the hours on the right, the middle clear. Pulled up into the row beside the notch, so the
+    /// Calendar and Reminders columns start higher and the island is shorter.
+    private func wrapped(_ snapshot: WeatherSnapshot, location: WeatherLocation, isOffline: Bool, isStale: Bool, wrap: NotchWrap) -> some View {
+        let unit = model.unit
+        let upcoming = Array(snapshot.hours.dropFirst())
+        func hoursRow(_ count: Int) -> some View {
+            HStack(spacing: Spacing.s) {
+                ForEach(upcoming.prefix(count)) { hour in
+                    WeatherHourColumn(hour: hour, unit: unit)
+                }
+            }
+        }
+        return HStack(alignment: .center, spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: snapshot.condition.symbol(isDay: snapshot.isDay))
+                    .symbolRenderingMode(.multicolor)
+                    .font(.system(size: 30))
+                    .frame(width: 34)
+                    .background {
+                        Circle().fill(WeatherLook.tint(code: snapshot.code, isDay: snapshot.isDay).color.opacity(0.28))
+                            .frame(width: 60, height: 60).blur(radius: 14).allowsHitTesting(false)
+                    }
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: Spacing.xs) {
+                        Text(unit.text(fromCelsius: snapshot.celsius))
+                            .font(.system(size: 24, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                        if isOffline {
+                            Image(systemName: "wifi.slash").font(.system(size: 10)).foregroundStyle(.secondary).accessibilityLabel("Offline")
+                        }
+                    }
+                    Text(snapshot.condition.text)
+                        .font(.system(size: 11))
+                        .dimmedText(0.85)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Text("H \(unit.text(fromCelsius: snapshot.highCelsius)) L \(unit.text(fromCelsius: snapshot.lowCelsius))")
+                        .font(.system(size: 10))
+                        .dimmedText(0.7)
+                        .lineLimit(1)
+                    cityButton(snapshot, location: location, isOffline: isOffline, isStale: isStale)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Color.clear.frame(width: wrap.gap)
+            // The hours that don't fit are dropped (four at most, down to two).
+            ViewThatFits(in: .horizontal) {
+                hoursRow(4)
+                hoursRow(3)
+                hoursRow(2)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .opacity(isStale ? 0.55 : 1)
+        .accessibilityElement(children: .contain)
+        // Up into the row beside the notch; the layout shrinks by the same amount, so what follows moves up too.
+        .padding(.top, -wrap.rise)
     }
 
     private func note(_ text: String) -> some View {
@@ -278,16 +433,31 @@ struct WeatherSectionView: View {
 
     private func strip(_ snapshot: WeatherSnapshot, location: WeatherLocation, isOffline: Bool, isStale: Bool) -> some View {
         let unit = model.unit
-        let hours = Array(snapshot.hours.dropFirst().prefix(hasColumns ? 4 : 8))
+        let upcoming = Array(snapshot.hours.dropFirst())
+        // The temperature and conditions come first; the hours that don't fit are dropped
+        // (fewer at a small Expanded size).
+        let counts = hasColumns ? (4, 3, 2) : (8, 6, 4)
+        func hoursRow(_ count: Int) -> some View {
+            HStack(spacing: Spacing.s) {
+                ForEach(upcoming.prefix(count)) { hour in
+                    WeatherHourColumn(hour: hour, unit: unit)
+                }
+            }
+        }
         return HStack(alignment: .center, spacing: Spacing.m) {
             Image(systemName: snapshot.condition.symbol(isDay: snapshot.isDay))
                 .symbolRenderingMode(.multicolor)
-                .font(.system(size: 28))
+                .font(.system(size: 30))
+                .frame(width: 36)
+                .background {
+                    Circle().fill(WeatherLook.tint(code: snapshot.code, isDay: snapshot.isDay).color.opacity(0.28))
+                        .frame(width: 60, height: 60).blur(radius: 14).allowsHitTesting(false)
+                }
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: Spacing.xs) {
                     Text(unit.text(fromCelsius: snapshot.celsius))
-                        .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        .font(.system(size: 26, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                     if isOffline {
                         Image(systemName: "wifi.slash").font(.system(size: 11)).foregroundStyle(.secondary).accessibilityLabel("Offline")
@@ -295,51 +465,30 @@ struct WeatherSectionView: View {
                 }
                 Text("\(snapshot.condition.text) · H \(unit.text(fromCelsius: snapshot.highCelsius)) L \(unit.text(fromCelsius: snapshot.lowCelsius))")
                     .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .dimmedText(0.75)
                     .lineLimit(1)
-                Text(footnote(snapshot, location: location, isOffline: isOffline, isStale: isStale))
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                cityButton(snapshot, location: location, isOffline: isOffline, isStale: isStale)
             }
             Spacer(minLength: Spacing.s)
-            HStack(spacing: Spacing.s) {
-                ForEach(hours) { hour in
-                    HourCell(hour: hour, unit: unit)
-                }
+            ViewThatFits(in: .horizontal) {
+                hoursRow(counts.0)
+                hoursRow(counts.1)
+                hoursRow(counts.2)
             }
+            .layoutPriority(-1)
         }
+        .padding(.horizontal, surfaceIsGlass ? 12 : 0)
+        .padding(.vertical, 8)
+        .background(surfaceIsGlass ? Color.white.opacity(0.06) : Color.clear, in: .rect(cornerRadius: 14, style: .continuous))
         .opacity(isStale ? 0.55 : 1)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 
     private func footnote(_ snapshot: WeatherSnapshot, location: WeatherLocation, isOffline: Bool, isStale: Bool) -> String {
         guard isOffline || isStale else { return location.name }
         let age = snapshot.fetchedAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated))
         return "\(location.name) · Updated \(age)"
-    }
-}
-
-private struct HourCell: View {
-    let hour: HourlyWeather
-    let unit: TemperatureUnit
-
-    var body: some View {
-        VStack(spacing: 1) {
-            Text(hour.time.formatted(.dateTime.hour()))
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
-            Image(systemName: WeatherCondition(code: hour.code).symbol(isDay: hour.isDay))
-                .symbolRenderingMode(.multicolor)
-                .font(.system(size: 13))
-            Text(unit.text(fromCelsius: hour.celsius))
-                .font(.system(size: 11, weight: .semibold))
-                .monospacedDigit()
-            if let chance = hour.precipitationChance, chance >= 20 {
-                Text("\(chance)%").font(.system(size: 8, weight: .medium)).foregroundStyle(.cyan)
-            }
-        }
-        .frame(minWidth: 26)
     }
 }
 
@@ -350,12 +499,8 @@ struct WeatherSettingsPane: View {
     let registry: ModuleRegistry
     let permissions: PermissionCenter?
 
-    @State private var query = ""
-    @State private var results: [GeocodeResult] = []
-    @State private var message: String?
-    @State private var isSearching = false
+    @State private var picker = CitySearchModel(searcher: { try await OpenMeteoClient().search(city: $0) })
 
-    private let client = OpenMeteoClient()
     private var module: WeatherModule? { registry.module(WeatherModule.descriptor.id) as? WeatherModule }
 
     var body: some View {
@@ -385,18 +530,17 @@ struct WeatherSettingsPane: View {
             Section("City") {
                 LabeledContent("Current", value: settings.city?.name ?? "None chosen")
                 HStack {
-                    TextField("Search for a city", text: $query)
-                        .onSubmit { search() }
-                    Button("Search", action: search)
-                        .disabled(query.trimmingCharacters(in: .whitespaces).count < 2 || isSearching)
+                    TextField("Search for a city", text: Binding(get: { picker.query }, set: { picker.query = $0 }))
+                        .onSubmit { Task { await picker.search() } }
+                    Button("Search") { Task { await picker.search() } }
+                        .disabled(!picker.canSearch)
                 }
-                if let message { Text(message).foregroundStyle(.secondary) }
-                ForEach(results) { result in
+                if let message = picker.message { Text(message).foregroundStyle(.secondary) }
+                ForEach(picker.results) { result in
                     Button {
                         settings.city = result.location
-                        results = []
-                        query = ""
-                        message = nil
+                        settings.mode = .city
+                        picker.reset()
                         module?.settingsChanged()
                     } label: {
                         Text(result.label)
@@ -427,23 +571,6 @@ struct WeatherSettingsPane: View {
         .onChange(of: settings.mode) { module?.settingsChanged() }
         .onChange(of: settings.unit) { module?.settingsChanged() }
         .onChange(of: settings.showCompact) { module?.settingsChanged() }
-    }
-
-    private func search() {
-        let text = query
-        guard text.trimmingCharacters(in: .whitespaces).count >= 2 else { return }
-        isSearching = true
-        message = nil
-        Task {
-            do {
-                let found = try await client.search(city: text)
-                results = found
-                message = found.isEmpty ? "No cities found." : nil
-            } catch {
-                results = []
-                message = "Couldn't search. Check your connection."
-            }
-            isSearching = false
-        }
+        .task(id: picker.query) { await picker.searchAfterPause() }
     }
 }

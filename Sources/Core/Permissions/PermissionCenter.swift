@@ -104,6 +104,9 @@ final class PermissionCenter {
             openSystemSettings(for: permission)
         case .downloadsFolder:
             if alreadyDenied { openSystemSettings(for: permission) } else { await readDownloadsFolder() }
+        case .audioCapture:
+            // No prompt without a tap, so only a refusal has anywhere to send the user.
+            if alreadyDenied { openSystemSettings(for: permission) }
         }
         refresh()
     }
@@ -163,6 +166,9 @@ final class PermissionCenter {
         case .downloadsFolder:
             // Never reads the folder: that could block on a system prompt.
             return DownloadsAccess.status(defaults: defaults)
+        case .audioCapture:
+            // Core Audio can't be asked (ADR-0029): only what the mixer last learned.
+            return AudioCaptureAccess.status(defaults: defaults)
         }
     }
 
@@ -196,6 +202,7 @@ extension Permission {
         case .bluetooth: "Privacy_Bluetooth"
         case .location: "Privacy_LocationServices"
         case .downloadsFolder: "Privacy_FilesAndFolders"
+        case .audioCapture: "Privacy_ScreenCapture"
         }
     }
 }

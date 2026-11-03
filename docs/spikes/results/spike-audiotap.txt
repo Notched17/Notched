@@ -1,0 +1,52 @@
+[2026-11-02T05:21:11Z] === audiotap probe, Mac16,13, macOS Version 27.2 (Build 26B123)
+[2026-11-02T05:21:11Z] permission (TCC preflight, kTCCServiceAudioCapture): unknown
+[2026-11-02T05:21:11Z] 31 audio process objects; playing now:
+[2026-11-02T05:21:11Z]   pid 1414 object 116 bundle com.spotify.client app - output true
+[2026-11-02T05:21:11Z]   pid 94567 object 134 bundle com.apple.WebKit.GPU app com.apple.Safari output true
+[2026-11-02T05:22:18Z] tap com.spotify.client at 0.3: permission before = unknown
+[2026-11-02T05:22:20Z] com.spotify.client: tap #1 running in 1974.6 ms on "Chauchter’s AirPods Max" ('blue', 48000 Hz, own output latency 7680 frames); 1 process object(s); gain 0.3 [first tap]
+[2026-11-02T05:22:20Z] com.spotify.client: tap format 48000 Hz, 2 ch, 32-bit float, interleaved; aggregate rate 48000 Hz, buffer 512, in latency 7680 + safety 0, out latency 7680 + safety 0 frames → estimated extra delay 181.3 ms
+[2026-11-02T05:22:23Z] tap com.spotify.client: after 3 s, permission = unknown; 298 IO callbacks, 283 with sound, 0 overloads, 0 non-float buffers
+[2026-11-02T05:29:44Z] gain com.spotify.client → 1.0
+[2026-11-02T05:29:50Z] gain com.spotify.client → 0.0
+[2026-11-02T05:29:56Z] gain com.spotify.client → 0.5
+[2026-11-02T05:30:36Z] tap com.apple.Safari at 0.5: permission before = unknown
+[2026-11-02T05:30:36Z] com.apple.Safari: tap #1 running in 42.8 ms on "Chauchter’s AirPods Max" ('blue', 48000 Hz, own output latency 7680 frames); 1 process object(s); gain 0.5 [first tap]
+[2026-11-02T05:30:36Z] com.apple.Safari: tap format 48000 Hz, 2 ch, 32-bit float, interleaved; aggregate rate 48000 Hz, buffer 512, in latency 7680 + safety 0, out latency 7680 + safety 0 frames → estimated extra delay 181.3 ms
+[2026-11-02T05:30:39Z] tap com.apple.Safari: after 3 s, permission = unknown; 293 IO callbacks, 277 with sound, 0 overloads, 0 non-float buffers
+[2026-11-02T05:32:08Z] default output changed → "MacBook Air Speakers" ('bltn', 48000 Hz, own output latency 60 frames)
+[2026-11-02T05:32:08Z] com.apple.Safari: tap #2 running in 66.9 ms on "MacBook Air Speakers" ('bltn', 48000 Hz, own output latency 60 frames); 1 process object(s); gain 0.5 [output device changed]
+[2026-11-02T05:32:08Z] com.apple.Safari: tap format 48000 Hz, 2 ch, 32-bit float, interleaved; aggregate rate 48000 Hz, buffer 512, in latency 21 + safety 36, out latency 60 + safety 48 frames → estimated extra delay 22.5 ms
+[2026-11-02T05:32:08Z] com.spotify.client: tap #2 running in 52.2 ms on "MacBook Air Speakers" ('bltn', 48000 Hz, own output latency 60 frames); 1 process object(s); gain 0.5 [output device changed]
+[2026-11-02T05:32:08Z] com.spotify.client: tap format 48000 Hz, 2 ch, 32-bit float, interleaved; aggregate rate 48000 Hz, buffer 512, in latency 21 + safety 36, out latency 60 + safety 48 frames → estimated extra delay 22.5 ms
+[2026-11-02T05:32:22Z] default output changed → "Chauchter’s AirPods Max" ('blue', 48000 Hz, own output latency 7680 frames)
+[2026-11-02T05:32:22Z] com.apple.Safari: tap #3 running in 314.7 ms on "Chauchter’s AirPods Max" ('blue', 48000 Hz, own output latency 7680 frames); 1 process object(s); gain 0.5 [output device changed]
+[2026-11-02T05:32:22Z] com.apple.Safari: tap format 48000 Hz, 2 ch, 32-bit float, interleaved; aggregate rate 48000 Hz, buffer 512, in latency 7680 + safety 0, out latency 7680 + safety 0 frames → estimated extra delay 181.3 ms
+[2026-11-02T05:32:22Z] com.spotify.client: tap #3 running in 47.1 ms on "Chauchter’s AirPods Max" ('blue', 48000 Hz, own output latency 7680 frames); 1 process object(s); gain 0.5 [output device changed]
+[2026-11-02T05:32:22Z] com.spotify.client: tap format 48000 Hz, 2 ch, 32-bit float, interleaved; aggregate rate 48000 Hz, buffer 512, in latency 7680 + safety 0, out latency 7680 + safety 0 frames → estimated extra delay 181.3 ms
+[2026-11-02T05:32:47Z] --- report: permission = unknown, 2 tapped app(s), Notched pid 94510
+[2026-11-02T05:32:47Z] com.apple.Safari: output "Chauchter’s AirPods Max" ('blue', 48000 Hz, own output latency 7680 frames), gain 0.5, builds 3; 1582 IO callbacks, 0 with sound, 0 overloads, 0 non-float buffers. SILENT: no audio is arriving (permission denied, or nothing playing). With mutedWhenTapped the app is silenced!
+[2026-11-02T05:32:47Z] com.apple.Safari: aggregate rate 48000 Hz, buffer 512, in latency 7680 + safety 0, out latency 7680 + safety 0 frames → estimated extra delay 181.3 ms
+[2026-11-02T05:32:47Z] com.spotify.client: output "Chauchter’s AirPods Max" ('blue', 48000 Hz, own output latency 7680 frames), gain 0.5, builds 3; 2397 IO callbacks, 2363 with sound, 0 overloads, 0 non-float buffers
+[2026-11-02T05:32:47Z] com.spotify.client: aggregate rate 48000 Hz, buffer 512, in latency 7680 + safety 0, out latency 7680 + safety 0 frames → estimated extra delay 181.3 ms
+[2026-11-02T05:32:47Z] default output: "Chauchter’s AirPods Max" ('blue', 48000 Hz, own output latency 7680 frames)
+[2026-11-02T05:35:26Z] --- report: permission = unknown, 2 tapped app(s), Notched pid 94510
+[2026-11-02T05:35:26Z] com.apple.Safari: output "Chauchter’s AirPods Max" ('blue', 48000 Hz, own output latency 7680 frames), gain 0.5, builds 3; 16478 IO callbacks, 0 with sound, 0 overloads, 0 non-float buffers. SILENT: no audio is arriving (permission denied, or nothing playing). With mutedWhenTapped the app is silenced!
+[2026-11-02T05:35:26Z] com.apple.Safari: aggregate rate 48000 Hz, buffer 512, in latency 7680 + safety 0, out latency 7680 + safety 0 frames → estimated extra delay 181.3 ms
+[2026-11-02T05:35:26Z] com.spotify.client: output "Chauchter’s AirPods Max" ('blue', 48000 Hz, own output latency 7680 frames), gain 0.5, builds 3; 17293 IO callbacks, 17259 with sound, 0 overloads, 0 non-float buffers
+[2026-11-02T05:35:26Z] com.spotify.client: aggregate rate 48000 Hz, buffer 512, in latency 7680 + safety 0, out latency 7680 + safety 0 frames → estimated extra delay 181.3 ms
+[2026-11-02T05:35:26Z] default output: "Chauchter’s AirPods Max" ('blue', 48000 Hz, own output latency 7680 frames)
+[2026-11-02T05:35:58Z] com.spotify.client: its audio processes are gone (quit or stopped); tearing down
+[2026-11-02T05:35:58Z] com.spotify.client: torn down (app gone); 20298 IO callbacks, 20242 with sound, 0 overloads, 0 non-float buffers
+[2026-11-02T05:36:32Z] --- report: permission = unknown, 1 tapped app(s), Notched pid 94510
+[2026-11-02T05:36:32Z] com.apple.Safari: output "Chauchter’s AirPods Max" ('blue', 48000 Hz, own output latency 7680 frames), gain 0.5, builds 3; 22654 IO callbacks, 0 with sound, 0 overloads, 0 non-float buffers. SILENT: no audio is arriving (permission denied, or nothing playing). With mutedWhenTapped the app is silenced!
+[2026-11-02T05:36:32Z] com.apple.Safari: aggregate rate 48000 Hz, buffer 512, in latency 7680 + safety 0, out latency 7680 + safety 0 frames → estimated extra delay 181.3 ms
+[2026-11-02T05:36:32Z] default output: "Chauchter’s AirPods Max" ('blue', 48000 Hz, own output latency 7680 frames)
+[2026-11-02T05:36:37Z] com.apple.Safari: its audio processes are gone (quit or stopped); tearing down
+[2026-11-02T05:36:37Z] com.apple.Safari: torn down (app gone); 23144 IO callbacks, 0 with sound, 0 overloads, 0 non-float buffers. SILENT: no audio is arriving (permission denied, or nothing playing). With mutedWhenTapped the app is silenced!
+[2026-11-02T05:38:09Z] default output changed → "MacBook Air Speakers" ('bltn', 48000 Hz, own output latency 60 frames)
+[2026-11-02T05:38:36Z] default output changed → "Chauchter’s AirPods Max" ('blue', 48000 Hz, own output latency 7680 frames)
+[2026-11-02T05:39:20Z] tap com.spotify.client at 0.3: permission before = unknown
+[2026-11-02T05:39:20Z] com.spotify.client: tap #1 running in 39.6 ms on "Chauchter’s AirPods Max" ('blue', 48000 Hz, own output latency 7680 frames); 1 process object(s); gain 0.3 [first tap]
+[2026-11-02T05:39:20Z] com.spotify.client: tap format 48000 Hz, 2 ch, 32-bit float, interleaved; aggregate rate 48000 Hz, buffer 512, in latency 7680 + safety 0, out latency 7680 + safety 0 frames → estimated extra delay 181.3 ms
+[2026-11-02T05:39:23Z] tap com.spotify.client: after 3 s, permission = unknown; 287 IO callbacks, 272 with sound, 0 overloads, 0 non-float buffers

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import AppKit
+import KeyboardShortcuts
 import SwiftUI
 
 struct GeneralPane: View {
@@ -50,6 +51,12 @@ struct GeneralPane: View {
                     .disabled(!settings.hideInFullscreen)
                     .help("Over a fullscreen app, Now Playing stays on the island, unless the fullscreen app is the one playing.")
                 Toggle("Haptic feedback on Force Touch trackpads", isOn: $settings.hapticsEnabled)
+            }
+
+            Section {
+                KeyboardShortcuts.Recorder("Open the island", name: .openIsland)
+            } footer: {
+                Text("A shortcut to open the island without the pointer. It is also in the menu bar item, which works with the keyboard and VoiceOver. Once open, ⌘1 to ⌘5 and the arrow keys switch tabs, and Esc closes it.")
             }
 
             Section {

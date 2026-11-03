@@ -22,8 +22,20 @@ enum ClaudePresentation {
         }
     }
 
+    /// The title on the expanded card, shorter than the activity's headline.
+    static func expandedTitle(_ phase: Phase) -> String {
+        switch phase {
+        case .working: "Working…"
+        case .waitingForInput: "Waiting for you"
+        case .finished: "Finished"
+        case .waitingForApproval: "Needs your approval"
+        case .idle: "Claude Code"
+        }
+    }
+
     static func activity(_ snapshot: ClaudeSessionsReducer.Snapshot,
-                         answer: @escaping @MainActor (_ approvalID: String, ClaudeSessionsReducer.Answer) -> Void) -> LiveActivity {
+                         answer: @escaping @MainActor (_ approvalID: String, ClaudeSessionsReducer.Answer) -> Void,
+                         openTerminal: @escaping @MainActor () -> Void = {}) -> LiveActivity {
         let phase = snapshot.phase
         let isApproval = snapshot.approval != nil
         let label = isApproval
@@ -31,25 +43,53 @@ enum ClaudePresentation {
             : "\(headline(phase)) \(snapshot.displayName)"
         let expanded: ExpandedPresentation
         if let approval = snapshot.approval {
-            expanded = ApprovalCard.expanded(cardModel(snapshot, approval), tint: .orange) { choice in
+            expanded = ApprovalCard.expanded(cardModel(snapshot, approval), tint: tint) { choice in
                 answer(approval.id, answerFor(choice))
+                // "Answer in Terminal" lets Claude Code ask there: bring that window forward.
+                if choice == "terminal" { openTerminal() }
             }
         } else {
             expanded = ExpandedPresentation(
                 leading: ExpandedRegion {
-                    IslandTile { ClaudeGlyph(phase: phase, size: 18) }.padding(.top, 6)
+                    HStack(spacing: 6) {
+                        BrandTile(symbol: phase == .waitingForInput ? "ellipsis.bubble.fill" : "sparkle", tint: tint, filled: phase == .waitingForInput)
+                        Text(verbatim: "Claude").font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                    }
                 },
                 trailing: ExpandedRegion {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(verbatim: headline(phase)).font(IslandFont.title).lineLimit(1)
-                        Text(verbatim: snapshot.displayName).font(IslandFont.subtitle).foregroundStyle(.white.opacity(0.7)).lineLimit(1)
-                        if let title = snapshot.title {
-                            Text(verbatim: title).font(IslandFont.subtitle).foregroundStyle(.white.opacity(0.45)).lineLimit(1)
+                    Text(verbatim: snapshot.displayName).font(.system(size: 12)).dimmedText(0.7).lineLimit(1)
+                },
+                center: ExpandedRegion {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(verbatim: expandedTitle(phase)).font(.system(size: 17, weight: .semibold)).lineLimit(1)
+                            Spacer(minLength: 8)
+                            if phase == .working, let since = snapshot.since {
+                                Text(since, style: .timer).font(.system(size: 12)).monospacedDigit().dimmedText(0.7)
+                            }
                         }
-                        if phase == .working, let since = snapshot.since {
-                            Text(since, style: .timer).font(IslandFont.subtitle).monospacedDigit().foregroundStyle(.white.opacity(0.6))
+                        if phase == .working, let activity = snapshot.activity {
+                            // What it is doing, like Claude Code's own status line.
+                            Text(verbatim: activity.text)
+                                .font(.system(size: 12))
+                                .dimmedText(0.85)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .contentTransition(.opacity)
+                        } else if let title = snapshot.title {
+                            Text(verbatim: title).font(IslandFont.subtitle).dimmedText(0.7).lineLimit(1)
+                        }
+                        if phase == .waitingForInput {
+                            Text(verbatim: "Answer in the terminal").font(IslandFont.subtitle).dimmedText(0.7).lineLimit(1)
+                            Button(action: openTerminal) {
+                                Text("Open Terminal").font(.system(size: 14, weight: .semibold)).frame(maxWidth: .infinity, minHeight: 34)
+                            }
+                            .buttonStyle(.glass)
+                            .buttonBorderShape(.capsule)
+                            .padding(.top, 4)
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             )
         }
@@ -82,8 +122,10 @@ enum ClaudePresentation {
     private static func compactText(_ snapshot: ClaudeSessionsReducer.Snapshot) -> String {
         switch snapshot.phase {
         case .waitingForApproval: "Allow?"
-        case .waitingForInput: "Waiting"
+        case .waitingForInput: "Reply"
         case .finished: "Done"
+        // The verb, so what it is doing reads at a glance beside the notch.
+        case .working: snapshot.activity?.verb ?? snapshot.displayName
         default: snapshot.displayName
         }
     }
@@ -95,14 +137,17 @@ enum ClaudePresentation {
         }
         more.append(ApprovalChoice(id: "denyAndStop", title: "Deny and Stop Claude", role: .destructive))
         more.append(ApprovalChoice(id: "terminal", title: "Answer in Terminal"))
-        let queued = snapshot.moreApprovals > 0 ? " · +\(snapshot.moreApprovals) more" : ""
         return ApprovalCardModel(
             symbol: "sparkle",
             title: "Allow \(approval.toolName)?",
-            context: snapshot.displayName + queued,
+            context: snapshot.displayName,
             detail: approval.detail,
             primary: [ApprovalChoice(id: "deny", title: "Deny"), ApprovalChoice(id: "allow", title: "Allow", role: .primary)],
-            more: more
+            more: more,
+            brand: "Claude",
+            badge: snapshot.moreApprovals > 0 ? "+\(snapshot.moreApprovals)" : nil,
+            detailStyle: approval.toolName == "Bash" ? .command : .text,
+            changes: approval.changes
         )
     }
 

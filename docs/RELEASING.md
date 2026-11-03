@@ -26,7 +26,37 @@ Always run it from `~/Applications/Notched.app`, not from `build/`. macOS ties p
 A build signed with your personal Apple Development certificate runs on your Mac. On another Mac, Gatekeeper will refuse it, because it isn't notarised. The honest options:
 
 - **Have them build it themselves.** Point them at the README. They need Xcode, XcodeGen and their own free Apple ID team (change `DEVELOPMENT_TEAM`).
-- **A zip for a friend you trust:** `ditto -c -k --keepParent ~/Applications/Notched.app Notched.zip`. They must clear the quarantine flag with `xattr -dr com.apple.quarantine Notched.app` and approve it in *System Settings ▸ Privacy & Security*, and their permissions are asked fresh. This is for people who understand what they're running, not a public release.
+- **A zip for a friend you trust, installed with one command** (below). This is for people who understand what they're running, not a public release.
+
+### Share a build with friends (GitHub Release + one-line install)
+
+macOS only blocks apps that carry the *quarantine* flag, and files saved by a browser, AirDrop or Messages get it. A file downloaded with `curl` does not. So friends install with a script that downloads the release zip, checks its SHA-256, unzips it into `~/Applications` and opens it. No trip to System Settings. (Their permission prompts for Accessibility and so on still appear, as normal.)
+
+**Each time you want to publish a build**
+
+1. Make sure `main` is committed and the tests pass: `scripts/go.sh --no-install`.
+2. Set the version in `project.yml` (`MARKETING_VERSION`, top of the file) if it changed, then commit it.
+3. Pack it: `scripts/package-release.sh`. It builds Release, checks the signature and that the app holds nothing but the app, then writes `build/release/Notched.zip` and `build/release/Notched.zip.sha256`.
+4. Tag the commit and push the tag (ask yourself first: pushing is public):
+   ```
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+5. On GitHub: **Releases ▸ Draft a new release**, choose the tag, give it a title (`Notched 0.1.0`) and a few lines of notes, and **drag both files** from `build/release/` into the box. The file names must stay exactly `Notched.zip` and `Notched.zip.sha256`: the install script finds the newest release through GitHub's `releases/latest/download/Notched.zip` link. Leave **Set as a pre-release** unticked (GitHub's `latest` link skips pre-releases and drafts), keep **Set as the latest release** ticked, and click **Publish release**.
+6. Test it on a Mac that isn't your dev Mac if you can, then send friends this (one line, in Terminal):
+   ```
+   curl -fsSL https://raw.githubusercontent.com/Notched17/Notched/main/scripts/install-from-release.sh | bash
+   ```
+   Running it again later installs the newest release over the old one (their settings are kept).
+
+Command-line alternative to step 5, if you have the GitHub CLI (`gh auth login` once):
+```
+gh release create v0.1.0 build/release/Notched.zip build/release/Notched.zip.sha256 --title "Notched 0.1.0" --notes "First build for friends."
+```
+
+**If a friend's Mac says the app "can't be opened"** they got the zip through a browser or AirDrop. Either use the one-liner above, or run `xattr -dr com.apple.quarantine /path/to/Notched.app` once, or open *System Settings ▸ Privacy & Security* and click **Open Anyway**.
+
+**If the install script fails:** "could not download" means there is no published release yet (a draft doesn't count) or the file names are wrong; "does not match its checksum" means the two uploaded files are from different builds, so repack and re-upload both.
 
 ## If you want a real public release later
 

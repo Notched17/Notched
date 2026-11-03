@@ -9,6 +9,11 @@ import Foundation
 enum ClaudeSettingsMerger {
     /// The hook events Notched listens to.
     static let events = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Notification", "Stop", "StopFailure", "SessionEnd"]
+    /// Fires before every tool call; installed only when "Show what Claude is working on" is on.
+    static let activityEvent = "PreToolUse"
+
+    /// The events to install: the usual ones, and `PreToolUse` when the activity line is wanted.
+    static func events(activity: Bool) -> [String] { activity ? events + [activityEvent] : events }
     static let executableName = "notched-hook"
     /// Seconds Claude Code lets a non-approval hook run.
     static let quickTimeout = 5
@@ -52,7 +57,7 @@ enum ClaudeSettingsMerger {
 
     // MARK: Install
 
-    static func install(into text: String?, command: String, approvalWait: Int) -> Result<String, MergeError> {
+    static func install(into text: String?, command: String, approvalWait: Int, activity: Bool = false) -> Result<String, MergeError> {
         switch parseRoot(text) {
         case .failure(let error): return .failure(error)
         case .success(let root):
@@ -68,7 +73,7 @@ enum ClaudeSettingsMerger {
                 hooks = []
             }
 
-            for event in events {
+            for event in events(activity: activity) {
                 let wanted = group(for: event, command: command, approvalWait: approvalWait)
                 guard let position = hooks.firstIndex(where: { $0.key == event }) else {
                     hooks.append(.init(key: event, value: .array([wanted])))
@@ -82,6 +87,14 @@ enum ClaudeSettingsMerger {
                 groups = removeOurs(from: groups)
                 groups.append(wanted)
                 hooks[position].value = .array(groups)
+            }
+
+            // Switched off: take our earlier PreToolUse entry out (and the list, if that leaves it empty).
+            if !activity, let position = hooks.firstIndex(where: { $0.key == activityEvent }), let groups = hooks[position].value.elements {
+                let kept = removeOurs(from: groups)
+                if kept != groups {
+                    if kept.isEmpty { hooks.remove(at: position) } else { hooks[position].value = .array(kept) }
+                }
             }
 
             if let index = hooksIndex {
@@ -123,20 +136,23 @@ enum ClaudeSettingsMerger {
 
     // MARK: Status
 
-    static func status(of text: String?, command: String, approvalWait: Int) -> Status {
+    static func status(of text: String?, command: String, approvalWait: Int, activity: Bool = false) -> Status {
         guard case .success(let root) = parseRoot(text), let hooks = root["hooks"]?.members else { return .notInstalled }
         var present = 0
         var current = 0
-        for event in events {
+        let wanted = events(activity: activity)
+        for event in wanted {
             guard let groups = hooks.first(where: { $0.key == event })?.value.elements else { continue }
             let ours = groups.filter(isOurs)
             guard !ours.isEmpty else { continue }
             present += 1
             if ours == [group(for: event, command: command, approvalWait: approvalWait)] { current += 1 }
         }
-        if present == 0 { return .notInstalled }
-        if present < events.count { return .partial }
-        return current == events.count ? .installed : .outdated
+        // Switched off, but an earlier PreToolUse entry is still there: it needs taking out.
+        let strayActivity = !activity && (hooks.first { $0.key == activityEvent }?.value.elements?.contains(where: isOurs) ?? false)
+        if present == 0 { return strayActivity ? .outdated : .notInstalled }
+        if present < wanted.count { return .partial }
+        return current == wanted.count && !strayActivity ? .installed : .outdated
     }
 
     // MARK: Helpers

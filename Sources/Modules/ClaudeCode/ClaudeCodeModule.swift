@@ -128,6 +128,8 @@ final class ClaudeCodeModule: IslandModule {
         guard let event = ClaudeHookEvent.parse(api.request.body) else {
             return .error(400, "invalid_payload", "That isn't a Claude Code hook payload.")
         }
+        // A PreToolUse hook left over from when the setting was on does nothing while it is off.
+        if event.kind == .preToolUse, !settings.showActivity { return .noContent }
         guard event.kind == .permissionRequest else {
             apply(.hook(event, approvalID: nil), now: api.now)
             return .noContent

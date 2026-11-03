@@ -68,7 +68,15 @@ enum ClaudePresentation {
                                 Text(since, style: .timer).font(.system(size: 12)).monospacedDigit().dimmedText(0.7)
                             }
                         }
-                        if let title = snapshot.title {
+                        if phase == .working, let activity = snapshot.activity {
+                            // What it is doing, like Claude Code's own status line.
+                            Text(verbatim: activity.text)
+                                .font(.system(size: 12))
+                                .dimmedText(0.85)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .contentTransition(.opacity)
+                        } else if let title = snapshot.title {
                             Text(verbatim: title).font(IslandFont.subtitle).dimmedText(0.7).lineLimit(1)
                         }
                         if phase == .waitingForInput {
@@ -116,6 +124,8 @@ enum ClaudePresentation {
         case .waitingForApproval: "Allow?"
         case .waitingForInput: "Reply"
         case .finished: "Done"
+        // The verb, so what it is doing reads at a glance beside the notch.
+        case .working: snapshot.activity?.verb ?? snapshot.displayName
         default: snapshot.displayName
         }
     }

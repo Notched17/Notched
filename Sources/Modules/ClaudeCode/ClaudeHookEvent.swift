@@ -18,6 +18,8 @@ struct ClaudeHookEvent: Equatable, Sendable {
         case sessionStart
         case userPromptSubmit
         case permissionRequest
+        /// Before a tool runs (installed only for "Show what Claude is working on").
+        case preToolUse
         case notification(type: String)
         case stop
         case stopFailure(error: String)
@@ -36,6 +38,8 @@ struct ClaudeHookEvent: Equatable, Sendable {
     var changes: [LineDiff.Line] = []
     /// The app Claude Code runs in, as the hook helper reported it (a bundle id), for "Open Terminal".
     var terminalApp: String?
+    /// What a tool call is about to do, for the working card.
+    var activity: ClaudeActivityLine?
     var suggestion: AlwaysAllowSuggestion?
 
     static let maxBodyBytes = HTTPRequestParser.hookBodyBytes
@@ -57,6 +61,7 @@ struct ClaudeHookEvent: Equatable, Sendable {
         case "SessionStart": kind = .sessionStart
         case "UserPromptSubmit": kind = .userPromptSubmit
         case "PermissionRequest": kind = .permissionRequest
+        case "PreToolUse": kind = .preToolUse
         case "Notification": kind = .notification(type: (json["notification_type"] as? String) ?? "")
         case "Stop": kind = .stop
         case "StopFailure": kind = .stopFailure(error: ActivityPayload.sanitize((json["error"] as? String) ?? "unknown", limit: 40))
@@ -71,6 +76,11 @@ struct ClaudeHookEvent: Equatable, Sendable {
         if let title = json["session_title"] as? String {
             let cleaned = ActivityPayload.sanitize(title, limit: 60)
             event.title = cleaned.isEmpty ? nil : cleaned
+        }
+        if kind == .preToolUse {
+            let tool = ActivityPayload.sanitize((json["tool_name"] as? String) ?? "Tool", limit: 80)
+            event.toolName = tool
+            event.activity = ClaudeActivity.line(toolName: tool, input: (json["tool_input"] as? [String: Any]) ?? [:])
         }
         if kind == .permissionRequest {
             let tool = ActivityPayload.sanitize((json["tool_name"] as? String) ?? "Tool", limit: 80)

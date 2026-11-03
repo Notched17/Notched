@@ -27,23 +27,34 @@ enum ClaudeUsageDisplay {
         return model.isEmpty ? "Other" : model
     }
 
-    /// The week's tokens by model family, biggest first: the top three, the rest as "Other".
+    /// Tokens that were new this week: what was sent and written, not what was
+    /// re-read from the prompt cache (which is most of the raw count, because
+    /// every turn re-reads the conversation so far).
+    static func newTokens(_ tokens: TokenCounts) -> Int {
+        tokens.input + tokens.output + tokens.cacheWrite5m + tokens.cacheWrite1h
+    }
+
+    /// The week's usage by model family, biggest first: the top three, the rest as "Other".
+    /// By estimated cost where any model has a price, else by new tokens.
     static func shares(_ models: [ModelTotal], limit: Int = 3) -> [ModelShare] {
-        var byFamily: [String: Int] = [:]
-        for model in models { byFamily[family(model.model), default: 0] += model.totals.tokens.total }
+        let byCost = models.contains { $0.totals.cost > 0 }
+        var byFamily: [String: Double] = [:]
+        for model in models {
+            byFamily[family(model.model), default: 0] += byCost ? model.totals.cost : Double(newTokens(model.totals.tokens))
+        }
         let total = byFamily.values.reduce(0, +)
         guard total > 0 else { return [] }
         let sorted = byFamily.filter { $0.value > 0 }.sorted { ($0.value, $1.key) > ($1.value, $0.key) }
-        var shares = sorted.prefix(limit).map { ModelShare(name: $0.key, fraction: Double($0.value) / Double(total)) }
+        var shares = sorted.prefix(limit).map { ModelShare(name: $0.key, fraction: $0.value / total) }
         let rest = sorted.dropFirst(limit).reduce(0) { $0 + $1.value }
-        if rest > 0 { shares.append(ModelShare(name: "Other", fraction: Double(rest) / Double(total))) }
+        if rest > 0 { shares.append(ModelShare(name: "Other", fraction: rest / total)) }
         return shares
     }
 
     /// The value each day's bar is drawn from: its cost, or its tokens when nothing in the week has a price.
     static func barValues(_ days: [DayTotal]) -> [Double] {
         let anyCost = days.contains { $0.totals.cost > 0 }
-        return days.map { anyCost ? $0.totals.cost : Double($0.totals.tokens.total) }
+        return days.map { anyCost ? $0.totals.cost : Double(newTokens($0.totals.tokens)) }
     }
 
     /// 0…1 bar heights against the biggest day, with a floor so an empty day still shows.
@@ -120,6 +131,8 @@ struct ClaudeAITabView: View {
                 .frame(maxWidth: .infinity, minHeight: 60)
             }
         }
+        // A little air under the notch row.
+        .padding(.top, 6)
     }
 
     private func footnote(_ usage: ClaudeUsageSnapshot) -> String {
@@ -140,14 +153,20 @@ private let cardFill = Color.white.opacity(0.06)
 private struct WeekCard: View {
     let usage: ClaudeUsageSnapshot
 
+    /// "18M new · 712M cached": the cache is re-read on every turn, so it is far bigger and costs far less.
+    private func tokenSummary(_ tokens: TokenCounts) -> String {
+        "\(ClaudeUsageDisplay.compactTokens(ClaudeUsageDisplay.newTokens(tokens))) new · \(ClaudeUsageDisplay.compactTokens(tokens.cacheRead)) cached"
+    }
+
     var body: some View {
         let fractions = ClaudeUsageDisplay.barFractions(usage.days)
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline) {
                 Text("This week").font(.system(size: 11)).dimmedText(0.7)
                 Spacer(minLength: 4)
-                Text(verbatim: ClaudeUsageDisplay.compactTokens(usage.week.tokens.total) + " tokens")
+                Text(verbatim: tokenSummary(usage.week.tokens))
                     .font(.system(size: 11)).monospacedDigit().dimmedText(0.7)
+                    .lineLimit(1)
             }
             Text(verbatim: "≈ " + ClaudeUsageDisplay.money(usage.week.cost))
                 .font(.system(size: 26, weight: .semibold, design: .rounded))
@@ -161,17 +180,17 @@ private struct WeekCard: View {
                     VStack(spacing: 3) {
                         RoundedRectangle(cornerRadius: 4, style: .continuous)
                             .fill(ClaudePresentation.tint.opacity(isToday ? 1 : 0.45))
-                            .frame(height: max(3, 40 * fractions[index]))
+                            .frame(height: max(3, 34 * fractions[index]))
                         Text(day.day.formatted(.dateTime.weekday(.narrow)))
                             .font(.system(size: 10, weight: isToday ? .semibold : .regular))
                             .foregroundStyle(isToday ? Color.white : Color.white.opacity(0.7))
                     }
                     .frame(maxWidth: .infinity)
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(day.day.formatted(.dateTime.weekday(.wide))): about \(ClaudeUsageDisplay.money(day.totals.cost)), \(ClaudeUsageDisplay.compactTokens(day.totals.tokens.total)) tokens")
+                    .accessibilityLabel("\(day.day.formatted(.dateTime.weekday(.wide))): about \(ClaudeUsageDisplay.money(day.totals.cost)), \(ClaudeUsageDisplay.compactTokens(ClaudeUsageDisplay.newTokens(day.totals.tokens))) new tokens")
                 }
             }
-            .frame(height: 56, alignment: .bottom)
+            .frame(height: 50, alignment: .bottom)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)

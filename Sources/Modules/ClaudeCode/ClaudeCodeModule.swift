@@ -190,6 +190,7 @@ final class ClaudeCodeModule: IslandModule {
             id: Self.tabID, moduleID: Self.descriptor.id, title: "AI", symbol: "sparkles",
             accessibilityLabel: "Claude Code usage", order: 10,
             onVisibilityChange: { [weak self] visible in self?.tabVisibilityChanged(visible) },
+            maxContentHeight: 200,
             headerLeading: IslandRegion { ClaudeUsageHeaderLeading() },
             headerTrailing: IslandRegion { ClaudeUsageHeaderTrailing(model: model) }
         ) { ClaudeAITabView(model: model) }]

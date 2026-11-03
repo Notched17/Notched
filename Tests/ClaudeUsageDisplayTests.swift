@@ -45,6 +45,23 @@ struct ClaudeUsageDisplayTests {
         #expect(abs(result.last!.fraction - 0.1) < 0.0001)
     }
 
+    @Test("Cache reads don't swamp the picture: new tokens are what's counted")
+    func newTokens() {
+        let tokens = TokenCounts(input: 100, output: 900, cacheWrite5m: 1_000, cacheWrite1h: 2_000, cacheRead: 700_000_000)
+        #expect(ClaudeUsageDisplay.newTokens(tokens) == 4_000)
+    }
+
+    @Test("Shares follow cost when there are prices, even if cache reads dwarf the tokens")
+    func sharesByCost() {
+        let cacheHeavy = ModelTotal(model: "claude-haiku-5-5", totals: UsageTotals(
+            tokens: TokenCounts(input: 0, output: 0, cacheWrite5m: 0, cacheWrite1h: 0, cacheRead: 900_000_000), cost: 1))
+        let pricey = ModelTotal(model: "claude-opus-4-5", totals: UsageTotals(
+            tokens: TokenCounts(input: 1_000, output: 1_000, cacheWrite5m: 0, cacheWrite1h: 0, cacheRead: 0), cost: 3))
+        let result = ClaudeUsageDisplay.shares([cacheHeavy, pricey])
+        #expect(result.map(\.name) == ["Opus", "Haiku"])
+        #expect(result.map(\.fraction) == [0.75, 0.25])
+    }
+
     @Test("No usage, no shares")
     func empty() {
         #expect(ClaudeUsageDisplay.shares([]).isEmpty)

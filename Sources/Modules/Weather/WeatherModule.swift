@@ -272,25 +272,22 @@ enum WeatherPresentation {
                     Text(temperature).font(IslandFont.minimal).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
                 },
                 expanded: ExpandedPresentation(
+                    // Beside the camera housing: where, and whether to expect rain.
                     leading: ExpandedRegion {
-                        IslandTile {
-                            Image(systemName: symbol).symbolRenderingMode(.multicolor).font(.system(size: 20, weight: .semibold))
+                        HStack(spacing: 5) {
+                            Image(systemName: "location.fill").font(.system(size: 10, weight: .semibold)).dimmedText(0.7)
+                            Text(verbatim: location.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
                         }
-                        .padding(.top, 6)
                     },
-                    trailing: ExpandedRegion {
-                        Text(temperature).font(IslandFont.hero).monospacedDigit().lineLimit(1)
-                    },
-                    bottom: ExpandedRegion {
-                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                            Text(snapshot.condition.text).font(IslandFont.title).lineLimit(1)
-                            Text("H \(unit.text(fromCelsius: snapshot.highCelsius))  L \(unit.text(fromCelsius: snapshot.lowCelsius)) · \(location.name)")
-                                .font(IslandFont.subtitle)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                    trailing: WeatherLook.rainChance(in: Array(snapshot.hours.dropFirst().prefix(6))).map { chance in
+                        ExpandedRegion {
+                            Label("\(chance)%", systemImage: "umbrella.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Color.cyan)
+                                .accessibilityLabel("\(chance) percent chance of rain")
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+                    },
+                    center: ExpandedRegion { WeatherExpandedBody(snapshot: snapshot, unit: unit) }
                 )
             )
         )
@@ -351,12 +348,17 @@ struct WeatherSectionView: View {
         return HStack(alignment: .center, spacing: Spacing.m) {
             Image(systemName: snapshot.condition.symbol(isDay: snapshot.isDay))
                 .symbolRenderingMode(.multicolor)
-                .font(.system(size: 28))
+                .font(.system(size: 30))
+                .frame(width: 36)
+                .background {
+                    Circle().fill(WeatherLook.tint(code: snapshot.code, isDay: snapshot.isDay).color.opacity(0.28))
+                        .frame(width: 60, height: 60).blur(radius: 14).allowsHitTesting(false)
+                }
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: Spacing.xs) {
                     Text(unit.text(fromCelsius: snapshot.celsius))
-                        .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        .font(.system(size: 26, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                     if isOffline {
                         Image(systemName: "wifi.slash").font(.system(size: 11)).foregroundStyle(.secondary).accessibilityLabel("Offline")
@@ -364,7 +366,7 @@ struct WeatherSectionView: View {
                 }
                 Text("\(snapshot.condition.text) · H \(unit.text(fromCelsius: snapshot.highCelsius)) L \(unit.text(fromCelsius: snapshot.lowCelsius))")
                     .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .dimmedText(0.75)
                     .lineLimit(1)
                 Button { model.openPicker() } label: {
                     HStack(spacing: 2) {
@@ -373,7 +375,7 @@ struct WeatherSectionView: View {
                         Image(systemName: "chevron.right").font(.system(size: 7, weight: .bold))
                     }
                     .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
+                    .dimmedText(0.65)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -382,10 +384,13 @@ struct WeatherSectionView: View {
             Spacer(minLength: Spacing.s)
             HStack(spacing: Spacing.s) {
                 ForEach(hours) { hour in
-                    HourCell(hour: hour, unit: unit)
+                    WeatherHourColumn(hour: hour, unit: unit)
                 }
             }
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 14, style: .continuous))
         .opacity(isStale ? 0.55 : 1)
         .accessibilityElement(children: .contain)
     }
@@ -394,29 +399,6 @@ struct WeatherSectionView: View {
         guard isOffline || isStale else { return location.name }
         let age = snapshot.fetchedAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated))
         return "\(location.name) · Updated \(age)"
-    }
-}
-
-private struct HourCell: View {
-    let hour: HourlyWeather
-    let unit: TemperatureUnit
-
-    var body: some View {
-        VStack(spacing: 1) {
-            Text(hour.time.formatted(.dateTime.hour()))
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
-            Image(systemName: WeatherCondition(code: hour.code).symbol(isDay: hour.isDay))
-                .symbolRenderingMode(.multicolor)
-                .font(.system(size: 13))
-            Text(unit.text(fromCelsius: hour.celsius))
-                .font(.system(size: 11, weight: .semibold))
-                .monospacedDigit()
-            if let chance = hour.precipitationChance, chance >= 20 {
-                Text("\(chance)%").font(.system(size: 8, weight: .medium)).foregroundStyle(.cyan)
-            }
-        }
-        .frame(minWidth: 26)
     }
 }
 

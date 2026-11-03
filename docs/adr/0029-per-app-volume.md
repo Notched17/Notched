@@ -1,6 +1,6 @@
 # ADR-0029: Per-app volume with Core Audio process taps (#17)
 
-- Status: **proposed: conditional go (3 Nov 2026), waiting for Charlie's approval.** Round 2 answered the two blocking questions. A crash gives the app's sound back. A refused permission silences the app, but the refusal can be detected within a second (§Round 2). Five build gates (§Decision) must pass before #17 ships, or it becomes no-go. Round 1 was undecided (2 Nov).
+- Status: **accepted: conditional go (3 Nov 2026), approved by Charlie and built (module off by default).** The five build gates below still need running on a Release build. Round 2 answered the two blocking questions. A crash gives the app's sound back. A refused permission silences the app, but the refusal can be detected within a second (§Round 2). Five build gates (§Decision) must pass before #17 ships, or it becomes no-go. Round 1 was undecided (2 Nov).
 - Evidence: `docs/spikes/results/spike-audiotap.txt` (round 1) and `docs/spikes/results/round2/spike-audiotap.txt` (both rounds), notes in `docs/spikes/M6-spike-1.md` §1 (MacBook Air M4 15", macOS 27.2 build 26B123, Debug build).
 - Plan and criteria: `docs/superpowers/specs/2026-11-02-m6-hard-parts-and-release-design.md` §2.
 

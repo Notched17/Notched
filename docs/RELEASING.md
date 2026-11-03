@@ -17,7 +17,7 @@ Always run it from `~/Applications/Notched.app`, not from `build/`. macOS ties p
 1. `scripts/test.sh` passes.
 2. Debug-only features are absent in Release: the Debug menu, `notched://debug/…` URLs and the research probes are compiled out (`#if DEBUG`). Check the status menu.
 3. First launch on a clean account or after `defaults delete me.rkck.Notched`: onboarding runs, nothing asks for a permission, and every module that needs one asks only when turned on.
-4. Idle CPU and memory with your usual modules: `scripts/cpu.sh 60 "release idle"`. Budget: CPU under 0.5 %, memory under 150 MB.
+4. Idle CPU and memory with your usual modules: `scripts/cpu.sh 60 "release idle"`. Budget: CPU under 0.5 %, memory under 120 MB (the budget in `CLAUDE.md`).
 5. For a longer check, `scripts/soak.sh 8` overnight, and read the summary.
 6. The status menu offers Settings, Pause island and Quit. (Once lock-screen widgets ship: the kill switches in ADR-0031 work, including `--no-lock-screen`.)
 
@@ -38,3 +38,13 @@ That needs a paid Apple Developer Program membership, so it is out of scope for 
 4. Zip or DMG, upload to a GitHub Release, and (with Sparkle) sign the update with an EdDSA key kept in the Keychain and documented, never committed.
 
 Nothing here publishes anything. A release script (`scripts/release.sh`) will be written only if that route is taken.
+
+## Before the repo goes public
+
+Done on 3 Nov 2026; repeat before each public push of a new branch.
+
+- **Private test artefacts are never committed.** `docs/spikes/results/lockscreen-label.jpg` (a phone number, a face and a name) and `docs/prompts/M6-spike-1-assist.md` were committed by accident in `229d1e7` and merged to `main`. They were removed from `main`'s history, are now in `.gitignore`, and a test (`PrivacyGuardTests`) keeps them there. Keep personal files in `private/` (ignored, never part of the app or a release) or outside the repo. Before pushing, run `git status` and read what `git add` is about to take.
+- **If the old commit was ever public, it still exists** in GitHub's cache and in the merged pull request's page (`refs/pull/12/head`) until GitHub Support purges it, and on any clone made before the rewrite. Treat what the photo showed as exposed.
+- **History scan (text):** no tokens, keys, phone numbers or device names in any commit. The only matches are fake keys in tests, the copyright line (Charlie Auchter) and the commit email in one early design note.
+- **History scan (images, OCR of all 150):** nothing sensitive. A few screenshots show a browser behind the island with the Mac username (`charlie`) in the address bar and course-site tab names (QUT Canvas, HiQ). Retake or crop them if that matters.
+- **Personal device names** ("Kirby's WONDERBOOM") stay redacted in committed results.

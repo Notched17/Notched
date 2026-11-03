@@ -1,6 +1,6 @@
 # ADR-0030: AirPods and accessory battery (#28): spike result
 
-- Status: **proposed: provisional go with route C, `system_profiler` (3 Nov 2026).** Waiting for Charlie's approval. One check is still open: see "What would change this".
+- Status: **accepted: provisional go with route C, `system_profiler` (3 Nov 2026), approved by Charlie and built (the connect banner shows "NN%").** One check is still open: see "What would change this".
 - Evidence: `docs/spikes/results/round2/spike-battery-accessory.txt` (personal device names removed), 12 runs on 3 Nov 2026, MacBook Air M4 15", macOS 27.2, Debug build. AirPods Pro 2 (product id 0x2024) ran the round 1 sheet: in the case, in the ears, one bud in the case, case charging, put away. AirPods Max 2 (0x202D) ran round 2 §2: on the head, on the desk, charging, reconnect.
 - Plan and criteria: `docs/superpowers/specs/2026-11-02-m6-hard-parts-and-release-design.md` §3.
 

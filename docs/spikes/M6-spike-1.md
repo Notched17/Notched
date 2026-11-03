@@ -105,7 +105,7 @@ This is the first time anything goes on the lock screen: a **plain grey label** 
 | 5.13 | **Kill switch.** `defaults write me.rkck.Notched lockScreen.killSwitch -bool true`, then the *arm* command: it should be refused. Then `defaults delete me.rkck.Notched lockScreen.killSwitch`. | |
 | 5.14 | Only with an **external display**: `open -g "notched://debug/probe?name=lockscreen&action=arm&secondary=1"`, then lock. A label on both displays? Unlock. | |
 | 5.15 | Only with a **second account**: *arm* (plain) and lock: **nothing** should show. Then `open -g "notched://debug/probe?name=lockscreen&action=arm&others=1"` and lock: the label shows. Then switch to the other account (Control Centre ▸ *Login Window…*): nothing on their screen, ever. | |
-| 5.16 | A phone photo of the lock screen **with the label**, saved as `docs/spikes/results/lockscreen-label.jpg`. | |
+| 5.16 | A phone photo of the lock screen **with the label**, saved as `private/lockscreen-label.jpg` (never committed: it shows a phone number, a face and a name). A cropped, safe version is `docs/spikes/results/round2/lockscreen-label-cropped.jpg`. | |
 | 5.17 | `open -g "notched://debug/probe?name=lockscreen&action=disarm"` | |
 
 ## 6. Send back

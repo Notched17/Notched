@@ -14,3 +14,9 @@ Configs/Local.xcconfig
 .claude/settings.local.json
 # superpowers plan workspaces
 .superpowers/
+
+# Personal test artefacts: never commit (a phone number, a face and a name are in the photo).
+# The cropped, safe version is docs/spikes/results/round2/lockscreen-label-cropped.jpg.
+/docs/spikes/results/lockscreen-label.jpg
+/docs/prompts/M6-spike-1-assist.md
+/private/

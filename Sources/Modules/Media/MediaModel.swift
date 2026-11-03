@@ -21,6 +21,8 @@ final class MediaModel {
     var liked: Bool?
     var canLike = false
     var visualizer: VisualizerStyle = .animated
+    /// Draw the cover's colour glowing behind it on the expanded island.
+    var showsGlow = true
     /// Synced lyrics for this track, while lyrics are on (#13).
     var lyrics: SyncedLyrics?
     /// Show the current lyric line beside the notch instead of the bars.

@@ -474,6 +474,12 @@ final class IslandViewModel {
         return notch.width + 2 * Spacing.s
     }
 
+    /// Whether a tab's top content may wrap around the camera housing right now.
+    var notchWrap: NotchWrap? {
+        NotchWrap.make(isNotch: geometry.kind == .notch, theme: theme, scale: expandedScale,
+                       headerHeight: headerHeight, notchGap: headerNotchGap)
+    }
+
     /// Horizontal inset of expanded content from the island's edges.
     var contentHorizontalInset: CGFloat {
         geometry.kind == .notch ? Radius.expandedShoulder + Spacing.l : Spacing.xl

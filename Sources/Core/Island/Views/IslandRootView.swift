@@ -62,6 +62,7 @@ struct IslandView: View {
         .animation(resizeAnimation, value: model.expandedHeight)
         .environment(\.islandReduceMotion, model.accessibility.reduceMotion)
         .environment(\.islandSurfaceIsGlass, model.surfaceIsGlass)
+        .environment(\.notchWrap, model.notchWrap)
         .clipShape(shape)
         // Glass goes after layout and around the content, so the content gets
         // glass vibrancy. Disabled (black) on the compact notch.

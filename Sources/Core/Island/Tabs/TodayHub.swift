@@ -124,5 +124,7 @@ struct TodayTabView: View {
         .environment(\.todayRowLimit, layout.rowLimit)
         .environment(\.todayHasColumns, !layout.columns.isEmpty)
         .frame(maxWidth: .infinity, alignment: .topLeading)
+        // Not flush against the camera housing's bottom edge.
+        .padding(.top, IslandMetrics.expandedNotchGap)
     }
 }

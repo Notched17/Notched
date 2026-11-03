@@ -15,7 +15,7 @@ import AppKit
 /// page?id=home|music|call|agent|download (expand to that page), tab?id=hello.demo|island (expand and pick a tab),
 /// scale?value=0.85...1.25 (sets the Appearance "Expanded size" factor; it is saved like the slider),
 /// setting?multiple=bubbles|sideBySide&click=open|expand&alerts=0|1&keyline=0|1, close-windows,
-/// media?on=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly&lyrics=0|1&ticker=0|1
+/// media?on=0|1&glow=0|1&adapter=fail|ok&lifecycle=fast|default&backend=auto|adapterOnly|scriptingOnly&lyrics=0|1&ticker=0|1
 /// &visualizer=animated|still|off, page?id=media, settings?module=media, quit,
 /// module?id=<module>&on=0|1, crash-at-start?on=0|1 (Hello crashes while starting),
 /// sensors?camera=1&apps=Zoom,Voice%20Memos&unnamed=1&callapps=us.zoom.xos&claims=Zoom|0 (a simulated camera and microphone reading),
@@ -157,6 +157,7 @@ enum DebugCommands {
             environment.modules.reconcile(enabled: environment.settings.enabledModules)
         }
         if let backend = query(url, "backend").flatMap(BackendPreference.init(rawValue:)) { environment.settings.media.backend = backend }
+        if let glow = query(url, "glow") { environment.settings.media.showGlow = glow == "1" }
         if let lyrics = query(url, "lyrics") { environment.settings.media.lyricsEnabled = lyrics == "1" }
         if let ticker = query(url, "ticker") { environment.settings.media.lyricsTicker = ticker == "1" }
         if let style = query(url, "visualizer").flatMap(VisualizerStyle.init(rawValue:)) { environment.settings.media.visualizer = style }

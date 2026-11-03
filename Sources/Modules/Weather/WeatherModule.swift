@@ -304,6 +304,10 @@ enum WeatherPresentation {
 struct WeatherSectionView: View {
     let model: WeatherModel
     @Environment(\.todayHasColumns) private var hasColumns
+    /// A glass theme gives the strip its card; Notch Black has none, so the strip sits straight on the black.
+    @Environment(\.islandSurfaceIsGlass) private var surfaceIsGlass
+    /// On Notch Black at 110%+ the weather wraps around the camera housing instead of sitting in a strip below it.
+    @Environment(\.notchWrap) private var wrap
 
     var body: some View {
         if model.isChoosingCity {
@@ -335,8 +339,89 @@ struct WeatherSectionView: View {
         case .unavailable:
             note("Weather isn't available right now.")
         case .ready(let snapshot, let location, let isOffline, let isStale):
-            strip(snapshot, location: location, isOffline: isOffline, isStale: isStale)
+            if let wrap {
+                wrapped(snapshot, location: location, isOffline: isOffline, isStale: isStale, wrap: wrap)
+            } else {
+                strip(snapshot, location: location, isOffline: isOffline, isStale: isStale)
+            }
         }
+    }
+
+    /// The city line: tapping it changes the city.
+    private func cityButton(_ snapshot: WeatherSnapshot, location: WeatherLocation, isOffline: Bool, isStale: Bool) -> some View {
+        Button { model.openPicker() } label: {
+            HStack(spacing: 2) {
+                Text(footnote(snapshot, location: location, isOffline: isOffline, isStale: isStale))
+                    .lineLimit(1)
+                Image(systemName: "chevron.right").font(.system(size: 7, weight: .bold))
+            }
+            .font(.system(size: 10))
+            .dimmedText(0.65)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(location.name). Change city")
+    }
+
+    /// Everything the strip shows, split around the camera housing: the conditions on the left,
+    /// the hours on the right, the middle clear. Pulled up into the row beside the notch, so the
+    /// Calendar and Reminders columns start higher and the island is shorter.
+    private func wrapped(_ snapshot: WeatherSnapshot, location: WeatherLocation, isOffline: Bool, isStale: Bool, wrap: NotchWrap) -> some View {
+        let unit = model.unit
+        let upcoming = Array(snapshot.hours.dropFirst())
+        func hoursRow(_ count: Int) -> some View {
+            HStack(spacing: Spacing.s) {
+                ForEach(upcoming.prefix(count)) { hour in
+                    WeatherHourColumn(hour: hour, unit: unit)
+                }
+            }
+        }
+        return HStack(alignment: .center, spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: snapshot.condition.symbol(isDay: snapshot.isDay))
+                    .symbolRenderingMode(.multicolor)
+                    .font(.system(size: 30))
+                    .frame(width: 34)
+                    .background {
+                        Circle().fill(WeatherLook.tint(code: snapshot.code, isDay: snapshot.isDay).color.opacity(0.28))
+                            .frame(width: 60, height: 60).blur(radius: 14).allowsHitTesting(false)
+                    }
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: Spacing.xs) {
+                        Text(unit.text(fromCelsius: snapshot.celsius))
+                            .font(.system(size: 24, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                        if isOffline {
+                            Image(systemName: "wifi.slash").font(.system(size: 10)).foregroundStyle(.secondary).accessibilityLabel("Offline")
+                        }
+                    }
+                    Text(snapshot.condition.text)
+                        .font(.system(size: 11))
+                        .dimmedText(0.85)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Text("H \(unit.text(fromCelsius: snapshot.highCelsius)) L \(unit.text(fromCelsius: snapshot.lowCelsius))")
+                        .font(.system(size: 10))
+                        .dimmedText(0.7)
+                        .lineLimit(1)
+                    cityButton(snapshot, location: location, isOffline: isOffline, isStale: isStale)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Color.clear.frame(width: wrap.gap)
+            // The hours that don't fit are dropped (four at most, down to two).
+            ViewThatFits(in: .horizontal) {
+                hoursRow(4)
+                hoursRow(3)
+                hoursRow(2)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .opacity(isStale ? 0.55 : 1)
+        .accessibilityElement(children: .contain)
+        // Up into the row beside the notch; the layout shrinks by the same amount, so what follows moves up too.
+        .padding(.top, -wrap.rise)
     }
 
     private func note(_ text: String) -> some View {
@@ -383,18 +468,7 @@ struct WeatherSectionView: View {
                     .dimmedText(0.75)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
-                Button { model.openPicker() } label: {
-                    HStack(spacing: 2) {
-                        Text(footnote(snapshot, location: location, isOffline: isOffline, isStale: isStale))
-                            .lineLimit(1)
-                        Image(systemName: "chevron.right").font(.system(size: 7, weight: .bold))
-                    }
-                    .font(.system(size: 10))
-                    .dimmedText(0.65)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("\(location.name). Change city")
+                cityButton(snapshot, location: location, isOffline: isOffline, isStale: isStale)
             }
             Spacer(minLength: Spacing.s)
             ViewThatFits(in: .horizontal) {
@@ -404,9 +478,9 @@ struct WeatherSectionView: View {
             }
             .layoutPriority(-1)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, surfaceIsGlass ? 12 : 0)
         .padding(.vertical, 8)
-        .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 14, style: .continuous))
+        .background(surfaceIsGlass ? Color.white.opacity(0.06) : Color.clear, in: .rect(cornerRadius: 14, style: .continuous))
         .opacity(isStale ? 0.55 : 1)
         .accessibilityElement(children: .contain)
     }

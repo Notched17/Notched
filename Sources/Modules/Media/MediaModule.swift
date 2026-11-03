@@ -114,6 +114,7 @@ final class MediaModule: IslandModule {
             service.preference = settings.backend
             service.ignoredApps = settings.ignoredApps
             model.visualizer = settings.visualizer
+            model.showsGlow = settings.showGlow
             model.lyricsTicker = settings.lyricsTicker
             _ = settings.staleAfterMinutes
             _ = settings.endAfterMinutes

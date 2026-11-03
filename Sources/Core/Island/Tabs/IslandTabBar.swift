@@ -116,4 +116,27 @@ extension EnvironmentValues {
     /// A tab's title and key figure are drawn in the row beside the camera
     /// housing, so its body leaves them out.
     @Entry var tabHeaderIsBesideNotch = false
+    /// Set while content may wrap around the camera housing (see `NotchWrap`).
+    @Entry var notchWrap: NotchWrap?
+}
+
+/// Lets a tab's top content rise into the row beside the camera housing,
+/// leaving the housing's width clear in the middle, so the island is shorter.
+/// Only on a notched display with Notch Black (the black runs on from the
+/// notch, so content beside it reads as part of it) and a wide enough
+/// island for each side to hold something (Expanded size 110% or more).
+struct NotchWrap: Equatable, Sendable {
+    /// How far to pull the content up from where the tab would put it (points).
+    var rise: CGFloat
+    /// The clear width in the middle, for the camera housing.
+    var gap: CGFloat
+
+    static let minimumScale = 1.1
+    /// Where the wrapped content starts, measured from the island's top edge.
+    static let top: CGFloat = 6
+
+    static func make(isNotch: Bool, theme: IslandTheme, scale: Double, headerHeight: CGFloat, notchGap: CGFloat) -> NotchWrap? {
+        guard isNotch, theme == .notchBlack, scale >= minimumScale - 0.001 else { return nil }
+        return NotchWrap(rise: headerHeight + IslandMetrics.expandedNotchGap - top, gap: notchGap)
+    }
 }

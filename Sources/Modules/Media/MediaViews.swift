@@ -162,7 +162,7 @@ struct MediaExpandedBody: View {
                     // Spotify: a stronger, tighter glow centred on the cover, and a faint
                     // wide wash that carries on to the right, past the camera housing.
                     .background {
-                        if model.artwork != nil {
+                        if model.artwork != nil, model.showsGlow {
                             ZStack {
                                 Ellipse()
                                     .fill(model.tint.opacity(0.265))
@@ -198,6 +198,8 @@ struct MediaExpandedBody: View {
             }
             .frame(height: Self.artworkSize)
         }
+        // The cover's glow lights the notch's edge, so the title needs a little air below it.
+        .padding(.top, IslandMetrics.expandedNotchGap)
     }
 }
 

@@ -37,6 +37,7 @@ final class MediaSettings {
         static let staleAfterMinutes = "media.staleAfterMinutes"
         static let endAfterMinutes = "media.endAfterMinutes"
         static let visualizer = "media.visualizer"
+        static let showGlow = "media.showGlow"
     }
 
     static let staleAfterChoices = [1, 2, 5, 10]
@@ -56,6 +57,8 @@ final class MediaSettings {
     var staleAfterMinutes: Int { didSet { defaults.set(staleAfterMinutes, forKey: Key.staleAfterMinutes) } }
     var endAfterMinutes: Int { didSet { defaults.set(endAfterMinutes, forKey: Key.endAfterMinutes) } }
     var visualizer: VisualizerStyle { didSet { defaults.set(visualizer.rawValue, forKey: Key.visualizer) } }
+    /// The cover's colour glowing behind it on the expanded island. On unless turned off.
+    var showGlow: Bool { didSet { defaults.set(showGlow, forKey: Key.showGlow) } }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -67,6 +70,7 @@ final class MediaSettings {
         staleAfterMinutes = defaults.object(forKey: Key.staleAfterMinutes) as? Int ?? 2
         endAfterMinutes = defaults.object(forKey: Key.endAfterMinutes) as? Int ?? 10
         visualizer = defaults.string(forKey: Key.visualizer).flatMap(VisualizerStyle.init(rawValue:)) ?? .animated
+        showGlow = defaults.object(forKey: Key.showGlow) as? Bool ?? true
     }
 
     var lifecycle: MediaLifecycle {

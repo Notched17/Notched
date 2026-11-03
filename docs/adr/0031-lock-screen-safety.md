@@ -1,6 +1,6 @@
 # ADR-0031: Lock-screen widgets (#59) and lyrics (#13b): safety design
 
-- Status: **accepted 2 Nov 2026** for the Stage 2 spike, with Charlie's changes (§6). Stage 3 (the real widgets) waits for the spike's go/no-go.
+- Status: **accepted 2 Nov 2026** for the Stage 2 spike, with Charlie's changes (§6). **Stage 2 passed and the decision is go (3 Nov 2026, §9).** Stage 3 is built, experimental and off by default (§8).
 - Date: 2026-11-02
 - Rules it implements: CLAUDE.md "Safety rules for risky features: Lock-screen windows"; M6 prompt §6.3.
 - Numbers reserved: ADR-0029 per-app volume, ADR-0030 accessory battery (both waiting for spike results).
@@ -198,3 +198,18 @@ Charlie chose to build the card before finishing the Stage 2 checklist (items 5.
 - **Placement (§7) and size.** Height (under the clock or middle), side (left, centre, right) and size (Small 0.8×, Medium 1×, Large 1.3× of the tested 360 × 120) only choose a position inside the band: top no higher than 30 % from the top, bottom never in the bottom 45 %, at most 40 % of the screen's width. `cardFrame` ends with a check that returns nil for any frame outside the band, whatever the choices. Large in the middle is lifted to the band's lower edge, never lowered. Tests cover every size and placement on eleven screen shapes. Medium is the only size run on the real lock screen so far.
 - **Look.** The card is a content-layer element, so by default it is a **solid** dark surface (88 % black, fully opaque under Reduce Transparency), like the island and a Live Activity, which stays readable over any wallpaper. The user may choose **Liquid Glass** instead (`.glassEffect(.regular.tint(black 40 %))`, applied after layout; solid again under Reduce Transparency). The glass was checked only over a dark desktop, not over a pale wallpaper on the real lock screen. One 360 × 120 layout is scaled to every size, so no size can clip.
 - **Debug.** In Debug builds, `notched://debug/probe?name=lockscreen&action=card&style=glass&size=large` previews the card on the desktop with no SkyLight, unlocked only.
+
+### 9. Stage 2 completed (Charlie, 3 Nov 2026)
+
+Charlie ran the rows left open in the table above.
+
+| Stage 2 check | Result |
+|---|---|
+| 5.4: 20 lock/unlock cycles | **Pass** ("looks good"). |
+| 5.5: the 60 s limit | **Pass.** The label removed itself. |
+| 5.6: wrong password, 5.7: Touch ID, 5.9: lid closed while locked | **Pass.** Unlocking worked as normal each time. |
+| 5.10: click on the card | **Pass.** Typing still went into the password field. |
+| 5.11: VoiceOver | **Pass.** VoiceOver doesn't read the card, and the password could still be typed and the Mac unlocked. |
+| **5.12: `kill -9` while locked** | **Pass.** The lock screen kept working. On relaunch, the crash rule turned the feature off: `lockScreen.lastOffReason` = "Notched stopped while the lock-screen card was showing, so lock-screen widgets turned themselves off…", and `lockScreen.windowsShown` was back to false. The spike log has no line for it because a killed process can't write one. The evidence is the product's own setting (read by Claude on 3 Nov). |
+
+**Decision: go.** Every Stage 2 check has passed, so the card stays: still off by default, still behind the confirmation, the kill switch and the crash rule. Not yet seen on the real lock screen: the Liquid Glass look over a pale wallpaper, and the Large size. Charlie's saved settings were on Glass and Large on 3 Nov, so they may already have been tried; that needs confirming. Not run at all: 5.14 (external display) and 5.15 (second account), because neither is available. Other displays and other accounts stay off by default until they are tested.

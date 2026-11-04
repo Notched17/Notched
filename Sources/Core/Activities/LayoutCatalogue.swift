@@ -28,6 +28,7 @@ enum LayoutCatalogue {
     static let knownTabs: [TabInfo] = [
         TabInfo(id: "ai", title: "AI", symbol: "sparkles", moduleName: "Claude Code"),
         TabInfo(id: "today", title: "Today", symbol: "calendar", moduleName: "Calendar, Reminders or Weather"),
+        TabInfo(id: "weather", title: "Weather", symbol: "sun.max", moduleName: "Weather"),
         TabInfo(id: "clipboard", title: "Clipboard", symbol: "clipboard", moduleName: "Clipboard"),
         TabInfo(id: "terminal", title: "Terminal", symbol: "terminal", moduleName: "Terminal"),
     ]

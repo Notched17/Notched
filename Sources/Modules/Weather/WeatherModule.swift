@@ -27,6 +27,7 @@ final class WeatherModule: IslandModule {
     )
     static let activityID: ActivityID = "weather.now"
     static let sectionID = "weather"
+    static let tabID = "weather"
 
     static func settingsPane(_ context: ModuleSettingsContext) -> AnyView? {
         AnyView(WeatherSettingsPane(settings: context.settings.weather, registry: context.registry, permissions: context.permissions))
@@ -83,6 +84,7 @@ final class WeatherModule: IslandModule {
             id: Self.sectionID, moduleID: Self.descriptor.id, slot: .header,
             content: IslandRegion { WeatherSectionView(model: model) }
         ))
+        context.activities.setTabs([weatherTab()])
         send(.configure(settings.reducerConfig()))
         send(.startup(location: activeLocation(), cache: cache.load()))
         reachability.start { [weak self] online in self?.send(.network(isOnline: online)) }
@@ -97,10 +99,22 @@ final class WeatherModule: IslandModule {
         observers.invalidate()
         context.services.today.claimKeyboard(Self.sectionID, false)
         context.services.today.remove(moduleID: Self.descriptor.id)
+        context.activities.setTabs([])
         context.activities.endAll()
         model.actions = WeatherActions()
         model.reset()
         reducer = WeatherReducer()
+    }
+
+    /// The Weather tab: the conditions, and the UV card (ADR-0033).
+    private func weatherTab() -> IslandTab {
+        let model = model
+        return IslandTab(
+            id: Self.tabID, moduleID: Self.descriptor.id, title: "Weather", symbol: "sun.max",
+            accessibilityLabel: "Weather and UV index", order: 16,
+            headerLeading: IslandRegion { WeatherTabHeaderLeading(model: model) },
+            headerTrailing: IslandRegion { WeatherTabHeaderTrailing(model: model) }
+        ) { WeatherTabView(model: model) }
     }
 
     /// A city picked in the island: that is the place from now on, even if
@@ -173,7 +187,7 @@ final class WeatherModule: IslandModule {
             case .publish(let display):
                 model.display = display
             case .postCompact(let snapshot, let location):
-                context.activities.post(WeatherPresentation.activity(snapshot, location: location, unit: reducer.state.config.unit))
+                context.activities.post(WeatherPresentation.activity(snapshot, location: location, unit: reducer.state.config.unit, model: model))
             case .endCompact:
                 context.activities.end(Self.activityID, dismissal: .immediate)
             case .wake(let date):
@@ -181,6 +195,8 @@ final class WeatherModule: IslandModule {
             }
         }
         model.unit = reducer.state.config.unit
+        model.showUV = settings.showUV
+        model.showUVInToday = settings.showUV && settings.showUVInToday
     }
 
     private func fetch(_ location: WeatherLocation, generation: Int) {
@@ -213,10 +229,34 @@ struct WeatherActions {
 final class WeatherModel {
     var display: WeatherDisplay = .noLocation
     var unit: TemperatureUnit = .celsius
+    /// The UV card on the Weather tab, and the small reading in the Today strip.
+    var showUV = true
+    var showUVInToday = true
     /// The inline city search is showing in place of the strip.
     var isChoosingCity = false
     let picker = CitySearchModel()
     @ObservationIgnored var actions = WeatherActions()
+
+    #if DEBUG
+    /// DEBUG only (`notched://debug/weather`): a made-up UV, or a made-up forecast, for screenshots.
+    var debugUV = WeatherDebugUV.real
+    var debugFake = false
+    #endif
+
+    /// What the views draw: the real display (a made-up one in DEBUG builds, when asked).
+    var shownDisplay: WeatherDisplay {
+        #if DEBUG
+        return debugAdjusted(display)
+        #else
+        return display
+        #endif
+    }
+
+    /// The UV to show, when there is a forecast with one and the settings allow it.
+    var uvToShow: (summary: UVSummary, snapshot: WeatherSnapshot)? {
+        guard showUV, case .ready(let snapshot, _, _, _) = shownDisplay, let uv = snapshot.uv else { return nil }
+        return (uv, snapshot)
+    }
 
     func reset() {
         display = .noLocation
@@ -248,7 +288,7 @@ final class WeatherModel {
 /// A passive temperature (#51): it never takes the island from a live activity or media.
 @MainActor
 enum WeatherPresentation {
-    static func activity(_ snapshot: WeatherSnapshot, location: WeatherLocation, unit: TemperatureUnit) -> LiveActivity {
+    static func activity(_ snapshot: WeatherSnapshot, location: WeatherLocation, unit: TemperatureUnit, model: WeatherModel) -> LiveActivity {
         let symbol = snapshot.condition.symbol(isDay: snapshot.isDay)
         let temperature = unit.text(fromCelsius: snapshot.celsius)
         let detail = "\(snapshot.condition.text), high \(unit.text(fromCelsius: snapshot.highCelsius)), low \(unit.text(fromCelsius: snapshot.lowCelsius))"
@@ -291,7 +331,7 @@ enum WeatherPresentation {
                                 .accessibilityLabel("\(chance) percent chance of rain")
                         }
                     },
-                    center: ExpandedRegion { WeatherExpandedBody(snapshot: snapshot, unit: unit) }
+                    center: ExpandedRegion { WeatherActivityBody(snapshot: snapshot, unit: unit, model: model) }
                 )
             )
         )
@@ -319,7 +359,7 @@ struct WeatherSectionView: View {
 
     @ViewBuilder
     private var content: some View {
-        switch model.display {
+        switch model.shownDisplay {
         case .noLocation:
             HStack(spacing: Spacing.m) {
                 Label("No city chosen yet.", systemImage: "cloud.sun")
@@ -411,10 +451,14 @@ struct WeatherSectionView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             Color.clear.frame(width: wrap.gap)
             // The hours that don't fit are dropped (four at most, down to two).
-            ViewThatFits(in: .horizontal) {
-                hoursRow(4)
-                hoursRow(3)
-                hoursRow(2)
+            // The column beside the notch is too narrow for the UV reading, so it sits above the hours on this side.
+            VStack(alignment: .trailing, spacing: 3) {
+                if let uv = todayUV(snapshot) { UVChip(uv: uv) }
+                ViewThatFits(in: .horizontal) {
+                    hoursRow(4)
+                    hoursRow(3)
+                    hoursRow(2)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -422,6 +466,11 @@ struct WeatherSectionView: View {
         .accessibilityElement(children: .contain)
         // Up into the row beside the notch; the layout shrinks by the same amount, so what follows moves up too.
         .padding(.top, -wrap.rise)
+    }
+
+    /// UV for the Today strip: only with the settings on and a reading in the forecast.
+    private func todayUV(_ snapshot: WeatherSnapshot) -> UVSummary? {
+        model.showUVInToday ? snapshot.uv : nil
     }
 
     private func note(_ text: String) -> some View {
@@ -463,11 +512,20 @@ struct WeatherSectionView: View {
                         Image(systemName: "wifi.slash").font(.system(size: 11)).foregroundStyle(.secondary).accessibilityLabel("Offline")
                     }
                 }
-                Text("\(snapshot.condition.text) · H \(unit.text(fromCelsius: snapshot.highCelsius)) L \(unit.text(fromCelsius: snapshot.lowCelsius))")
+                // The small UV reading follows the high and low when there is room; without room it goes.
+                let detail = Text("\(snapshot.condition.text) · H \(unit.text(fromCelsius: snapshot.highCelsius)) L \(unit.text(fromCelsius: snapshot.lowCelsius))")
                     .font(.system(size: 11))
                     .dimmedText(0.75)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
+                if let uv = todayUV(snapshot) {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 5) { detail; Text("·").font(.system(size: 11)).dimmedText(0.75); UVChip(uv: uv) }
+                        detail
+                    }
+                } else {
+                    detail
+                }
                 cityButton(snapshot, location: location, isOffline: isOffline, isStale: isStale)
             }
             Spacer(minLength: Spacing.s)
@@ -561,6 +619,16 @@ struct WeatherSettingsPane: View {
             }
 
             Section {
+                Toggle("Show UV index", isOn: $settings.showUV)
+                Toggle("Show UV in Today", isOn: $settings.showUVInToday)
+                    .disabled(!settings.showUV)
+            } header: {
+                Text("UV index")
+            } footer: {
+                Text("A UV card on the Weather tab and a small reading in the Today strip. It comes from the same forecast, so there are no extra requests.")
+            }
+
+            Section {
                 Link("Weather data by Open-Meteo.com", destination: URL(string: "https://open-meteo.com/")!)
             } footer: {
                 Text("Open-Meteo's data is licensed CC BY 4.0.")
@@ -571,6 +639,8 @@ struct WeatherSettingsPane: View {
         .onChange(of: settings.mode) { module?.settingsChanged() }
         .onChange(of: settings.unit) { module?.settingsChanged() }
         .onChange(of: settings.showCompact) { module?.settingsChanged() }
+        .onChange(of: settings.showUV) { module?.settingsChanged() }
+        .onChange(of: settings.showUVInToday) { module?.settingsChanged() }
         .task(id: picker.query) { await picker.searchAfterPause() }
     }
 }

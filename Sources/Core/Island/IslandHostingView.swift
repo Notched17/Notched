@@ -20,8 +20,6 @@ final class IslandHostingView: NSHostingView<IslandRootView> {
     var onPointer: (PointerEvent) -> Void = { _ in }
     /// A click anywhere on the expanded island (it then takes keyboard focus for Esc).
     var onMouseDown: () -> Void = {}
-    /// Trackpad scrolling over the expanded island, for paging.
-    var onScroll: (SwipeRecognizer.Sample) -> Void = { _ in }
 
     /// The island's rect in window coordinates.
     var trackingRectInWindow: CGRect = .zero {
@@ -52,11 +50,6 @@ final class IslandHostingView: NSHostingView<IslandRootView> {
     override func mouseDown(with event: NSEvent) {
         onMouseDown()
         super.mouseDown(with: event)
-    }
-
-    override func scrollWheel(with event: NSEvent) {
-        onScroll(SwipeRecognizer.Sample(event))
-        super.scrollWheel(with: event)
     }
 
     override func updateTrackingAreas() {

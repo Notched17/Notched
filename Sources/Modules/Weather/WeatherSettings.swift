@@ -47,6 +47,8 @@ final class WeatherSettings {
         static let unit = "weather.unit"
         static let showCompact = "weather.showCompact"
         static let deviceFix = "weather.deviceFix"
+        static let showUV = "weather.showUV"
+        static let showUVInToday = "weather.showUVInToday"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -57,6 +59,10 @@ final class WeatherSettings {
     /// A temperature on the compact island when nothing more important is showing.
     var showCompact: Bool { didSet { defaults.set(showCompact, forKey: Key.showCompact) } }
     var deviceFix: DeviceFix? { didSet { Self.store(deviceFix, key: Key.deviceFix, in: defaults) } }
+    /// The UV card on the Weather tab (on by default). Off hides all UV.
+    var showUV: Bool { didSet { defaults.set(showUV, forKey: Key.showUV) } }
+    /// The small UV reading in the Today strip (on by default; needs `showUV`).
+    var showUVInToday: Bool { didSet { defaults.set(showUVInToday, forKey: Key.showUVInToday) } }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -65,6 +71,8 @@ final class WeatherSettings {
         unit = defaults.string(forKey: Key.unit).flatMap(TemperatureUnitSetting.init(rawValue:)) ?? .system
         showCompact = defaults.object(forKey: Key.showCompact) as? Bool ?? false
         deviceFix = Self.load(DeviceFix.self, key: Key.deviceFix, from: defaults)
+        showUV = defaults.object(forKey: Key.showUV) as? Bool ?? true
+        showUVInToday = defaults.object(forKey: Key.showUVInToday) as? Bool ?? true
     }
 
     func reducerConfig(locale: Locale = .current) -> WeatherConfig {

@@ -334,6 +334,27 @@ final class IslandViewModel {
         return true
     }
 
+    /// A two-finger swipe: through the cards, then on through the tabs, and back. False at either end.
+    @discardableResult
+    func swipe(by offset: Int) -> Bool {
+        let all = pages
+        let onIsland = currentTabID == ExpandedTabs.islandID
+        guard let destination = ExpandedTabs.swipe(from: currentTabID, pageIndex: all.firstIndex(of: currentPage) ?? 0,
+                                                   pageCount: all.count, by: offset, available: tabs.map(\.id)) else { return false }
+        switch destination {
+        case .page(let index):
+            guard all.indices.contains(index) else { return false }
+            if !onIsland {
+                selectedTab = ExpandedTabs.islandID
+                openHomeAction = nil
+            }
+            selectedPage = all[index]
+            return true
+        case .tab(let id):
+            return selectTab(id)
+        }
+    }
+
     // MARK: Hit regions
 
     /// What the pointer is on while the island is compact.

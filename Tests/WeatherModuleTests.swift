@@ -107,12 +107,29 @@ struct WeatherModuleTests {
         rig.module.start()
         #expect(rig.today.sections.map(\.id) == ["weather"])
         #expect(rig.today.sections.first?.slot == .header)
-        #expect(rig.coordinator.moduleTabs.map(\.id) == ["today"])
+        #expect(Set(rig.coordinator.moduleTabs.map(\.id)) == ["today", "weather"])
         #expect(rig.reachability.isWatching)
         rig.module.stop()
         #expect(rig.today.sections.isEmpty)
         #expect(rig.coordinator.moduleTabs.isEmpty)
         #expect(!rig.reachability.isWatching)
+    }
+
+    @Test("UV adds no requests: one forecast call at start, and switching the UV settings fetches nothing more")
+    func uvAddsNoRequests() async {
+        let rig = makeRig(city: bristol)
+        defer { cleanUp(rig) }
+        rig.module.start()
+        await settle { isReady(rig) }
+        #expect(rig.api.calls.count == 1)
+        rig.settings.weather.showUV = false
+        rig.module.settingsChanged()
+        rig.settings.weather.showUV = true
+        rig.settings.weather.showUVInToday = false
+        rig.module.settingsChanged()
+        for _ in 0..<50 { await Task.yield() }
+        #expect(rig.api.calls.count == 1)
+        rig.module.stop()
     }
 
     @Test("Without a city it asks for one and makes no request")

@@ -69,7 +69,7 @@ final class IslandController {
         model.onSurfaceTap = { [weak self] in self?.send(.clicked) }
         hostingView.onPointer = { [weak self] event in self?.islandPointer(event) }
         hostingView.onMouseDown = { [weak self] in self?.takeKeyFocus() }
-        hostingView.onScroll = { [weak self] sample in self?.expandedScroll(sample) }
+        panel.onScroll = { [weak self] sample in self?.expandedScroll(sample) }
         panel.onCancel = { [weak self] in self?.send(.forceCollapse) }
         panel.onKeyCommand = { [weak self] command in
             guard let self else { return false }
@@ -374,7 +374,7 @@ final class IslandController {
         feedback(.alignment)
     }
 
-    /// Two-finger swipes on the expanded island page between activities and Home.
+    /// Two-finger swipes on the expanded island go through the cards (activities, then Home) and on through the tabs.
     private func expandedScroll(_ sample: SwipeRecognizer.Sample) {
         guard hover.state == .expanded || hover.state == .pendingCollapse,
               let gesture = expandedSwipe.handle(sample) else { return }
@@ -386,7 +386,7 @@ final class IslandController {
         guard offset != 0 else { return }
         var moved = false
         withAnimation(model.accessibility.reduceMotion ? Motion.reduced : Motion.content) {
-            moved = model.page(by: offset)
+            moved = model.swipe(by: offset)
         }
         if moved { feedback(.alignment) }
     }

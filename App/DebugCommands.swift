@@ -25,6 +25,7 @@ import AppKit
 /// page?panel=timers|keepawake (Home with that quick action open), network?name=0|1,
 /// hud-key?key=up|down|mute|bup|bdown&shift=1&option=1&repeats=N (posts a volume or brightness key),
 /// hud-pause?on=0|1 (Pause HUD Replacement),
+/// weather?fake=1&uv=0...14|none|default (a made-up Bristol forecast and UV for screenshots),
 /// hud-style?name=inline|vertical|circular|minimal,
 /// hang?ms=N&key=down (blocks the main thread and posts a key meanwhile, to show the tap doesn't wait for it).
 @MainActor
@@ -75,6 +76,7 @@ enum DebugCommands {
             if let hello = DebugMenu.hello(environment), hello.isLiveSessionRunning != on { hello.toggleLiveSession() }
         case "lab": lab(url, environment.scenarioLab)
         case "media": media(url, environment)
+        case "weather": weather(url, environment)
         case "quit": NSApp.terminate(nil)  // like the status menu's Quit (runs applicationWillTerminate)
         case "close-windows":
             // Closes Settings and onboarding without finishing onboarding (for clean measurements).
@@ -147,6 +149,19 @@ enum DebugCommands {
         if let demo = query(url, "demo").flatMap(ScenarioLab.Demo.init(rawValue:)),
            let action = action.flatMap(ScenarioLab.Action.init(rawValue:)) {
             lab.perform(action, on: demo)
+        }
+    }
+
+    /// weather?fake=1|0 (a made-up Bristol forecast, no city or network needed)&uv=0...14|none|default (a made-up UV).
+    private static func weather(_ url: URL, _ environment: AppEnvironment) {
+        guard let module = environment.modules.module(WeatherModule.descriptor.id) as? WeatherModule else { return }
+        if let fake = query(url, "fake") { module.model.debugFake = fake == "1" }
+        if let uv = query(url, "uv") {
+            switch uv {
+            case "none": module.model.debugUV = .none
+            case "default": module.model.debugUV = .real
+            default: if let value = Double(uv) { module.model.debugUV = .value(value) }
+            }
         }
     }
 

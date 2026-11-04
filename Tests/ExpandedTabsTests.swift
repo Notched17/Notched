@@ -85,6 +85,49 @@ struct ExpandedTabsTests {
     }
 }
 
+@Suite("Swiping through cards and tabs")
+struct SwipeNavigationTests {
+    private let tabs = ["today", "weather", "clipboard"]
+
+    private func swipe(_ tab: String, page: Int = 0, of count: Int = 3, _ offset: Int, tabs available: [String]? = nil) -> ExpandedTabs.SwipeDestination? {
+        ExpandedTabs.swipe(from: tab, pageIndex: page, pageCount: count, by: offset, available: available ?? tabs)
+    }
+
+    @Test("On the Island tab a swipe steps through the cards")
+    func throughCards() {
+        #expect(swipe(ExpandedTabs.islandID, page: 0, 1) == .page(1))
+        #expect(swipe(ExpandedTabs.islandID, page: 1, 1) == .page(2))
+        #expect(swipe(ExpandedTabs.islandID, page: 2, -1) == .page(1))
+    }
+
+    @Test("Past the last card (Home) the next swipe enters the first tab")
+    func intoTabs() {
+        #expect(swipe(ExpandedTabs.islandID, page: 2, 1) == .tab("today"))
+        #expect(swipe(ExpandedTabs.islandID, page: 2, 1, tabs: []) == nil)
+    }
+
+    @Test("Tabs follow one another, and going back from the first tab returns to the last card")
+    func throughTabs() {
+        #expect(swipe("today", 1) == .tab("weather"))
+        #expect(swipe("weather", 1) == .tab("clipboard"))
+        #expect(swipe("clipboard", -1) == .tab("weather"))
+        #expect(swipe("today", -1) == .page(2))
+    }
+
+    @Test("It stops at both ends instead of wrapping")
+    func ends() {
+        #expect(swipe(ExpandedTabs.islandID, page: 0, -1) == nil)
+        #expect(swipe("clipboard", 1) == nil)
+    }
+
+    @Test("A tab that has gone, or no cards at all, goes nowhere")
+    func odd() {
+        #expect(swipe("gone", 1) == nil)
+        #expect(swipe("today", of: 0, -1) == nil)
+    }
+}
+
+
 @Suite("Tab host in the island")
 @MainActor
 struct IslandTabHostTests {

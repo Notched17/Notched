@@ -48,6 +48,21 @@ final class IslandPanel: NSPanel {
         if !contentOwnsKeyboard { onCancel() }
     }
 
+    /// Trackpad scrolling over the expanded island, for swiping through cards and tabs.
+    var onScroll: (SwipeRecognizer.Sample) -> Void = { _ in }
+
+    /// Sideways swipes are taken here, before the view under the pointer sees them, so they work
+    /// anywhere on the island: over the tab bar's own scrolling, or the Terminal. Up and down
+    /// go on to the view as usual.
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .scrollWheel {
+            onScroll(SwipeRecognizer.Sample(event))
+            if SwipeRecognizer.isSideways(deltaX: event.scrollingDeltaX, deltaY: event.scrollingDeltaY,
+                                          precise: event.hasPreciseScrollingDeltas) { return }
+        }
+        super.sendEvent(event)
+    }
+
     /// Tab and page keys while the panel has focus. True when handled.
     var onKeyCommand: (ExpandedKeyCommand) -> Bool = { _ in false }
 

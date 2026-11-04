@@ -61,4 +61,14 @@ struct AccessibilityLintTests {
         }
         #expect(offenders.isEmpty, "Gate on reduceMotion: \(offenders)")
     }
+
+    @Test("Every UV colour reads on the black island: at least 4.5:1, from 0 to well past 11")
+    func uvScaleReadsOnBlack() {
+        var value = 0.0
+        while value <= 14 {
+            let contrast = UVScale.contrastAgainstBlack(UVScale.color(for: value))
+            #expect(contrast >= 4.5, "UV \(value) is only \(contrast):1 on black")
+            value += 0.05
+        }
+    }
 }

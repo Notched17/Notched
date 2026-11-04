@@ -230,6 +230,137 @@ struct WeatherSupportTests {
         #expect(settings.city == nil && settings.mode == .city)
     }
 
+    // MARK: UV
+
+    /// A day of forecast from local midnight (1799971200): UV climbs from 8 am to a peak of 8 at noon and is gone by 5 pm.
+    private let midnight = 1_799_971_200
+    private let dayUV: [Double?] = [0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 5, 7, 8, 6, 4, 3, 1, 0, 0, 0, 0, 0, 0, 0]
+
+    private func uvJSON(now: Int, currentUV: String = "5.4", hourly: [Double?]? = nil, dailyMax: String? = "8.4", includeDaily: Bool = true) -> String {
+        let times = (0..<24).map { midnight + $0 * 3600 }
+        let temps = (0..<24).map { 8.0 + Double($0) / 4 }
+        let uv = (hourly ?? dayUV).map { $0.map { String($0) } ?? "null" }.joined(separator: ",")
+        let daily = includeDaily ? #","daily":{"time":[\#(midnight)],"temperature_2m_max":[17.2],"temperature_2m_min":[8.1],"uv_index_max":[\#(dailyMax ?? "null")]}"# : ""
+        return """
+        {"current":{"time":\(now),"temperature_2m":14.4,"weather_code":3,"is_day":1,"uv_index":\(currentUV)},
+         "hourly":{"time":\(times),"temperature_2m":\(temps),"uv_index":[\(uv)]}\(daily)}
+        """
+    }
+
+    private let tenThirty = 1_799_971_200 + 10 * 3600 + 1800
+
+    @Test("The forecast request asks for UV in the same single request")
+    func uvRequest() throws {
+        let url = try #require(OpenMeteo.forecastURL(for: bristol))
+        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        let items = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+        #expect(items["current"]?.contains("uv_index") == true)
+        #expect(items["hourly"]?.contains("uv_index") == true)
+        #expect(items["daily"]?.contains("uv_index_max") == true)
+    }
+
+    @Test("UV comes through: now, today's peak and when, the hours worth protecting, and each hour")
+    func parsesUV() throws {
+        let snapshot = try OpenMeteo.parseForecast(Data(uvJSON(now: tenThirty).utf8), location: bristol, fetchedAt: .now)
+        let uv = try #require(snapshot.uv)
+        #expect(uv.current == 5.4)
+        #expect(uv.peak == 8.4)
+        #expect(uv.peakTime == Date(timeIntervalSince1970: Double(midnight + 12 * 3600)))
+        #expect(uv.protectionStart == Date(timeIntervalSince1970: Double(midnight + 9 * 3600)))
+        // UV 3 or more until the 3 pm hour is over.
+        #expect(uv.protectionEnd == Date(timeIntervalSince1970: Double(midnight + 16 * 3600)))
+        #expect(snapshot.hours.first?.uvIndex == 5)
+        #expect(snapshot.hours.dropFirst().first?.uvIndex == 7)
+    }
+
+    @Test("The peak is found even after it has passed, because the whole day is read")
+    func peakInThePast() throws {
+        let afternoon = midnight + 15 * 3600 + 1800
+        let snapshot = try OpenMeteo.parseForecast(Data(uvJSON(now: afternoon, currentUV: "3.2", dailyMax: "null").utf8), location: bristol, fetchedAt: .now)
+        let uv = try #require(snapshot.uv)
+        #expect(uv.peak == 8)
+        #expect(uv.peakTime == Date(timeIntervalSince1970: Double(midnight + 12 * 3600)))
+        #expect(uv.current == 3.2)
+    }
+
+    @Test("Without daily data the peak and the hours come from the hourly values")
+    func hourlyOnly() throws {
+        let snapshot = try OpenMeteo.parseForecast(Data(uvJSON(now: tenThirty, includeDaily: false).utf8), location: bristol, fetchedAt: .now)
+        let uv = try #require(snapshot.uv)
+        #expect(uv.peak == 8)
+        #expect(uv.protectionStart == Date(timeIntervalSince1970: Double(midnight + 9 * 3600)))
+    }
+
+    @Test("A response without UV has no UV, never a made-up zero")
+    func noUV() throws {
+        let snapshot = try OpenMeteo.parseForecast(Data(forecastJSON.utf8), location: bristol, fetchedAt: .now)
+        #expect(snapshot.uv == nil)
+        #expect(snapshot.hours.allSatisfy { $0.uvIndex == nil })
+    }
+
+    @Test("Null UV entries: the current hour stands in for a missing reading, and all-null means none")
+    func nullUV() throws {
+        let fallback = try OpenMeteo.parseForecast(Data(uvJSON(now: tenThirty, currentUV: "null").utf8), location: bristol, fetchedAt: .now)
+        #expect(fallback.uv?.current == 5)
+        let none = try OpenMeteo.parseForecast(
+            Data(uvJSON(now: tenThirty, currentUV: "null", hourly: Array(repeating: nil, count: 24), dailyMax: nil).utf8), location: bristol, fetchedAt: .now)
+        #expect(none.uv == nil)
+        // A current reading with no hourly values still shows, with no peak to speak of.
+        let currentOnly = try OpenMeteo.parseForecast(
+            Data(uvJSON(now: tenThirty, hourly: Array(repeating: nil, count: 24), dailyMax: nil).utf8), location: bristol, fetchedAt: .now)
+        #expect(currentOnly.uv?.current == 5.4)
+        #expect(currentOnly.uv?.peakTime == nil && currentOnly.uv?.protectionStart == nil)
+    }
+
+    @Test("A negative reading is clamped to 0, and a day that never reaches 3 has no protection hours")
+    func lowDay() throws {
+        let gloomy = Array(repeating: Double?.some(1.5), count: 24)
+        let snapshot = try OpenMeteo.parseForecast(Data(uvJSON(now: tenThirty, currentUV: "-1", hourly: gloomy, dailyMax: "1.5").utf8), location: bristol, fetchedAt: .now)
+        let uv = try #require(snapshot.uv)
+        #expect(uv.current == 0)
+        #expect(uv.protectionStart == nil && uv.protectionEnd == nil)
+    }
+
+    @Test("A cache saved before UV existed still loads, with no UV")
+    func oldCache() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("WeatherOldCache-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let old = """
+        {"locationKey":"51.5,-2.6","fetchedAt":"2027-01-15T08:00:00Z","celsius":14.4,"code":3,"isDay":true,"highCelsius":17.2,"lowCelsius":8.1,
+         "hours":[{"time":"2027-01-15T09:00:00Z","celsius":14,"code":3,"isDay":true,"precipitationChance":10}]}
+        """
+        let store = WeatherCacheStore(url: directory.appendingPathComponent("cache.json"))
+        try Data(old.utf8).write(to: store.url)
+        let snapshot = try #require(store.load())
+        #expect(snapshot.uv == nil)
+        #expect(snapshot.hours.first?.uvIndex == nil)
+        #expect(snapshot.celsius == 14.4)
+    }
+
+    @Test("A cache with UV round-trips")
+    func uvCache() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("WeatherUVCache-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = WeatherCacheStore(url: directory.appendingPathComponent("cache.json"))
+        let snapshot = try OpenMeteo.parseForecast(Data(uvJSON(now: tenThirty).utf8), location: bristol, fetchedAt: Date(timeIntervalSince1970: 1_800_009_100))
+        store.save(snapshot)
+        #expect(store.load() == snapshot)
+        #expect(store.load()?.uv?.peak == 8.4)
+    }
+
+    @MainActor
+    @Test("The two UV settings are on by default and remembered")
+    func uvSettings() {
+        let defaults = UserDefaults(suiteName: "WeatherUVSettings.\(UUID().uuidString)")!
+        let settings = WeatherSettings(defaults: defaults)
+        #expect(settings.showUV && settings.showUVInToday)
+        settings.showUV = false
+        settings.showUVInToday = false
+        let reloaded = WeatherSettings(defaults: defaults)
+        #expect(!reloaded.showUV && !reloaded.showUVInToday)
+    }
+
     @Test("The cache round-trips with private permissions and tolerates a missing or damaged file")
     func cache() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("WeatherCache-\(UUID().uuidString)")

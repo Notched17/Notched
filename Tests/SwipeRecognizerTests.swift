@@ -72,4 +72,16 @@ struct SwipeRecognizerTests {
         var sut = SwipeRecognizer()
         #expect(sut.handle(natural(0, -80, .none)) == nil)
     }
+
+    @Test("A mostly sideways trackpad scroll is taken for the island, so the view under the pointer never sees it")
+    func sidewaysIsTaken() {
+        #expect(SwipeRecognizer.isSideways(deltaX: 12, deltaY: 3, precise: true))
+        #expect(SwipeRecognizer.isSideways(deltaX: -4, deltaY: 1, precise: true))
+        // Up and down (terminal scrollback, lists) and diagonal-ish scrolls belong to the view.
+        #expect(!SwipeRecognizer.isSideways(deltaX: 2, deltaY: 12, precise: true))
+        #expect(!SwipeRecognizer.isSideways(deltaX: 5, deltaY: 5, precise: true))
+        #expect(!SwipeRecognizer.isSideways(deltaX: 0, deltaY: 0, precise: true))
+        // A mouse wheel never swipes.
+        #expect(!SwipeRecognizer.isSideways(deltaX: 12, deltaY: 0, precise: false))
+    }
 }

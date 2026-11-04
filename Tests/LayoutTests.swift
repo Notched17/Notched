@@ -243,6 +243,7 @@ struct LayoutCatalogueTests {
         let known = LayoutCatalogue.knownTabs.map(\.id)
         #expect(known.contains(ClaudeCodeModule.tabID))
         #expect(known.contains(TodayHub.tabID))
+        #expect(known.contains(WeatherModule.tabID))
         #expect(known.contains(ClipboardModule.tabID))
         #expect(known.contains(TerminalModule.tabID))
         #expect(Set(known).count == known.count)
@@ -252,7 +253,7 @@ struct LayoutCatalogueTests {
     func editorTabs() {
         let extra = LayoutCatalogue.TabInfo(id: "hello.demo", title: "Demo", symbol: "sparkles", moduleName: "Hello")
         let plain = LayoutCatalogue.editorTabs(live: [extra], layout: .default)
-        #expect(plain.map(\.id) == ["ai", "today", "clipboard", "terminal", "hello.demo"])
+        #expect(plain.map(\.id) == ["ai", "today", "weather", "clipboard", "terminal", "hello.demo"])
         let ordered = LayoutCatalogue.editorTabs(live: [extra], layout: TabLayout(order: ["terminal", "hello.demo"]))
         #expect(ordered.map(\.id).prefix(2) == ["terminal", "hello.demo"])
         // A live tab that is also a known one isn't listed twice.

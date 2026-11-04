@@ -33,8 +33,23 @@ struct HourlyWeather: Equatable, Codable, Sendable, Identifiable {
     var isDay: Bool
     /// 0...100, nil when the service doesn't say.
     var precipitationChance: Int?
+    /// The UV index for the hour, nil when the service doesn't say.
+    var uvIndex: Double?
 
     var id: Date { time }
+}
+
+/// Today's UV, read from the same forecast (no extra request). Missing values
+/// stay nil: the UV views are hidden rather than showing a made-up zero.
+struct UVSummary: Equatable, Codable, Sendable {
+    /// UV now, 0 at night.
+    var current: Double
+    /// The day's highest UV, and the hour it comes.
+    var peak: Double?
+    var peakTime: Date?
+    /// The first hour with UV 3 or more, and when the last such hour ends.
+    var protectionStart: Date?
+    var protectionEnd: Date?
 }
 
 /// One successful look at the forecast. Temperatures stay in °C and are
@@ -48,6 +63,8 @@ struct WeatherSnapshot: Equatable, Codable, Sendable {
     var highCelsius: Double
     var lowCelsius: Double
     var hours: [HourlyWeather]
+    /// nil for a forecast saved before UV was added, or when the service gave none.
+    var uv: UVSummary?
 
     var condition: WeatherCondition { WeatherCondition(code: code) }
 }

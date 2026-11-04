@@ -31,6 +31,12 @@ struct SwipeRecognizer {
     /// The swipe's direction must beat the other axis by this factor.
     static let dominance: CGFloat = 1.5
 
+    /// Whether a scroll event is a sideways trackpad swipe, which the island takes for itself
+    /// wherever the pointer is on it. Up and down stay with the view under the pointer.
+    static func isSideways(deltaX: CGFloat, deltaY: CGFloat, precise: Bool) -> Bool {
+        precise && abs(deltaX) > abs(deltaY)
+    }
+
     private var travel = CGPoint.zero
     private var fired = false
 

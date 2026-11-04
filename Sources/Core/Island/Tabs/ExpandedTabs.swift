@@ -66,6 +66,29 @@ enum ExpandedTabs {
         return all[((index + offset) % count + count) % count]
     }
 
+    /// Where a two-finger swipe leads.
+    enum SwipeDestination: Equatable, Sendable {
+        /// A card on the Island tab, by position (from a tab, this also goes back to the Island tab).
+        case page(Int)
+        case tab(String)
+    }
+
+    /// A swipe of one step (`offset` is +1 forward, -1 back) as one path through the whole island:
+    /// the cards (activities, then Home), then the tabs in their order. It stops at both ends.
+    static func swipe(from tab: String, pageIndex: Int, pageCount: Int, by offset: Int, available: [String]) -> SwipeDestination? {
+        if tab == islandID {
+            let next = pageIndex + offset
+            if (0..<pageCount).contains(next) { return .page(next) }
+            if offset > 0, let first = available.first { return .tab(first) }
+            return nil
+        }
+        guard let index = available.firstIndex(of: tab) else { return nil }
+        let next = index + offset
+        if available.indices.contains(next) { return .tab(available[next]) }
+        if offset < 0, pageCount > 0 { return .page(pageCount - 1) }
+        return nil
+    }
+
     /// The id for ⌘N's zero-based position, or nil when there's no such tab.
     static func id(atPosition position: Int, available: [String]) -> String? {
         let all = [islandID] + available

@@ -101,6 +101,10 @@ struct WeatherRangeBar: View {
 struct WeatherExpandedBody: View {
     let snapshot: WeatherSnapshot
     let unit: TemperatureUnit
+    /// The day's range bar under the row. The Weather tab hides it while its UV card is showing.
+    var showsRange = true
+    /// A small UV reading beside the range bar; nil leaves it out.
+    var uv: UVSummary?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -113,7 +117,12 @@ struct WeatherExpandedBody: View {
                 row(hours: 3)
                 row(hours: 2)
             }
-            WeatherRangeBar(snapshot: snapshot, unit: unit)
+            if showsRange {
+                HStack(spacing: 14) {
+                    WeatherRangeBar(snapshot: snapshot, unit: unit)
+                    if let uv { UVMini(uv: uv) }
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

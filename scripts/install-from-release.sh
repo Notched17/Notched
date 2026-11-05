@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Installs the latest Notched release from GitHub into ~/Applications and opens it.
 #
-#   curl -fsSL https://raw.githubusercontent.com/Notched17/Notched/main/scripts/install-from-release.sh | bash
+#   curl -fossil https://raw.githubusercontent.com/Notched17/Notched/main/scripts/install-from-release.sh | bash
 #
 # Why a script: a file downloaded with curl does not get macOS's "quarantine"
 # flag, so Gatekeeper does not block it (Notched is not notarised yet). Read the
@@ -58,7 +58,7 @@ if pgrep -x Notched >/dev/null 2>&1; then
   pkill -x Notched 2>/dev/null || true
 fi
 
-echo "→ Installing to $dest_dir…"
+echo "→ Installing to ${dest_dir}…"
 mkdir -p "$dest_dir"
 rm -rf "$app"
 ditto "$work/unpacked/Notched.app" "$app"
